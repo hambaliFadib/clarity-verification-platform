@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { lanes } from "../config/navigation";
 import { testCase } from "../data/mockData";
 import {
@@ -28,8 +28,8 @@ export function useNexqaDemo() {
   const [expandedSteps, setExpandedSteps] = useState(["03"]);
   const [menuProjectId, setMenuProjectId] = useState(null);
   const [modal, setModal] = useState(null);
-  const [toast, setToast] = useState("Test Case updated successfully");
-  const [isToastVisible, setIsToastVisible] = useState(true);
+  const [toast, setToast] = useState("");
+  const [isToastVisible, setIsToastVisible] = useState(false);
   const [testCaseTitle, setTestCaseTitle] = useState(testCase.title);
   const toastTimer = useRef(null);
 
@@ -76,6 +76,10 @@ export function useNexqaDemo() {
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setIsToastVisible(false), 2800);
   }
+
+  useEffect(() => {
+    return () => window.clearTimeout(toastTimer.current);
+  }, []);
 
   function navigate(page) {
     setActivePage(page);
