@@ -1,4 +1,4 @@
-# NexQA Backend Preparation
+# Clarity Platform Backend Preparation
 
 Backend is not implemented yet. This folder prepares the database layer so API routes can be added later without exposing database credentials to the React client.
 
@@ -29,5 +29,5 @@ Backend is not implemented yet. This folder prepares the database layer so API r
 ## Files
 
 - `db/neon.js` exports a server-only Neon SQL client.
-- `db/schema.sql` contains the first NexQA tables.
+- `db/schema.sql` contains the first Clarity Platform tables.
 - `scripts/db-smoke.mjs` validates `DATABASE_URL`.

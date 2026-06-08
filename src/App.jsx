@@ -2,7 +2,7 @@ import { Sidebar } from "./components/layout/Sidebar";
 import { TopBar } from "./components/layout/TopBar";
 import { ActionModal } from "./components/modals/ActionModal";
 import { Toast } from "./components/ui/Toast";
-import { useNexqaDemo } from "./hooks/useNexqaDemo";
+import { useClarityDemo } from "./hooks/useClarityDemo";
 import { DefectsPage } from "./pages/DefectsPage";
 import { MyWorkPage } from "./pages/MyWorkPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
@@ -12,10 +12,10 @@ import { TestCasesPage } from "./pages/TestCasesPage";
 import { TestRunsPage } from "./pages/TestRunsPage";
 
 function App() {
-  const { state, actions } = useNexqaDemo();
+  const { state, actions } = useClarityDemo();
 
   return (
-    <div className="nexqa-app">
+    <div className="clarity-app">
       <TopBar
         notifications={state.notifications}
         unreadCount={state.unreadNotificationCount}

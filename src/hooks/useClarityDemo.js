@@ -9,7 +9,7 @@ import {
   createTestRunDraft,
   createWorkItemDraft,
   getInitialDemoState,
-} from "../services/nexqaRepository";
+} from "../services/clarityRepository";
 
 const laneStatusByTitle = {
   "Not Started": "To Do",
@@ -25,7 +25,7 @@ function getProgressForLane(lane, currentProgress) {
   return currentProgress;
 }
 
-export function useNexqaDemo() {
+export function useClarityDemo() {
   const initialState = getInitialDemoState();
   const [activePage, setActivePage] = useState("my-work");
   const [activeTab, setActiveTab] = useState("general");

@@ -1,6 +1,6 @@
-# NexQA React Demo
+# Clarity Platform React Demo
 
-Prototype tampilan NexQA berbasis React untuk kebutuhan demo. Backend sengaja ditunda; semua data dan aksi masih memakai state lokal.
+Prototype tampilan Clarity Platform berbasis React untuk kebutuhan demo. Clarity Platform disiapkan sebagai AI Assisted Quality Governance platform yang nanti akan diintegrasikan dengan AI-QA-LAB untuk eksekusi, analisis, dan manajemen quality governance berbasis project.
 
 ## Jalankan
 
@@ -35,8 +35,8 @@ npm.cmd run db:smoke
 ## Struktur
 
 - `src/components` komponen reusable untuk layout, modal, dan UI primitives.
-- `src/pages` halaman utama NexQA.
-- `src/hooks/useNexqaDemo.js` state dan aksi demo lokal.
+- `src/pages` halaman utama Clarity Platform.
+- `src/hooks/useClarityDemo.js` state dan aksi demo lokal.
 - `src/services` adapter data. Saat backend siap, ganti mock repository ke API call.
 - `src/data/mockData.js` data dummy untuk demo.
 - `.env.example` contoh konfigurasi `VITE_API_BASE_URL`.

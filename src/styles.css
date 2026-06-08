@@ -129,7 +129,7 @@ button {
   fill: currentColor;
 }
 
-.nexqa-app {
+.clarity-app {
   height: 100vh;
   min-height: 100vh;
   display: grid;
@@ -2124,7 +2124,7 @@ p {
 }
 
 @media (max-width: 1280px) {
-  .nexqa-app {
+  .clarity-app {
     grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   }
 
@@ -2152,7 +2152,7 @@ p {
 }
 
 @media (max-width: 860px) {
-  .nexqa-app {
+  .clarity-app {
     height: auto;
     display: block;
     overflow: visible;
