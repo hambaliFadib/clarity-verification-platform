@@ -11,6 +11,20 @@ import {
   getInitialDemoState,
 } from "../services/nexqaRepository";
 
+const laneStatusByTitle = {
+  "Not Started": "To Do",
+  Active: "In Progress",
+  "Needs Attention": "Blocked",
+  Done: "Completed",
+};
+
+function getProgressForLane(lane, currentProgress) {
+  if (lane === "Not Started") return 0;
+  if (lane === "Active") return currentProgress === 0 ? 30 : currentProgress;
+  if (lane === "Done") return 100;
+  return currentProgress;
+}
+
 export function useNexqaDemo() {
   const initialState = getInitialDemoState();
   const [activePage, setActivePage] = useState("my-work");
@@ -28,6 +42,8 @@ export function useNexqaDemo() {
   const [expandedSteps, setExpandedSteps] = useState(["03"]);
   const [menuProjectId, setMenuProjectId] = useState(null);
   const [modal, setModal] = useState(null);
+  const [notifications, setNotifications] = useState(initialState.notifications);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [isToastVisible, setIsToastVisible] = useState(false);
   const [testCaseTitle, setTestCaseTitle] = useState(testCase.title);
@@ -70,6 +86,25 @@ export function useNexqaDemo() {
     [workItems],
   );
 
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((notification) => !notification.read).length,
+    [notifications],
+  );
+
+  function addNotification(title, body, tone = "info") {
+    setNotifications((current) => [
+      {
+        id: `NOTIF-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title,
+        body,
+        time: "Just now",
+        tone,
+        read: false,
+      },
+      ...current,
+    ]);
+  }
+
   function showToast(message) {
     setToast(message);
     setIsToastVisible(true);
@@ -84,12 +119,18 @@ export function useNexqaDemo() {
   function navigate(page) {
     setActivePage(page);
     setMenuProjectId(null);
+    setIsNotificationsOpen(false);
+  }
+
+  function toggleNotifications() {
+    setIsNotificationsOpen((current) => !current);
   }
 
   function openTestCase(tab = "general") {
     setActivePage("test-case");
     setActiveTab(tab);
     setMenuProjectId(null);
+    setIsNotificationsOpen(false);
   }
 
   function openModal(type, payload = {}) {
@@ -107,6 +148,32 @@ export function useNexqaDemo() {
     );
   }
 
+  function handleMoveWorkItem(itemId, targetLane) {
+    const movedItem = workItems.find((item) => item.id === itemId);
+
+    if (!movedItem || movedItem.lane === targetLane) return;
+
+    setWorkItems((current) =>
+      current.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              lane: targetLane,
+              status: laneStatusByTitle[targetLane] || item.status,
+              progress: getProgressForLane(targetLane, item.progress),
+            }
+          : item,
+      ),
+    );
+
+    addNotification(
+      `${movedItem.title} moved`,
+      `Hambali Fadib moved this task from ${movedItem.lane} to ${targetLane}.`,
+      "workflow",
+    );
+    showToast(`Task moved to ${targetLane}`);
+  }
+
   function handlePostComment() {
     if (!commentDraft.trim()) {
       showToast("Tulis komentar dulu sebelum post.");
@@ -115,16 +182,23 @@ export function useNexqaDemo() {
 
     setComments((current) => [createCommentDraft(commentDraft.trim()), ...current]);
     setCommentDraft("");
+    addNotification(
+      "New comment posted",
+      "Hambali Fadib added a new comment to the selected test case.",
+      "comment",
+    );
     showToast("Comment posted successfully");
   }
 
   function handleQuickAction(action) {
     if (action === "clone") {
+      addNotification("Test case cloned", "Hambali Fadib cloned the selected test case for review.", "success");
       showToast("Test case cloned for demo");
       return;
     }
 
     if (action === "delete") {
+      addNotification("Delete simulated", "Hambali Fadib triggered a delete action in the demo.", "danger");
       showToast("Delete simulated. Backend will handle persistence later.");
       return;
     }
@@ -134,6 +208,7 @@ export function useNexqaDemo() {
       return;
     }
 
+    addNotification("Test case updated", `Hambali Fadib completed the ${action} action.`, "info");
     showToast("Action completed");
   }
 
@@ -144,35 +219,42 @@ export function useNexqaDemo() {
 
     if (modal.type === "create-project") {
       setProjects((current) => [createProjectDraft(data, current.length), ...current]);
+      addNotification("Project created", `${data.name || "New Demo Project"} was added to the portfolio.`, "success");
       showToast("Project created locally for demo");
     }
 
     if (modal.type === "create-requirement") {
       setRequirements((current) => [createRequirementDraft(data, current.length), ...current]);
+      addNotification("Requirement created", `${data.title || "New demo requirement"} is ready for review.`, "info");
       showToast("Requirement created locally");
     }
 
     if (modal.type === "new-run") {
       setTestRuns((current) => [createTestRunDraft(data), ...current]);
+      addNotification("Test run scheduled", `${data.name || "New Test Run"} was scheduled locally.`, "workflow");
       showToast("Test run scheduled locally");
     }
 
     if (modal.type === "report-defect") {
       setDefects((current) => [createDefectDraft(data), ...current]);
+      addNotification("Defect reported", `${data.title || "New reported defect"} was added by the team.`, "danger");
       showToast("Defect reported locally");
     }
 
     if (modal.type === "create-work") {
       setWorkItems((current) => [createWorkItemDraft(data, current.length), ...current]);
+      addNotification("Work item added", `${data.title || "New demo work item"} was added to My Work.`, "success");
       showToast("Work item added locally");
     }
 
     if (modal.type === "edit-testcase") {
       setTestCaseTitle(data.title || testCaseTitle);
+      addNotification("Test case updated", "Hambali Fadib updated the test case title.", "info");
       showToast("Test Case updated successfully");
     }
 
     if (modal.type === "manage-team") {
+      addNotification("Team assignment updated", "The assigned review team was updated locally.", "workflow");
       showToast("Team assignment updated locally");
     }
 
@@ -183,6 +265,7 @@ export function useNexqaDemo() {
     actions: {
       closeModal,
       handleModalSubmit,
+      handleMoveWorkItem,
       handlePostComment,
       handleQuickAction,
       navigate,
@@ -195,6 +278,7 @@ export function useNexqaDemo() {
       setRequirementFilter,
       setSearchQuery,
       toggleStep,
+      toggleNotifications,
     },
     state: {
       activeNavId,
@@ -209,8 +293,10 @@ export function useNexqaDemo() {
       filteredRequirements,
       groupedWorkItems,
       isToastVisible,
+      isNotificationsOpen,
       menuProjectId,
       modal,
+      notifications,
       projects,
       requirementFilter,
       requirements,
@@ -218,6 +304,7 @@ export function useNexqaDemo() {
       testCaseTitle,
       testRuns,
       toast,
+      unreadNotificationCount,
     },
   };
 }

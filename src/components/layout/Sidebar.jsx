@@ -6,7 +6,7 @@ export function Sidebar({ activeNavId, onNavigate }) {
     <aside className="side-bar">
       <div className="project-hub">
         <span className="hub-icon">
-          <Icon name="cube" size={28} />
+          <Icon name="token" size={24} />
         </span>
         <div>
           <strong>Project Hub</strong>

@@ -1,15 +1,46 @@
+import { useState } from "react";
 import { Badge } from "../components/ui/Badge";
 import { SummaryCard } from "../components/ui/Cards";
 import { Icon } from "../components/ui/Icon";
 
-export function MyWorkPage({ groupedWorkItems, onCreateWork, onEditWork, onOpenTestCase }) {
+export function MyWorkPage({ groupedWorkItems, onCreateWork, onEditWork, onMoveWorkItem, onOpenTestCase }) {
+  const [draggedItemId, setDraggedItemId] = useState(null);
+  const [activeDropLane, setActiveDropLane] = useState(null);
   const totalItems = groupedWorkItems.reduce((sum, lane) => sum + lane.items.length, 0);
   const activeItems = groupedWorkItems.find((lane) => lane.title === "Active")?.items.length || 0;
   const needsAttention = groupedWorkItems.find((lane) => lane.title === "Needs Attention")?.items.length || 0;
 
+  function handleDragStart(event, itemId) {
+    setDraggedItemId(itemId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("text/plain", itemId);
+  }
+
+  function handleDragEnd() {
+    setDraggedItemId(null);
+    setActiveDropLane(null);
+  }
+
+  function handleLaneDragOver(event, laneTitle) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setActiveDropLane(laneTitle);
+  }
+
+  function handleLaneDrop(event, laneTitle) {
+    event.preventDefault();
+    const itemId = event.dataTransfer.getData("text/plain") || draggedItemId;
+
+    if (itemId) {
+      onMoveWorkItem(itemId, laneTitle);
+    }
+
+    handleDragEnd();
+  }
+
   return (
     <section className="page page-my-work">
-      <div className="eyebrow">Execution</div>
+      <div className="eyebrow">Workspace</div>
       <h1>My Work</h1>
 
       <div className="summary-grid">
@@ -29,9 +60,13 @@ export function MyWorkPage({ groupedWorkItems, onCreateWork, onEditWork, onOpenT
               </div>
               <strong>{lane.items.length}</strong>
             </div>
-            <div className="lane-cards">
+            <div
+              className={`lane-cards ${activeDropLane === lane.title ? "is-drop-target" : ""}`}
+              onDragOver={(event) => handleLaneDragOver(event, lane.title)}
+              onDrop={(event) => handleLaneDrop(event, lane.title)}
+            >
               {lane.items.map((item) => (
-                <article className="work-card" key={item.id}>
+                <article className={`work-card ${draggedItemId === item.id ? "is-dragging" : ""}`} key={item.id}>
                   <div className="card-actions">
                     <Badge>{item.type}</Badge>
                     <Badge tone={item.status}>{item.status}</Badge>
@@ -50,6 +85,18 @@ export function MyWorkPage({ groupedWorkItems, onCreateWork, onEditWork, onOpenT
                   </div>
                   <p>Scope: {item.scope}</p>
                   <footer>{item.owner}</footer>
+                  <button
+                    className="drag-handle"
+                    draggable
+                    onDragEnd={handleDragEnd}
+                    onDragStart={(event) => handleDragStart(event, item.id)}
+                    type="button"
+                    aria-label={`Move ${item.title}`}
+                  >
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <span key={index} />
+                    ))}
+                  </button>
                 </article>
               ))}
             </div>

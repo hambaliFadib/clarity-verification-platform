@@ -40,11 +40,15 @@ const iconPaths = {
   team: "M8 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm8.5 1a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7ZM2 20a6 6 0 0 1 12 0H2Zm11.8 0a7.9 7.9 0 0 0-2.2-4.7A5.5 5.5 0 0 1 22 20h-8.2Z",
   warning:
     "M12 3 22 20H2L12 3Zm0 4L5.5 18h13L12 7Zm-1 3h2v4h-2v-4Zm0 5h2v2h-2v-2Z",
+  verified:
+    "M23 12l-2.44-2.79.34-3.69-3.61-.82-1.89-3.2L12 2.96 8.6 1.5 6.71 4.7 3.1 5.52l.34 3.7L1 12l2.44 2.79-.34 3.69 3.61.82 1.89 3.2 3.4-1.46 3.4 1.46 1.89-3.2 3.61-.82-.34-3.7L23 12zm-13 5l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z",
+  token:
+    "M12 2 2 12l10 10 10-10L12 2zm0 3.24L18.76 12 12 18.76 5.24 12 12 5.24z",
 };
 
-export function Icon({ name, size = 20 }) {
+export function Icon({ name, size = 20, className }) {
   return (
-    <svg className="icon" style={{ "--icon-size": `${size}px` }} viewBox="0 0 24 24" aria-hidden="true">
+    <svg className={`icon ${className || ""}`} style={{ "--icon-size": `${size}px` }} viewBox="0 0 24 24" aria-hidden="true">
       <path d={iconPaths[name] || iconPaths.cube} />
     </svg>
   );

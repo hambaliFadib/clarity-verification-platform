@@ -16,7 +16,12 @@ function App() {
 
   return (
     <div className="nexqa-app">
-      <TopBar searchQuery={state.searchQuery} onSearch={actions.setSearchQuery} />
+      <TopBar
+        notifications={state.notifications}
+        unreadCount={state.unreadNotificationCount}
+        isNotificationsOpen={state.isNotificationsOpen}
+        onToggleNotifications={actions.toggleNotifications}
+      />
       <Sidebar activeNavId={state.activeNavId} onNavigate={actions.navigate} />
 
       <main className="main-panel">
@@ -25,6 +30,7 @@ function App() {
             groupedWorkItems={state.groupedWorkItems}
             onCreateWork={() => actions.openModal("create-work")}
             onEditWork={() => actions.openModal("create-work")}
+            onMoveWorkItem={actions.handleMoveWorkItem}
             onOpenTestCase={() => actions.openTestCase("general")}
           />
         )}

@@ -254,6 +254,25 @@ export const initialComments = [
   },
 ];
 
+export const initialNotifications = [
+  {
+    id: "NOTIF-001",
+    title: "Sarah Chen reviewed test case",
+    body: "Expected interaction for step 3 was reviewed in Login suite.",
+    time: "1 hour ago",
+    tone: "success",
+    read: false,
+  },
+  {
+    id: "NOTIF-002",
+    title: "Jane Doe resolved DEF-389",
+    body: "Incorrect error message moved to resolved status.",
+    time: "4 hours ago",
+    tone: "info",
+    read: false,
+  },
+];
+
 export const testCase = {
   id: "AWA-TC-014",
   title: "Verify system handles password reset request for an unregistered email address",

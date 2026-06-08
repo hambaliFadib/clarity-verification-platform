@@ -1,6 +1,7 @@
 import {
   initialComments,
   initialDefects,
+  initialNotifications,
   initialProjects,
   initialRequirements,
   initialTestRuns,
@@ -11,6 +12,7 @@ export function getInitialDemoState() {
   return {
     comments: initialComments,
     defects: initialDefects,
+    notifications: initialNotifications,
     projects: initialProjects,
     requirements: initialRequirements,
     testRuns: initialTestRuns,
