@@ -171,7 +171,7 @@ GitHub is the source of truth. Pull requests and pushes to `dev`, `demo`, and `m
 Current Vercel projects:
 
 - `clarity-verification-platform-dev`: sandbox deployment path for `dev`.
-- `clarity-verification-platform-web`: production deployment path for `main`.
+- `clarity-verification-platform-prod`: production deployment path for `main` (`https://clarity-verification-platform-web.vercel.app`).
 
 Vercel receives `DATABASE_URL` from the Neon Vercel Integration. Preview deployments can receive branch-specific database URLs.
 
