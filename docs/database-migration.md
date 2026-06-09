@@ -39,8 +39,8 @@ alembic downgrade -1
 
 Recommended Neon branch usage:
 
-- `dev`: persistent shared development branch
-- `feat/*`: preview child branches for isolated feature testing
-- `main`: production branch in a future phase
+- `main`: production/default Neon branch used by the Vercel production deployment
+- `dev`: integration branch validated by CI before promotion to `main`
+- `dev-alpha`, `dev-beta`, `dev-charlie`: sandbox branches that should use local database settings or manually created Neon branches only when isolation is needed
 
-When using Vercel Preview Deployments, the Neon Vercel Integration can inject branch-specific `DATABASE_URL` values so preview builds do not write to the shared dev database.
+The default workflow keeps Vercel and Neon focused on `main`. Sandbox work should not rely on automatic Vercel Preview Deployments.

@@ -5,64 +5,70 @@ The repository uses a small-team branch model optimized for 3 contributors.
 ## Branches
 
 ```text
-dev      -> Sandbox / playground development, including fixing work
-demo     -> Minimum public demo branch for features ready to be tried
-main     -> Production / real usage branch for stable features
-feat/*   -> Feature branches created from dev
-fix/*    -> Bug fix branches created from dev
-chore/*  -> Maintenance/configuration branches created from dev
-docs/*   -> Documentation branches created from dev
+dev-alpha   -> Individual sandbox branch created from dev
+dev-beta    -> Individual sandbox branch created from dev
+dev-charlie -> Individual sandbox branch created from dev
+dev         -> Integration branch for completed sandbox work
+main        -> Production / real usage branch for stable features
 ```
 
 ## Rules
 
-- `dev` is the only sandbox branch. Experiments, fixes, and early feature work start here.
-- `demo` receives only reviewed work from `dev` that is ready for public trial.
-- `main` receives only promoted work from `demo` and is treated as the real usage branch.
-- Feature, fix, chore, and docs branches start from the latest `dev`.
-- Pull requests should target `dev` first unless a production emergency process is introduced later.
-- Each pull request should keep a focused scope.
+- `dev-alpha`, `dev-beta`, and `dev-charlie` are sandbox branches for feature work and fixing.
+- Each sandbox branch starts from the latest `dev`.
+- Completed sandbox work merges into `dev`.
+- `dev` is the integration branch and should stay usable after every merge.
+- `main` receives only promoted work from `dev` after `dev` has no known blocking bugs.
 - Merge only after CI passes and at least one teammate reviews the change.
-- Do not merge `dev` directly to `main`. The release path is always `dev -> demo -> main`.
-- The old `fixing` branch is retired. Use `fix/<bug-name>` branches from `dev` instead.
+- The release path is always `dev-alpha/dev-beta/dev-charlie -> dev -> main`.
+- The old `demo` and `fixing` branches are retired from the active workflow.
 
 ## Contributor Flow
+
+For `dev-alpha`, replace the branch name with `dev-beta` or `dev-charlie` as needed:
 
 ```bash
 git checkout dev
 git pull origin dev
-git checkout -b feat/test-case-list
+git checkout dev-alpha
+git merge dev
 ```
 
 After implementing:
 
 ```bash
 git add .
-git commit -m "Add test case list scaffold"
-git push origin feat/test-case-list
+git commit -m "Add focused change"
+git push origin dev-alpha
 ```
 
 Then open a pull request to `dev`.
 
-## Promotion Flow
+## Integration Flow
 
-After `dev` is stable enough for public trial:
+After a sandbox branch is ready:
 
 ```bash
-git checkout demo
-git pull origin demo
-git merge dev
-git push origin demo
+git checkout dev
+git pull origin dev
+git merge dev-alpha
+git push origin dev
 ```
 
-After `demo` is accepted for real usage:
+CI runs on `dev` after the merge.
+
+## Promotion Flow
+
+After `dev` is stable and has no known blocking bugs:
 
 ```bash
 git checkout main
 git pull origin main
-git merge demo
+git merge dev
 git push origin main
 ```
+
+CI runs on `main`, then Vercel deploys the production app from `main`.
 
 Return to `dev` after promotion:
 

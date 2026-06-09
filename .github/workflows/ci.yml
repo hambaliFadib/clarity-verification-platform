@@ -3,13 +3,17 @@ name: CI
 on:
   push:
     branches:
+      - dev-alpha
+      - dev-beta
+      - dev-charlie
       - dev
-      - demo
       - main
   pull_request:
     branches:
+      - dev-alpha
+      - dev-beta
+      - dev-charlie
       - dev
-      - demo
       - main
 
 permissions:

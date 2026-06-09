@@ -136,13 +136,11 @@ See [docs/database-migration.md](docs/database-migration.md) for the full workfl
 ## Git Branching Strategy
 
 ```text
-dev      -> Sandbox / playground development, including fixing work
-demo     -> Minimum public demo branch for features ready to be tried
-main     -> Production / real usage branch for stable features
-feat/*   -> Feature branches created from dev
-fix/*    -> Bug fix branches created from dev
-chore/*  -> Maintenance/configuration branches created from dev
-docs/*   -> Documentation branches created from dev
+dev-alpha   -> Individual sandbox branch created from dev
+dev-beta    -> Individual sandbox branch created from dev
+dev-charlie -> Individual sandbox branch created from dev
+dev         -> Integration branch for completed sandbox work
+main        -> Production / real usage branch for stable features
 ```
 
 ## Contributor Workflow
@@ -150,30 +148,27 @@ docs/*   -> Documentation branches created from dev
 For the 3-contributor team:
 
 1. Pull latest `dev`.
-2. Create `feat/<feature-name>`, `fix/<bug-name>`, `docs/<topic>`, or `chore/<task>`.
-3. Commit focused changes.
-4. Push the branch.
-5. Open a pull request to `dev`.
-6. Request review from at least one teammate.
-7. Merge after CI passes and review is complete.
+2. Work in the assigned sandbox branch: `dev-alpha`, `dev-beta`, or `dev-charlie`.
+3. Commit focused feature or fixing changes.
+4. Push the sandbox branch.
+5. Open a pull request from the sandbox branch to `dev`.
+6. Merge after CI passes and review is complete.
 
-Promotion order is always `dev -> demo -> main`. Do not merge `dev` directly to `main`.
+Promotion order is always `dev-alpha/dev-beta/dev-charlie -> dev -> main`. Merge `dev` to `main` only after `dev` is stable and has no known blocking bugs.
 
 ## CI/CD Overview
 
-GitHub is the source of truth. Pull requests and pushes to `dev`, `demo`, and `main` run GitHub Actions checks for the frontend and backend. Vercel should be connected to the GitHub repository for automatic deployments:
+GitHub is the source of truth. Pull requests and pushes to `dev-alpha`, `dev-beta`, `dev-charlie`, `dev`, and `main` run GitHub Actions checks for the frontend and backend. Vercel should be connected to the GitHub repository for automatic production deployment from `main` only:
 
-- `dev`: Vercel Preview Deployment backed by a persistent NeonDB dev branch.
-- `demo`: Vercel demo/preview deployment backed by a NeonDB demo branch when configured.
-- `feat/*`: Vercel Preview Deployment backed by a Neon child branch when configured.
-- `main`: Production Deployment and NeonDB main branch for real usage.
+- `dev-alpha`, `dev-beta`, `dev-charlie`: sandbox branches for feature and fixing work; CI only.
+- `dev`: integration branch for completed sandbox work; CI only.
+- `main`: Vercel Production Deployment and NeonDB production branch for real usage.
 
 Current Vercel projects:
 
-- `clarity-verification-platform-dev`: sandbox deployment path for `dev`.
 - `clarity-verification-platform-prod`: production deployment path for `main` (`https://clarity-verification-platform-web.vercel.app`).
 
-Vercel receives `DATABASE_URL` from the Neon Vercel Integration. Preview deployments can receive branch-specific database URLs.
+Vercel receives `DATABASE_URL` from the Neon Vercel Integration for the production `main` deployment. Sandbox branches should use local database settings or manually created Neon branches when isolation is needed.
 
 See [docs/ci-cd.md](docs/ci-cd.md) for the full GitHub -> Vercel -> NeonDB flow.
 

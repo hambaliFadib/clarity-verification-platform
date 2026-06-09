@@ -1,10 +1,16 @@
 # CI/CD
 
-This project uses GitHub, Vercel, and NeonDB together.
+This project uses GitHub Actions for validation and a single Vercel + NeonDB production path from `main`.
 
 ## Pull Request Checks
 
-GitHub Actions runs on pull requests and pushes targeting `dev`, `demo`, and `main`.
+GitHub Actions runs on pull requests and pushes targeting these branches:
+
+- `dev-alpha`
+- `dev-beta`
+- `dev-charlie`
+- `dev`
+- `main`
 
 The Phase 1 pipeline checks:
 
@@ -18,70 +24,54 @@ The Phase 1 pipeline checks:
 
 The workflow is intentionally small so early contributors can move quickly.
 
+## Branch Flow
+
+| Branch | Purpose | Merge Target |
+|---|---|---|
+| `dev-alpha` | Individual sandbox for feature and fixing work | `dev` |
+| `dev-beta` | Individual sandbox for feature and fixing work | `dev` |
+| `dev-charlie` | Individual sandbox for feature and fixing work | `dev` |
+| `dev` | Integration branch for completed sandbox work | `main` |
+| `main` | Production / real usage branch | none |
+
+When `dev-alpha`, `dev-beta`, or `dev-charlie` is merged into `dev`, CI runs on `dev`.
+
+When `dev` is merged into `main`, CI runs on `main` and Vercel deploys production.
+
 ## Vercel Deployment Flow
 
-The project uses **two Vercel projects** connected to the same GitHub repository:
+The active deployment path uses one Vercel project:
 
-### Project 1: Production (`clarity-verification-platform-prod`)
+### Production Project (`clarity-verification-platform-prod`)
 
 | Setting | Value |
 |---|---|
 | Production Branch | `main` |
 | Root Directory | `apps/web` |
-| Framework | Next.js (auto-detected) |
+| Framework | Next.js |
+| Build Command | `npm run build:web` |
+| Install Command | `npm install` |
+| Production URL | `https://clarity-verification-platform-web.vercel.app` |
 
-- Push to `main` → Production Deployment (real usage URL).
-- Push to `demo` → Preview Deployment (public trial URL).
-- Push to `feat/*` → Preview Deployment (feature preview URL).
+- Push to `main` creates the production deployment.
+- Pushes to `dev`, `dev-alpha`, `dev-beta`, `dev-charlie`, and retired `demo` are disabled for Vercel Git deployments by `apps/web/vercel.json`.
+- Sandbox and integration branches are validated by GitHub Actions only.
 
-### Project 2: Development (`clarity-verification-platform-dev`)
+The old development Vercel project is no longer part of the main workflow. If it is kept, set **Ignored Build Step** to `exit 0` so Git-triggered builds are skipped, or remove it manually once there is no deployment history you still need.
 
-| Setting | Value |
-|---|---|
-| Production Branch | `dev` |
-| Root Directory | `apps/web` |
-| Framework | Next.js (auto-detected) |
+## NeonDB Mapping
 
-- Push to `dev` → Production Deployment on the dev project (sandbox URL).
+The default workflow keeps NeonDB focused on production:
 
-### Why Two Projects?
-
-Vercel only creates a permanent Production Deployment for the configured Production Branch. A single project with `main` as Production Branch would only generate Preview Deployments for `dev`, which expire and lack a stable URL. The second project gives `dev` its own permanent deployment URL for sandbox testing.
-
-## NeonDB Branch Mapping
-
-The NeonDB project has 3 branches that mirror the Git branches:
-
-| Git Branch | Neon Branch | Purpose |
+| Git Branch | Neon Usage | Purpose |
 |---|---|---|
-| `main` | `production` (Default) | Production data for real usage |
-| `demo` | `demo` | Public trial data |
-| `dev` | `dev` | Sandbox / experimental data |
+| `main` | `production` / default branch | Production data for real usage |
+| `dev` | local DB or manually created Neon branch | Integration validation |
+| `dev-alpha` | local DB or manually created Neon branch | Sandbox work |
+| `dev-beta` | local DB or manually created Neon branch | Sandbox work |
+| `dev-charlie` | local DB or manually created Neon branch | Sandbox work |
 
-### Connecting NeonDB to Vercel
-
-Each Vercel project should have `DATABASE_URL` set in its Environment Variables pointing to the matching Neon branch connection string.
-
-**Production Vercel project** (`clarity-verification-platform-prod`):
-
-| Vercel Environment | Neon Branch | How |
-|---|---|---|
-| Production (`main`) | `production` | Set `DATABASE_URL` in Production environment |
-| Preview (`demo`, `feat/*`) | `demo` | Set `DATABASE_URL` in Preview environment |
-
-**Development Vercel project** (`clarity-verification-platform-dev`):
-
-| Vercel Environment | Neon Branch | How |
-|---|---|---|
-| Production (`dev`) | `dev` | Set `DATABASE_URL` in Production environment |
-
-To set these values:
-1. Go to each Vercel project → Settings → Environment Variables.
-2. Add `DATABASE_URL` with the Neon connection string for the matching branch.
-3. Select the correct environment (Production / Preview / Development).
-4. Also add `NEXT_PUBLIC_API_BASE_URL` and `ENVIRONMENT` for each environment.
-
-Alternatively, use the **Neon Vercel Integration** from the Neon dashboard to automatically sync `DATABASE_URL` values.
+Only the Vercel production environment should receive the production `DATABASE_URL` from the Neon Vercel Integration.
 
 ## Environment Variable Mapping
 
@@ -89,9 +79,9 @@ Required values:
 
 - `DATABASE_URL`: server-side database connection string
 - `NEXT_PUBLIC_API_BASE_URL`: browser-visible API base URL
-- `ENVIRONMENT`: local, dev, preview, production, or ci
+- `ENVIRONMENT`: local, ci, or production
 
-Do not commit real values. Use `.env.example` for documentation, `.env.local` for local secrets, GitHub secrets for CI, and Vercel environment variables for deployments.
+Do not commit real values. Use `.env.example` for documentation, `.env.local` for local secrets, GitHub secrets for CI, and Vercel environment variables for production deployments.
 
 ## Manual Setup Checklist
 
@@ -99,18 +89,11 @@ Do not commit real values. Use `.env.example` for documentation, `.env.local` fo
 
 1. Use the existing `clarity-verification-platform-prod` Vercel project.
 2. Set **Root Directory** to `apps/web`.
-3. Set **Production Branch** to `main` (Settings → Git).
-4. Add environment variables: `DATABASE_URL` (from Neon `production` branch), `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=production`.
-5. Set Preview environment `DATABASE_URL` to the Neon `demo` branch connection string.
-
-### Vercel Development Project
-
-1. Use the existing `clarity-verification-platform-dev` Vercel project.
-2. Set **Root Directory** to `apps/web`.
-3. Set **Production Branch** to `dev` (Settings → Git).
-4. Add environment variables: `DATABASE_URL` (from Neon `dev` branch), `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=dev`.
-
-Verify the production branch manually in the Vercel dashboard after setup. Some project settings are dashboard-owned and may reject CLI/API updates.
+3. Set **Production Branch** to `main`.
+4. Set **Framework Preset** to `Next.js`.
+5. Set **Install Command** to `npm install`.
+6. Set **Build Command** to `npm run build:web`.
+7. Add environment variables: `DATABASE_URL` from Neon production, `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=production`.
 
 ### Vercel `.next` Output Error
 
@@ -125,23 +108,37 @@ If a Vercel deployment says `.next` was not found at `/vercel/path0/.next`, the 
 ### NeonDB
 
 1. Keep the default `production` branch for `main`.
-2. Create a `demo` branch from `production`.
-3. Create a `dev` branch from `production`.
-4. Copy each branch's connection string into the matching Vercel project environment variable.
+2. Use local database settings for sandbox work by default.
+3. Create manual Neon child branches only when a sandbox needs isolated shared data.
+4. Do not wire sandbox branches into the production Vercel project.
 
 ## GitHub Push Flow
 
-Use this order when publishing branch changes:
+Start sandbox work from `dev`:
 
 ```bash
-git push origin dev
-git checkout demo
+git checkout dev
+git pull origin dev
+git checkout dev-alpha
 git merge dev
-git push origin demo
+git push origin dev-alpha
+```
+
+After a sandbox branch is ready:
+
+```bash
+git checkout dev
+git pull origin dev
+git merge dev-alpha
+git push origin dev
+```
+
+After `dev` is stable and has no known blocking bugs:
+
+```bash
 git checkout main
-git merge demo
+git pull origin main
+git merge dev
 git push origin main
 git checkout dev
 ```
-
-For normal feature work, push only the feature branch and open a pull request to `dev`.

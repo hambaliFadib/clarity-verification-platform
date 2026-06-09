@@ -7,8 +7,8 @@ NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and docum
 - `apps/web`: Next.js frontend for QA project management workflows.
 - `apps/api`: FastAPI backend for API routes, database access, and future domain services.
 - NeonDB PostgreSQL: managed database for application data.
-- Vercel: hosting for the web app and preview deployments.
-- GitHub Actions: validation for pull requests to `dev` and `main`.
+- Vercel: production hosting for the web app from `main`.
+- GitHub Actions: validation for sandbox, integration, and production branches.
 
 ## Frontend
 
@@ -40,9 +40,9 @@ PostgreSQL runs on NeonDB. SQLAlchemy owns runtime database access. Alembic owns
 
 Recommended branch mapping:
 
-- `main`: Neon main branch in the future
-- `dev`: persistent Neon dev branch
-- `feat/*`: dynamic child branches for preview environments when configured
+- `main`: Neon production/default branch for real usage
+- `dev`: integration branch validated by CI before promotion
+- `dev-alpha`, `dev-beta`, `dev-charlie`: sandbox branches that use local database settings or manually created Neon branches when isolation is needed
 
 ## Scaling Rationale
 
