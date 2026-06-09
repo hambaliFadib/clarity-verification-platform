@@ -1,66 +1,176 @@
-# NexQA
+# NexQA - Clarity Platform
 
-Prototype React untuk NexQA. Area kerja utama di aplikasi saat ini adalah **Clarity Platform**, yaitu workspace quality governance yang sedang diarahkan bertahap menuju integrasi AI-QA-LAB.
+NexQA is a QA project management platform focused on clarity across test case management, test execution, defect management, QA collaboration, and release readiness.
 
-Scope terdekat tidak lagi mengejar integrasi besar sekaligus. Fokus implementasi `dev` saat ini diperkecil ke **test case management** dan **defect management** terlebih dahulu, lalu area lain menyusul setelah fondasi workflow ini stabil.
+This repository is the Phase 1 foundation for the Clarity Platform product area. It sets up a clean monorepo with a Next.js frontend, a FastAPI backend, PostgreSQL on NeonDB, Vercel deployment preparation, GitHub Actions CI, and developer documentation for a small team of 3 contributors.
 
-Issue scope saat ini: [#4 Phase 1: Focus Clarity Platform scope on test case and defect management](https://github.com/hambaliFadib/clarity-verification-platform/issues/4).
+## Phase 1 Scope
 
-## Jalankan
+- Test Case Management
+- Test Run Management
+- Defect / Bug Management
+- Release Readiness foundation
+- QA collaboration workflow
 
-```bash
-npm.cmd install
-npm.cmd run dev
+Phase 1 intentionally avoids full integrations, authentication, payments, and advanced automation. The goal is to create a stable foundation before adding complex product logic.
+
+## Tech Stack
+
+- Frontend: Next.js, React, TypeScript, Tailwind CSS
+- Backend: FastAPI, Python, SQLAlchemy
+- Migration: Alembic
+- Database: PostgreSQL on NeonDB Free Tier
+- Hosting: Vercel
+- VCS and CI: GitHub and GitHub Actions
+
+## Repository Structure
+
+```text
+.
+|-- apps/
+|   |-- web/                  # Next.js frontend
+|   |   |-- app/
+|   |   |-- components/
+|   |   |-- lib/
+|   |   |-- public/
+|   |   |-- package.json
+|   |   |-- next.config.js
+|   |   |-- tailwind.config.js
+|   |   `-- tsconfig.json
+|   `-- api/                  # FastAPI backend
+|       |-- app/
+|       |   |-- core/
+|       |   |-- db/
+|       |   |-- models/
+|       |   |-- routers/
+|       |   |-- schemas/
+|       |   `-- services/
+|       |-- alembic/
+|       |-- alembic.ini
+|       `-- requirements.txt
+|-- docs/
+|-- .github/workflows/
+|-- .env.example
+|-- .gitignore
+|-- vercel.json
+`-- README.md
 ```
 
-Lalu buka URL lokal yang muncul dari Vite.
+The monorepo keeps the frontend and backend isolated while allowing shared repository governance, branch strategy, and CI checks.
 
-## Status Project
+## Local Development Setup
 
-- Branch kerja utama: `dev`.
-- Brand aplikasi: NexQA.
-- Workspace/area produk di sidebar: Clarity Platform.
-- Kondisi frontend: prototype React + Vite dengan data mock lokal.
-- Kondisi backend: scaffold awal database Neon, belum ada API production.
-- Integrasi AI-QA-LAB: masih menjadi arah besar, belum menjadi scope implementasi langsung.
-
-## Neon Database
-
-Jalankan wizard Neon:
+### Frontend
 
 ```bash
-npm.cmd run neon:init
+cd apps/web
+npm install
+npm run dev
 ```
 
-Jika CLI menunggu login, selesaikan browser auth secara lokal atau set `NEON_API_KEY` terlebih dahulu. Setelah Neon project dibuat, isi `DATABASE_URL` di `.env.local`, lalu cek koneksi:
+Open the local URL shown by Next.js, usually `http://127.0.0.1:3000`.
+
+From the repository root, you can also run:
 
 ```bash
-npm.cmd run db:smoke
+npm run dev:web
 ```
 
-## Fokus Fase 1
+### Backend
 
-Fase pertama dipusatkan pada workflow QA yang paling konkret di project ini:
+```bash
+cd apps/api
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-- Test case management: daftar test case, detail test case, step, status, komentar, dan riwayat perubahan.
-- Defect management: daftar defect, pelaporan defect, status/severity/priority, dan hubungan defect dengan test case.
-- Hubungan test case dan defect sebagai fondasi sebelum masuk ke integrasi AI-QA-LAB yang lebih luas.
+Health check:
 
-Area seperti Requirements, Test Runs, My Work, Settings, dan orkestrasi AI-QA-LAB tetap ada sebagai arah produk, tetapi untuk saat ini menjadi area pendukung atau fase berikutnya.
+```bash
+curl http://127.0.0.1:8000/health
+```
 
-## Fitur Demo Saat Ini
+## Environment Variables
 
-- Navigasi React untuk My Work, Requirements, Test Cases, Test Runs, Defects, dan Settings placeholder.
-- Mock create project, create requirement, create work item, new test run, report defect, edit test case, manage team, dan post comment.
-- Detail test case dengan tab General, Run History, Change History, Defects, dan Comments.
-- Search/filter lokal, action menu, modal form, expandable steps, toast feedback, dan data table/kanban sesuai arah visual Figma.
+Copy `.env.example` to your local environment file and fill in the values:
 
-## Struktur
+```env
+DATABASE_URL=
+NEXT_PUBLIC_API_BASE_URL=
+ENVIRONMENT=local
+```
 
-- `src/components` komponen reusable untuk layout, modal, dan UI primitives.
-- `src/pages` halaman utama NexQA, termasuk halaman Test Cases dan Defects yang menjadi fokus fase 1.
-- `src/hooks/useClarityDemo.js` state dan aksi demo lokal.
-- `src/services` adapter data. Saat backend siap, ganti mock repository ke API call.
-- `src/data/mockData.js` data dummy untuk demo.
-- `.env.example` contoh konfigurasi `VITE_API_BASE_URL`.
-- `server` scaffold database Neon server-only.
+- `DATABASE_URL`: PostgreSQL connection string from NeonDB.
+- `NEXT_PUBLIC_API_BASE_URL`: frontend-visible API base URL, for example `http://127.0.0.1:8000`.
+- `ENVIRONMENT`: local, dev, preview, production, or ci.
+
+Never commit `.env.local` or real secrets.
+
+## Database Migration Workflow
+
+Run Alembic commands from `apps/api`.
+
+Create a migration:
+
+```bash
+alembic revision --autogenerate -m "create initial qa tables"
+```
+
+Run migrations:
+
+```bash
+alembic upgrade head
+```
+
+Rollback one migration:
+
+```bash
+alembic downgrade -1
+```
+
+See [docs/database-migration.md](docs/database-migration.md) for the full workflow.
+
+## Git Branching Strategy
+
+```text
+main     -> Production / future stable release
+dev      -> Integration branch / Vercel preview / NeonDB dev branch
+feat/*   -> Feature branches / Vercel preview / NeonDB dynamic child branch
+fix/*    -> Bug fix branches
+chore/*  -> Maintenance/configuration branches
+docs/*   -> Documentation branches
+```
+
+## Contributor Workflow
+
+For the 3-contributor team:
+
+1. Pull latest `dev`.
+2. Create `feat/<feature-name>`, `fix/<bug-name>`, `docs/<topic>`, or `chore/<task>`.
+3. Commit focused changes.
+4. Push the branch.
+5. Open a pull request to `dev`.
+6. Request review from at least one teammate.
+7. Merge after CI passes and review is complete.
+
+## CI/CD Overview
+
+GitHub is the source of truth. Pull requests to `dev` and `main` run GitHub Actions checks for the frontend and backend. Vercel should be connected to the GitHub repository for automatic deployments:
+
+- `dev`: Vercel Preview Deployment backed by a persistent NeonDB dev branch.
+- `feat/*`: Vercel Preview Deployment backed by a Neon child branch when configured.
+- `main`: Production Deployment and NeonDB main branch in a future phase.
+
+Vercel receives `DATABASE_URL` from the Neon Vercel Integration. Preview deployments can receive branch-specific database URLs.
+
+See [docs/ci-cd.md](docs/ci-cd.md) for the full GitHub -> Vercel -> NeonDB flow.
+
+## Phase Roadmap
+
+- Phase 1: TCMS + Defect foundation
+- Phase 2: Test execution workflow
+- Phase 3: Release readiness analytics
+- Phase 4: Integrations and automation

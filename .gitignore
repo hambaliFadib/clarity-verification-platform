@@ -1,6 +1,22 @@
 # Dependencies
 node_modules/
 
+# Next.js
+.next/
+out/
+apps/web/.next/
+apps/web/out/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+apps/api/.venv/
+
 # Build outputs
 dist/
 build/
@@ -18,6 +34,9 @@ pnpm-debug.log*
 .env.*
 !.env.example
 
+# Vercel
+.vercel/
+
 # Editor / OS
 .DS_Store
 Thumbs.db
@@ -28,6 +47,7 @@ Thumbs.db
 coverage/
 playwright-report/
 test-results/
+htmlcov/
 
 # Temporary files
 tmp/
