@@ -20,31 +20,68 @@ The workflow is intentionally small so early contributors can move quickly.
 
 ## Vercel Deployment Flow
 
-Connect the GitHub repository to Vercel and use the Next.js app in `apps/web`.
+The project uses **two Vercel projects** connected to the same GitHub repository:
 
-Recommended branch behavior:
+### Project 1: Production (`clarity-verification-platform-prod`)
 
-- `dev`: separate Vercel development project for sandbox/pre-production verification
-- `demo`: preview or demo deployment for features ready to be tried publicly
-- `main`: production deployment for real usage
-- `feat/*`: preview deployments while feature work is still isolated
+| Setting | Value |
+|---|---|
+| Production Branch | `main` |
+| Root Directory | `apps/web` |
+| Framework | Next.js (auto-detected) |
 
-The production Vercel project uses `main` as the Production Branch. The development Vercel project uses `dev` as its Production Branch so sandbox work can be checked before promotion.
+- Push to `main` → Production Deployment (real usage URL).
+- Push to `demo` → Preview Deployment (public trial URL).
+- Push to `feat/*` → Preview Deployment (feature preview URL).
 
-If Vercel is configured with a monorepo Root Directory, set the Root Directory to `apps/web`. The app-level `apps/web/vercel.json` keeps the build command compatible with that setting.
+### Project 2: Development (`clarity-verification-platform-dev`)
 
-## NeonDB Branch Flow
+| Setting | Value |
+|---|---|
+| Production Branch | `dev` |
+| Root Directory | `apps/web` |
+| Framework | Next.js (auto-detected) |
 
-Use the Neon Vercel Integration so database URLs can be injected into Vercel environment variables.
+- Push to `dev` → Production Deployment on the dev project (sandbox URL).
 
-Recommended mapping:
+### Why Two Projects?
 
-- `main`: Neon main branch for production data
-- `demo`: Neon demo branch for public trial data
-- `dev`: persistent Neon dev branch for sandbox data
-- `feat/*`: dynamic Neon child branch for preview environments
+Vercel only creates a permanent Production Deployment for the configured Production Branch. A single project with `main` as Production Branch would only generate Preview Deployments for `dev`, which expire and lack a stable URL. The second project gives `dev` its own permanent deployment URL for sandbox testing.
 
-Preview deployments should receive branch-specific `DATABASE_URL` values. This keeps feature testing isolated from shared development data.
+## NeonDB Branch Mapping
+
+The NeonDB project has 3 branches that mirror the Git branches:
+
+| Git Branch | Neon Branch | Purpose |
+|---|---|---|
+| `main` | `production` (Default) | Production data for real usage |
+| `demo` | `demo` | Public trial data |
+| `dev` | `dev` | Sandbox / experimental data |
+
+### Connecting NeonDB to Vercel
+
+Each Vercel project should have `DATABASE_URL` set in its Environment Variables pointing to the matching Neon branch connection string.
+
+**Production Vercel project** (`clarity-verification-platform-prod`):
+
+| Vercel Environment | Neon Branch | How |
+|---|---|---|
+| Production (`main`) | `production` | Set `DATABASE_URL` in Production environment |
+| Preview (`demo`, `feat/*`) | `demo` | Set `DATABASE_URL` in Preview environment |
+
+**Development Vercel project** (`clarity-verification-platform-dev`):
+
+| Vercel Environment | Neon Branch | How |
+|---|---|---|
+| Production (`dev`) | `dev` | Set `DATABASE_URL` in Production environment |
+
+To set these values:
+1. Go to each Vercel project → Settings → Environment Variables.
+2. Add `DATABASE_URL` with the Neon connection string for the matching branch.
+3. Select the correct environment (Production / Preview / Development).
+4. Also add `NEXT_PUBLIC_API_BASE_URL` and `ENVIRONMENT` for each environment.
+
+Alternatively, use the **Neon Vercel Integration** from the Neon dashboard to automatically sync `DATABASE_URL` values.
 
 ## Environment Variable Mapping
 
@@ -56,17 +93,29 @@ Required values:
 
 Do not commit real values. Use `.env.example` for documentation, `.env.local` for local secrets, GitHub secrets for CI, and Vercel environment variables for deployments.
 
-## Manual Setup
+## Manual Setup Checklist
 
-1. Connect GitHub repository to the production Vercel project.
-2. Set production project Production Branch to `main`.
-3. Connect the same GitHub repository to a development Vercel project.
-4. Set development project Production Branch to `dev`.
-5. Configure Root Directory as `apps/web` on both projects.
-6. Install or connect the Neon Vercel Integration.
-7. Map `main`, `demo`, and `dev` to separate Neon branches where possible.
-8. Enable preview branches for `feat/*` if the team wants isolated database previews.
-9. Confirm `DATABASE_URL` is present in Vercel Preview and Production environments.
+### Vercel Production Project
+
+1. Import GitHub repository as a new Vercel project.
+2. Set **Root Directory** to `apps/web`.
+3. Set **Production Branch** to `main` (Settings → Git).
+4. Add environment variables: `DATABASE_URL` (from Neon `production` branch), `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=production`.
+5. Set Preview environment `DATABASE_URL` to the Neon `demo` branch connection string.
+
+### Vercel Development Project
+
+1. Import the **same** GitHub repository as another Vercel project.
+2. Set **Root Directory** to `apps/web`.
+3. Set **Production Branch** to `dev` (Settings → Git).
+4. Add environment variables: `DATABASE_URL` (from Neon `dev` branch), `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=dev`.
+
+### NeonDB
+
+1. Keep the default `production` branch for `main`.
+2. Create a `demo` branch from `production`.
+3. Create a `dev` branch from `production`.
+4. Copy each branch's connection string into the matching Vercel project environment variable.
 
 ## GitHub Push Flow
 
