@@ -6,7 +6,7 @@ export function TopBar({ notifications, unreadCount, isNotificationsOpen, onTogg
     <header className="top-bar">
       <button className="brand-button" type="button">
         <Icon name="verified" size={24} className="logo-icon" />
-        <span>Clarity Platform</span>
+        <span>NexQA</span>
       </button>
 
       <div className="top-spacer" />

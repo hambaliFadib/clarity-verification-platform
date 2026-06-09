@@ -9,7 +9,7 @@ export function Sidebar({ activeNavId, onNavigate }) {
           <Icon name="token" size={24} />
         </span>
         <div>
-          <strong>Project Hub</strong>
+          <strong>Clarity Platform</strong>
           <span>Governance and delivery</span>
         </div>
       </div>
