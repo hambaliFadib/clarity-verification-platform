@@ -136,12 +136,13 @@ See [docs/database-migration.md](docs/database-migration.md) for the full workfl
 ## Git Branching Strategy
 
 ```text
-main     -> Production / future stable release
-dev      -> Integration branch / Vercel preview / NeonDB dev branch
-feat/*   -> Feature branches / Vercel preview / NeonDB dynamic child branch
-fix/*    -> Bug fix branches
-chore/*  -> Maintenance/configuration branches
-docs/*   -> Documentation branches
+dev      -> Sandbox / playground development, including fixing work
+demo     -> Minimum public demo branch for features ready to be tried
+main     -> Production / real usage branch for stable features
+feat/*   -> Feature branches created from dev
+fix/*    -> Bug fix branches created from dev
+chore/*  -> Maintenance/configuration branches created from dev
+docs/*   -> Documentation branches created from dev
 ```
 
 ## Contributor Workflow
@@ -156,13 +157,16 @@ For the 3-contributor team:
 6. Request review from at least one teammate.
 7. Merge after CI passes and review is complete.
 
+Promotion order is always `dev -> demo -> main`. Do not merge `dev` directly to `main`.
+
 ## CI/CD Overview
 
-GitHub is the source of truth. Pull requests to `dev` and `main` run GitHub Actions checks for the frontend and backend. Vercel should be connected to the GitHub repository for automatic deployments:
+GitHub is the source of truth. Pull requests and pushes to `dev`, `demo`, and `main` run GitHub Actions checks for the frontend and backend. Vercel should be connected to the GitHub repository for automatic deployments:
 
 - `dev`: Vercel Preview Deployment backed by a persistent NeonDB dev branch.
+- `demo`: Vercel demo/preview deployment backed by a NeonDB demo branch when configured.
 - `feat/*`: Vercel Preview Deployment backed by a Neon child branch when configured.
-- `main`: Production Deployment and NeonDB main branch in a future phase.
+- `main`: Production Deployment and NeonDB main branch for real usage.
 
 Vercel receives `DATABASE_URL` from the Neon Vercel Integration. Preview deployments can receive branch-specific database URLs.
 
