@@ -168,6 +168,11 @@ GitHub is the source of truth. Pull requests and pushes to `dev`, `demo`, and `m
 - `feat/*`: Vercel Preview Deployment backed by a Neon child branch when configured.
 - `main`: Production Deployment and NeonDB main branch for real usage.
 
+Current Vercel projects:
+
+- `clarity-verification-platform-dev`: sandbox deployment path for `dev`.
+- `clarity-verification-platform-web`: production deployment path for `main`.
+
 Vercel receives `DATABASE_URL` from the Neon Vercel Integration. Preview deployments can receive branch-specific database URLs.
 
 See [docs/ci-cd.md](docs/ci-cd.md) for the full GitHub -> Vercel -> NeonDB flow.

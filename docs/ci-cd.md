@@ -22,7 +22,7 @@ The workflow is intentionally small so early contributors can move quickly.
 
 The project uses **two Vercel projects** connected to the same GitHub repository:
 
-### Project 1: Production (`clarity-verification-platform-prod`)
+### Project 1: Production (`clarity-verification-platform-web`)
 
 | Setting | Value |
 |---|---|
@@ -62,7 +62,7 @@ The NeonDB project has 3 branches that mirror the Git branches:
 
 Each Vercel project should have `DATABASE_URL` set in its Environment Variables pointing to the matching Neon branch connection string.
 
-**Production Vercel project** (`clarity-verification-platform-prod`):
+**Production Vercel project** (`clarity-verification-platform-web`):
 
 | Vercel Environment | Neon Branch | How |
 |---|---|---|
@@ -97,7 +97,7 @@ Do not commit real values. Use `.env.example` for documentation, `.env.local` fo
 
 ### Vercel Production Project
 
-1. Import GitHub repository as a new Vercel project.
+1. Use the existing `clarity-verification-platform-web` Vercel project.
 2. Set **Root Directory** to `apps/web`.
 3. Set **Production Branch** to `main` (Settings → Git).
 4. Add environment variables: `DATABASE_URL` (from Neon `production` branch), `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=production`.
@@ -105,10 +105,22 @@ Do not commit real values. Use `.env.example` for documentation, `.env.local` fo
 
 ### Vercel Development Project
 
-1. Import the **same** GitHub repository as another Vercel project.
+1. Use the existing `clarity-verification-platform-dev` Vercel project.
 2. Set **Root Directory** to `apps/web`.
 3. Set **Production Branch** to `dev` (Settings → Git).
 4. Add environment variables: `DATABASE_URL` (from Neon `dev` branch), `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=dev`.
+
+Verify the production branch manually in the Vercel dashboard after setup. Some project settings are dashboard-owned and may reject CLI/API updates.
+
+### Vercel `.next` Output Error
+
+If a Vercel deployment says `.next` was not found at `/vercel/path0/.next`, the project is building from the repository root while expecting a root-level Next.js app. Fix the Vercel project settings:
+
+- Root Directory: `apps/web`
+- Framework Preset: `Next.js`
+- Install Command: `npm install`
+- Build Command: `npm run build:web`
+- Output Directory: Next.js default
 
 ### NeonDB
 
