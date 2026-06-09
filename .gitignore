@@ -6,6 +6,7 @@ node_modules/
 out/
 apps/web/.next/
 apps/web/out/
+*.tsbuildinfo
 
 # Python
 __pycache__/
