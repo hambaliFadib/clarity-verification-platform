@@ -1,21 +1,67 @@
-import { releases } from "@/lib/mock-data";
+"use client";
+import { useMemo } from "react";
+import { testCases, defects } from "@/lib/mock-data";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Bug, FlaskConical } from "lucide-react";
+import { Calendar, Bug, FlaskConical, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { releaseStatusBadgeVariants } from "@/lib/badge-variants";
+import type { Release } from "@/lib/types";
 
 export default function ReleasesPage() {
+  const dynamicReleases = useMemo(() => {
+    const modules = Array.from(new Set(testCases.map(tc => tc.module)));
+
+    return modules.map((mod, index) => {
+      const moduleTests = testCases.filter(tc => tc.module === mod);
+
+      let passedTests = 0;
+      moduleTests.forEach(tc => {
+        if (tc.status === "Approved" || tc.status === "Ready") passedTests++;
+      });
+
+      const moduleDefects = defects.filter(d =>
+        d.linkedTestCase && moduleTests.some(tc => tc.id === d.linkedTestCase)
+      );
+
+      const openDefects = moduleDefects.filter(d => d.status === "Open" || d.status === "In Progress").length;
+      const criticalDefects = moduleDefects.filter(d => d.severity === "Critical").length;
+
+      const progressStatus = passedTests === moduleTests.length && moduleTests.length > 0
+        ? "Released"
+        : (passedTests > 0 ? "In Progress" : "Planning");
+
+      return {
+        id: `mod-rel-${index}`,
+        version: mod.toUpperCase().substring(0, 3) + "-REL",
+        name: `${mod} Module`,
+        status: progressStatus,
+        startDate: "2026-06-01",
+        targetDate: "2026-06-30",
+        description: `Aggregated release readiness for the ${mod} module based on current test cases.`,
+        totalTestCases: moduleTests.length,
+        passedTestCases: passedTests,
+        totalDefects: moduleDefects.length,
+        openDefects,
+        criticalDefects,
+      } as Release;
+    }).sort((a, b) => b.totalTestCases - a.totalTestCases);
+  }, []);
+
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <PageHeader
         title="Releases"
-        subtitle="Track release milestones and readiness"
-        actions={<Button><Plus className="h-4 w-4" /> Create Release</Button>}
+        subtitle="Track release milestones grouped by test case modules"
       />
+
+      <div className="bg-surface-container-low border border-outline-variant rounded-xl p-4 mb-4 flex items-center gap-3 text-body-sm text-on-surface-variant">
+        <Layers className="h-5 w-5 text-primary" />
+        <p>Releases are currently auto-generated based on the <strong className="text-on-surface">Modules</strong> defined in your Test Cases.</p>
+      </div>
+
       <div className="space-y-4">
-        {releases.map((rel) => {
+        {dynamicReleases.map((rel) => {
           const passRate = rel.totalTestCases > 0 ? Math.round((rel.passedTestCases / rel.totalTestCases) * 100) : 0;
           return (
             <div key={rel.id} className="bg-white border border-outline-variant rounded-xl p-6 hover:shadow-card transition-all">
@@ -31,7 +77,7 @@ export default function ReleasesPage() {
               </div>
               <div className="flex items-center gap-8 mb-4 text-body-sm text-on-surface-variant flex-wrap">
                 <span className="flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> {rel.startDate} to {rel.targetDate}</span>
-                <span className="flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" /> {rel.passedTestCases}/{rel.totalTestCases} tests passed</span>
+                <span className="flex items-center gap-1.5"><FlaskConical className="h-3.5 w-3.5" /> {rel.passedTestCases}/{rel.totalTestCases} tests ready</span>
                 <span className="flex items-center gap-1.5">
                   <Bug className="h-3.5 w-3.5" /> {rel.totalDefects} defects
                   {rel.openDefects > 0 && <span className="text-warning font-medium">({rel.openDefects} open)</span>}
@@ -41,12 +87,12 @@ export default function ReleasesPage() {
               {rel.totalTestCases > 0 && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-outline">Test Progress</span>
+                    <span className="text-outline">Module Readiness</span>
                     <span className="font-bold text-on-surface">{passRate}%</span>
                   </div>
                   <div className="h-2 w-full bg-surface-container-high rounded-full overflow-hidden">
                     <div
-                      className={cn("h-full rounded-full transition-all duration-500", passRate >= 70 ? "bg-emerald-500" : "bg-error")}
+                      className={cn("h-full rounded-full transition-all duration-500", passRate >= 70 ? "bg-emerald-500" : (passRate > 30 ? "bg-primary" : "bg-error"))}
                       style={{ width: `${passRate}%` }}
                     />
                   </div>

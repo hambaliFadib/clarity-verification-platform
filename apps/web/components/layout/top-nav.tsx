@@ -1,34 +1,50 @@
-import { Bell, HelpCircle, Shield } from "lucide-react";
+"use client";
+import { HelpCircle, Shield, Menu } from "lucide-react";
+import { NotificationPopover } from "./notification-popover";
 
-export function TopNav() {
+interface TopNavProps {
+  onMenuClick?: () => void;
+  onToggleDesktop?: () => void;
+  isDesktopOpen?: boolean;
+}
+
+export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: TopNavProps) {
   return (
-    <header className="flex justify-between items-center h-14 px-gutter w-full sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-outline-variant">
+    <header className="flex justify-between items-center h-14 px-gutter w-full sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-outline-variant transition-all duration-300">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-gradient-to-br from-primary-container to-primary rounded-lg flex items-center justify-center">
-          <Shield className="h-4 w-4 text-white" />
-        </div>
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            className="md:hidden p-2 -ml-2 text-on-surface hover:bg-surface-container-low rounded-full transition-colors"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+        {!isDesktopOpen && onToggleDesktop && (
+          <button
+            onClick={onToggleDesktop}
+            className="hidden md:block p-2 -ml-2 text-on-surface hover:bg-surface-container-low rounded-full transition-colors animate-fade-in"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+        <Shield className="h-6 w-6 text-primary" />
         <span className="text-headline-sm font-headline font-bold text-on-surface">
           NexQA
         </span>
       </div>
 
       <div className="flex items-center gap-2">
+        <NotificationPopover />
         <button
-          className="relative p-2 hover:bg-surface-container-high transition-colors rounded-full"
-          aria-label="Notifications"
-        >
-          <Bell className="h-[18px] w-[18px] text-on-surface-variant" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-error rounded-full ring-2 ring-white" />
-        </button>
-        <button
-          className="p-2 hover:bg-surface-container-high transition-colors rounded-full"
+          className="p-2 hover:bg-surface-container-high transition-colors rounded-full hidden sm:block"
           aria-label="Help"
         >
           <HelpCircle className="h-[18px] w-[18px] text-on-surface-variant" />
         </button>
 
         <div className="flex items-center gap-3 pl-3 ml-1 border-l border-outline-variant">
-          <div className="text-right">
+          <div className="text-right hidden sm:block">
             <p className="text-label-bold font-label-bold text-on-surface leading-tight">
               Hambali Fadib
             </p>
