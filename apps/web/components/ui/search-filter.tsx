@@ -7,9 +7,16 @@ interface SearchFilterProps {
   className?: string;
   value?: string;
   onChange?: (value: string) => void;
+  onAddFilterClick?: () => void;
 }
 
-export function SearchFilter({ placeholder = "Search...", className, value, onChange }: SearchFilterProps) {
+export function SearchFilter({
+  placeholder = "Search...",
+  className,
+  value,
+  onChange,
+  onAddFilterClick
+}: SearchFilterProps) {
   return (
     <div className={cn("flex gap-2", className)}>
       <div className="flex-1 bg-white border border-outline-variant rounded-lg px-3 py-2 flex items-center gap-2 focus-within:border-primary-container focus-within:ring-1 focus-within:ring-primary-fixed-dim transition-all">
@@ -25,6 +32,7 @@ export function SearchFilter({ placeholder = "Search...", className, value, onCh
       <button
         className="bg-white border border-outline-variant rounded-lg px-4 py-2 text-label-bold font-label-bold flex items-center gap-2 hover:bg-surface-container-low hover:border-outline transition-all"
         type="button"
+        onClick={onAddFilterClick}
       >
         <SlidersHorizontal className="h-4 w-4" />
         Add filter
