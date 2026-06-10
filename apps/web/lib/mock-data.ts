@@ -19,9 +19,7 @@ export const teamMembers: TeamMember[] = [
   { id: "u5", name: "David Park", email: "david@nexqa.io", role: "Developer", initials: "DP" },
 ];
 
-/* Test Cases */
-
-export const testCases: TestCase[] = [
+export let testCases: TestCase[] = [
   {
     id: "CLR-TC-001",
     title: "User Login with Valid Credentials",
@@ -709,3 +707,22 @@ export const workItems: WorkItem[] = [
   { id: "wi-4", title: "Security Audit Report", type: "Task", status: "Blocked", priority: "High", progress: 65, scope: "ENERGY / Migration", assignedTo: "Hambali Fadib", dueIn: "10d remaining", createdAt: "2026-06-02T09:00:00Z" },
   { id: "wi-5", title: "User Interface Prototyping", type: "Task", status: "Completed", priority: "Medium", progress: 100, scope: "ENERGY / Migration", assignedTo: "Hambali Fadib", createdAt: "2026-06-01T08:00:00Z" },
 ];
+
+export function addTestCase(tc: TestCase) {
+  testCases.push(tc);
+}
+
+export function generateTestCaseId(): string {
+  const ids = testCases.map((tc) => {
+    const match = tc.id.match(/CLR-TC-(\d+)/);
+    return match ? parseInt(match[1], 10) : 0;
+  });
+  const maxId = ids.length > 0 ? Math.max(...ids) : 0;
+  const nextId = maxId + 1;
+  return `CLR-TC-${String(nextId).padStart(3, "0")}`;
+}
+
+export function getModules(): string[] {
+  const modules = testCases.map((tc) => tc.module);
+  return Array.from(new Set(modules)).sort();
+}

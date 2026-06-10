@@ -1,6 +1,8 @@
 from functools import lru_cache
-
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 
 class Settings(BaseSettings):
@@ -8,7 +10,7 @@ class Settings(BaseSettings):
     environment: str = "local"
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(str(ROOT_DIR / ".env"), str(ROOT_DIR / ".env.local")),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -25,3 +27,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+

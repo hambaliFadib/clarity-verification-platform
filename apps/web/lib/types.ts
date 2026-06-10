@@ -1,5 +1,3 @@
-/* Test Case */
-
 export type TestCaseStatus = "Draft" | "Ready" | "In Review" | "Approved" | "Obsolete";
 export type TestCasePriority = "Critical" | "High" | "Medium" | "Low";
 export type TestCaseType = "Functional" | "Regression" | "Smoke" | "Integration" | "UI" | "Performance" | "Security";
@@ -10,6 +8,10 @@ export interface TestStep {
   expectedResult: string;
   status?: "Passed" | "Failed" | "Blocked" | "Not Run" | "Skipped";
   actualResult?: string;
+  
+  id?: string;
+  order?: number;
+  testData?: string;
 }
 
 export interface TestCase {
@@ -20,7 +22,7 @@ export interface TestCase {
   priority: TestCasePriority;
   status: TestCaseStatus;
   type: TestCaseType;
-  assignedTo: string;
+  assignedTo?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -28,9 +30,14 @@ export interface TestCase {
   steps: TestStep[];
   tags?: string[];
   estimatedTime?: string;
-}
 
-/* Defect */
+  complexity?: "Simple" | "Medium" | "Complex";
+  environment?: "Staging" | "Production" | "UAT" | "Development";
+  automationStatus?: "Manual" | "Automated" | "Candidate to Automate";
+  preconditions?: string;
+  expectedResult?: string;
+  notes?: string;
+}
 
 export type DefectSeverity = "Critical" | "High" | "Medium" | "Low";
 export type DefectStatus = "Open" | "In Progress" | "Resolved" | "Closed" | "Blocked" | "Reopened";
@@ -57,8 +64,6 @@ export interface Defect {
   tags?: string[];
 }
 
-/* Test Run */
-
 export type TestRunStatus = "Not Started" | "In Progress" | "Completed" | "Aborted";
 
 export interface TestRun {
@@ -79,8 +84,6 @@ export interface TestRun {
   createdAt: string;
 }
 
-/* Environment */
-
 export type EnvironmentType = "Development" | "Staging" | "Production" | "QA" | "UAT";
 export type EnvironmentStatus = "Active" | "Inactive" | "Maintenance";
 
@@ -94,8 +97,6 @@ export interface Environment {
   version?: string;
   description?: string;
 }
-
-/* Release */
 
 export type ReleaseStatus = "Planning" | "In Progress" | "Ready" | "Released" | "Cancelled";
 
@@ -115,8 +116,6 @@ export interface Release {
   criticalDefects: number;
 }
 
-/* Team */
-
 export type UserRole = "Admin" | "QA Lead" | "QA Engineer" | "Developer" | "Viewer";
 
 export interface TeamMember {
@@ -127,8 +126,6 @@ export interface TeamMember {
   avatar?: string;
   initials: string;
 }
-
-/* Activity */
 
 export type ActivityAction =
   | "created"
@@ -153,8 +150,6 @@ export interface ActivityItem {
   detail?: string;
 }
 
-/* Navigation */
-
 export interface NavItem {
   label: string;
   href: string;
@@ -167,8 +162,6 @@ export interface NavGroup {
   title: string;
   items: NavItem[];
 }
-
-/* Work Item (Kanban) */
 
 export type WorkItemStatus = "To Do" | "In Progress" | "Blocked" | "Completed";
 export type WorkItemType = "Task" | "Test Case" | "Defect" | "Test Run";

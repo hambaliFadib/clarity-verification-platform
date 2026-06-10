@@ -1,10 +1,22 @@
 "use client";
-import { use, useState, type ReactNode } from "react";
+
+import { use, useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
-import { testCases, defects } from "@/lib/mock-data";
+import { defects } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pencil, Copy, Trash2, Play, CheckCircle2, XCircle, MinusCircle, AlertTriangle, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  Pencil,
+  Copy,
+  Trash2,
+  Play,
+  CheckCircle2,
+  XCircle,
+  MinusCircle,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
   getDefectStatusBadgeVariant,
@@ -13,6 +25,7 @@ import {
   testCaseStatusBadgeVariants,
   testCaseTypeBadgeVariants,
 } from "@/lib/badge-variants";
+import type { TestCase } from "@/lib/types";
 
 const tabs = ["Details", "Steps", "Defects"];
 
@@ -27,14 +40,46 @@ const stepStatusIcon: Record<string, ReactNode> = {
 export default function TestCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [activeTab, setActiveTab] = useState("Details");
-  const tc = testCases.find((t) => t.id === id);
+  const [tc, setTc] = useState<TestCase | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!tc) {
+  useEffect(() => {
+    async function loadTestCase() {
+      try {
+        const res = await fetch(`/api/test-cases/${id}`);
+        if (!res.ok) {
+          setError(`The test case "${id}" does not exist.`);
+          return;
+        }
+        const data = await res.json();
+        setTc(data);
+      } catch (err) {
+        setError("Failed to fetch test case details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadTestCase();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
+        <div className="text-body-sm text-outline">Loading test case details...</div>
+      </div>
+    );
+  }
+
+  if (error || !tc) {
     return (
       <div className="p-8 text-center">
         <h2 className="text-headline-md font-headline text-on-surface">Test Case Not Found</h2>
-        <p className="text-body-md text-on-surface-variant mt-2">The test case &quot;{id}&quot; does not exist.</p>
-        <Link href="/test-cases" className="text-primary-container hover:underline mt-4 inline-block">Back to Test Cases</Link>
+        <p className="text-body-md text-on-surface-variant mt-2">{error || `The test case "${id}" does not exist.`}</p>
+        <Link href="/test-cases" className="text-primary-container hover:underline mt-4 inline-block">
+          Back to Test Cases
+        </Link>
       </div>
     );
   }
@@ -43,7 +88,10 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
-      <Link href="/test-cases" className="inline-flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-primary-container transition-colors">
+      <Link
+        href="/test-cases"
+        className="inline-flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-primary-container transition-colors"
+      >
         <ArrowLeft className="h-4 w-4" /> Back to Test Cases
       </Link>
 
@@ -58,10 +106,23 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" size="sm"><Pencil className="h-3.5 w-3.5" /> Edit</Button>
-          <Button variant="secondary" size="sm"><Copy className="h-3.5 w-3.5" /> Clone</Button>
-          <Button variant="ghost" size="sm" className="text-error hover:text-error hover:bg-error/5" aria-label="Delete test case"><Trash2 className="h-3.5 w-3.5" /></Button>
-          <Button size="sm"><Play className="h-3.5 w-3.5" /> Run Test</Button>
+          <Button variant="secondary" size="sm">
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+          <Button variant="secondary" size="sm">
+            <Copy className="h-3.5 w-3.5" /> Clone
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-error hover:text-error hover:bg-error/5"
+            aria-label="Delete test case"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="sm">
+            <Play className="h-3.5 w-3.5" /> Run Test
+          </Button>
         </div>
       </div>
 
@@ -72,9 +133,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
             onClick={() => setActiveTab(tab)}
             className={cn(
               "px-5 py-3 text-body-md font-medium transition-all relative",
-              activeTab === tab
-                ? "text-primary-container font-semibold"
-                : "text-on-surface-variant hover:text-on-surface"
+              activeTab === tab ? "text-primary-container font-semibold" : "text-on-surface-variant hover:text-on-surface"
             )}
           >
             {tab}
@@ -96,7 +155,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {[
               { label: "Module", value: tc.module },
-              { label: "Assigned To", value: tc.assignedTo },
+              { label: "Assigned To", value: tc.assignedTo || "-" },
               { label: "Created By", value: tc.createdBy },
               { label: "Created", value: formatDate(tc.createdAt) },
               { label: "Last Modified", value: formatDate(tc.updatedAt) },
@@ -112,7 +171,11 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           {tc.tags && tc.tags.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               <span className="text-label-bold text-outline">Tags:</span>
-              {tc.tags.map((tag) => (<Badge key={tag} variant="outline">{tag}</Badge>))}
+              {tc.tags.map((tag) => (
+                <Badge key={tag} variant="outline">
+                  {tag}
+                </Badge>
+              ))}
             </div>
           )}
         </div>
@@ -165,7 +228,11 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
             </div>
           ) : (
             linkedDefects.map((d) => (
-              <Link key={d.id} href={`/defects/${d.id}`} className="block bg-white border border-outline-variant rounded-xl p-4 hover:shadow-card hover:border-primary/30 transition-all">
+              <Link
+                key={d.id}
+                href={`/defects/${d.id}`}
+                className="block bg-white border border-outline-variant rounded-xl p-4 hover:shadow-card hover:border-primary/30 transition-all"
+              >
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <div className="flex gap-2">
