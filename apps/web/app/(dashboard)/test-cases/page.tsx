@@ -17,6 +17,10 @@ import {
   testCaseTypeBadgeVariants,
 } from "@/lib/badge-variants";
 import type { TestCase } from "@/lib/types";
+import {
+  AdvancedFilterModal,
+  type TestCaseAdvancedFilters,
+} from "@/components/test-cases/advanced-filter-modal";
 
 export default function TestCasesPage() {
   const router = useRouter();
@@ -42,6 +46,15 @@ export default function TestCasesPage() {
     loadTestCases();
   }, []);
 
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<TestCaseAdvancedFilters>({
+    module: "",
+    type: "",
+    priority: "",
+  });
+
+  const availableModules = Array.from(new Set(allCases.map(tc => tc.module)));
+
   const totalCount = allCases.length;
   const approvedCount = allCases.filter((tc) => tc.status === "Approved").length;
   const failedCount = allCases.filter((tc) => tc.steps?.some((s) => s.status === "Failed")).length;
@@ -57,7 +70,11 @@ export default function TestCasesPage() {
       activeStatus === "all" ||
       tc.status.toLowerCase() === activeStatus.replace(/-/g, " ").toLowerCase();
 
-    return matchesSearch && matchesStatus;
+    const matchesModule = !advancedFilters.module || tc.module === advancedFilters.module;
+    const matchesType = !advancedFilters.type || tc.type === advancedFilters.type;
+    const matchesPriority = !advancedFilters.priority || tc.priority === advancedFilters.priority;
+
+    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesPriority;
   });
 
   const statusTabs = [
@@ -121,7 +138,12 @@ export default function TestCasesPage() {
       </div>
 
       <StatusTabs tabs={statusTabs} defaultValue={activeStatus} onChange={setActiveStatus} />
-      <SearchFilter placeholder="Search test cases..." value={search} onChange={setSearch} />
+      <SearchFilter
+        placeholder="Search test cases..."
+        value={search}
+        onChange={setSearch}
+        onAddFilterClick={() => setIsAdvancedFilterOpen(true)}
+      />
 
       <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
         <table className="w-full">
@@ -177,6 +199,14 @@ export default function TestCasesPage() {
       <div className="text-body-sm text-on-surface-variant">
         Showing {filteredCases.length} of {totalCount} test cases
       </div>
+
+      <AdvancedFilterModal
+        isOpen={isAdvancedFilterOpen}
+        onClose={() => setIsAdvancedFilterOpen(false)}
+        currentFilters={advancedFilters}
+        onApply={setAdvancedFilters}
+        availableModules={availableModules}
+      />
     </div>
   );
 }
