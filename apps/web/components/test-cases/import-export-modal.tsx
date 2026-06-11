@@ -149,10 +149,10 @@ export function ImportExportModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center p-4 pt-20 overflow-y-auto">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-20 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity"
         onClick={isParsing ? undefined : onClose}
       />
 

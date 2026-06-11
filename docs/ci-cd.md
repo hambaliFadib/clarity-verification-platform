@@ -80,6 +80,9 @@ Required values:
 - `DATABASE_URL`: server-side database connection string
 - `NEXT_PUBLIC_API_BASE_URL`: browser-visible API base URL
 - `ENVIRONMENT`: local, ci, or production
+- `NEXTAUTH_SECRET`: NextAuth JWT/session signing secret
+- `NEXTAUTH_URL`: canonical web URL for auth callbacks
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials for Phase 2 auth
 
 Do not commit real values. Use `.env.example` for documentation, `.env.local` for local secrets, GitHub secrets for CI, and Vercel environment variables for production deployments.
 
@@ -94,6 +97,13 @@ Do not commit real values. Use `.env.example` for documentation, `.env.local` fo
 5. Set **Install Command** to `npm install`.
 6. Set **Build Command** to `npm run build:web`.
 7. Add environment variables: `DATABASE_URL` from Neon production, `NEXT_PUBLIC_API_BASE_URL`, `ENVIRONMENT=production`.
+8. Add auth variables before enabling Google sign-in: `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`.
+
+## Phase Release Notes
+
+Phase 1 releases are promoted from `dev` to `main` only after the frontend build, frontend typecheck, and backend compile validation pass locally or in CI.
+
+Phase 2 work can land behind MVP-safe behavior, but production sign-in should not be treated as complete until Google OAuth credentials, email verification delivery, guest data lifecycle, and production callback URLs are confirmed.
 
 ### Vercel `.next` Output Error
 

@@ -220,9 +220,10 @@ export default function CreateTestCasePage() {
   };
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in w-full pb-20">
-      <Link
-        href="/test-cases"
+    <>
+      <div className="p-6 space-y-6 animate-fade-in w-full pb-20">
+        <Link
+          href="/test-cases"
         className="inline-flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-primary-container transition-colors"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Test Cases
@@ -702,9 +703,10 @@ export default function CreateTestCasePage() {
           </Button>
         </div>
       </form>
+      </div>
 
       {isPreviewOpen && previewData && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md p-4 overflow-y-auto animate-fade-in">
           <div className="bg-white border border-outline-variant rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
             <div className="px-6 py-4 bg-surface-container-low border-b border-outline-variant flex justify-between items-center flex-shrink-0">
               <div className="flex flex-col">
@@ -842,6 +844,6 @@ export default function CreateTestCasePage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

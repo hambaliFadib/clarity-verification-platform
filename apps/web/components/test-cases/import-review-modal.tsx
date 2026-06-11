@@ -95,8 +95,8 @@ export function ImportReviewModal({ isOpen, parseResult, onClose, onComplete }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} />
       <div className="relative bg-surface-container rounded-2xl shadow-2xl border border-outline-variant w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
           <h2 className="text-title-md font-semibold text-on-surface">Import Review</h2>

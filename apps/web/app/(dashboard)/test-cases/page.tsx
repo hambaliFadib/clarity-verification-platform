@@ -122,8 +122,9 @@ export default function TestCasesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      {importToast && (
+    <>
+      <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in-up">
+        {importToast && (
         <div className="fixed bottom-6 right-6 z-50 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl px-5 py-3 text-body-sm text-on-surface max-w-sm animate-fade-in">
           {importToast}
         </div>
@@ -242,6 +243,8 @@ export default function TestCasesPage() {
         Showing {filteredCases.length} of {totalCount} test cases
       </div>
 
+      </div>
+
       <AdvancedFilterModal
         isOpen={isAdvancedFilterOpen}
         onClose={() => setIsAdvancedFilterOpen(false)}
@@ -270,6 +273,6 @@ export default function TestCasesPage() {
         }}
         totalCount={totalCount}
       />
-    </div>
+    </>
   );
 }
