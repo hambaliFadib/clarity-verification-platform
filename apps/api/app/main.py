@@ -12,6 +12,7 @@ from app.routers.test_cases import router as test_cases_router
 from app.routers.test_runs import router as test_runs_router
 from app.routers.users import router as users_router
 from app.routers.work_items import router as work_items_router
+from app.routers.oauth import router as oauth_router
 
 
 app = FastAPI(
@@ -38,6 +39,7 @@ app.include_router(import_export_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")
 app.include_router(releases_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")
+app.include_router(oauth_router, prefix="/api/v1")
 app.include_router(test_cases_router, prefix="/api/v1")
 app.include_router(test_runs_router, prefix="/api/v1")
 app.include_router(work_items_router, prefix="/api/v1")

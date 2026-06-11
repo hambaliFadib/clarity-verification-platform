@@ -5,7 +5,7 @@ import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
 import { Folder, BarChart3, AlertCircle, Users, Plus, Eye, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { WorkItem } from "@/lib/types";
+import type { WorkItem, WorkItemStatus } from "@/lib/types";
 
 const columns = [
   { key: "To Do", label: "Not Started", subtitle: "Belum dimulai atau masih draft.", countColor: "text-outline" },
@@ -24,9 +24,13 @@ function getStatusBadgeClass(status: string) {
   }
 }
 
-function WorkItemCard({ item }: { item: WorkItem }) {
+function WorkItemCard({ item, onDragStart }: { item: WorkItem, onDragStart: (e: React.DragEvent, id: string) => void }) {
   return (
-    <div className="bg-white border border-outline-variant rounded-xl p-4 shadow-subtle hover:border-primary transition-all duration-200 group cursor-pointer">
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, item.id)}
+      className="bg-white border border-outline-variant rounded-xl p-4 shadow-subtle hover:border-primary hover:-translate-y-0.5 transition-all duration-200 group cursor-grab active:cursor-grabbing"
+    >
       <div className="flex items-start justify-between mb-3">
         <div className="flex flex-wrap gap-1.5">
           <span className="text-[10px] font-bold px-1.5 py-0.5 bg-surface-container-high text-primary rounded">
@@ -87,6 +91,44 @@ export default function MyWorkPage() {
     };
   }, []);
 
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necessary to allow dropping
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, status: WorkItemStatus) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain");
+    if (!id) return;
+
+    const itemToMove = workItems.find((w) => w.id === id);
+    if (!itemToMove || itemToMove.status === status) return;
+
+    // Optimistic update
+    const previousItems = [...workItems];
+    setWorkItems(workItems.map(w => w.id === id ? { ...w, status } : w));
+
+    try {
+      const response = await fetch(`/api/work-items/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      setWorkItems(previousItems); // Revert on failure
+    }
+  };
+
   const activeTasks = workItems.filter((item) => item.status === "In Progress").length;
   const needsAttention = workItems.filter((item) => item.status === "Blocked").length;
   const averageProgress = workItems.length
@@ -98,33 +140,32 @@ export default function MyWorkPage() {
       <div className="px-8 py-6">
         <PageHeader
           title="My Work"
-          badge={
-            <span className="bg-primary-container text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-normal">
-              Execution
-            </span>
-          }
+          subtitle="Your assigned tasks and work items"
         />
       </div>
 
       <div className="px-8 pb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <KpiCard label="Total Work" value={workItems.length} icon={Folder} />
         <KpiCard label="Active Tasks" value={activeTasks} icon={BarChart3} valueColor="text-primary" iconColor="text-tertiary" />
-        <KpiCard label="Needs Attention" value={needsAttention.toString().padStart(2, "0")} icon={AlertCircle} valueColor="text-error" iconColor="text-error" hoverBorderColor="hover:border-error" />
+        <KpiCard label="Needs Attention" value={needsAttention} icon={AlertCircle} valueColor="text-error" iconColor="text-error" hoverBorderColor="hover:border-error" />
         <KpiCard label="Avg Progress" value={`${averageProgress}%`} icon={Users} />
       </div>
 
-      <div className="flex-1 overflow-x-auto px-8 pb-8 flex gap-5 min-h-0">
+      <div className="flex-1 overflow-y-auto px-8 pb-8 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {columns.map((col) => {
           const items = workItems.filter((w) => w.status === col.key);
           const isActive = col.key === "In Progress";
           return (
             <div
               key={col.key}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, col.key as WorkItemStatus)}
               className={cn(
-                "w-80 flex-shrink-0 flex flex-col h-full rounded-2xl p-4",
+                "flex flex-col rounded-2xl p-4 transition-colors",
                 isActive
                   ? "bg-white border border-outline-variant shadow-card"
-                  : "bg-white/40 border border-outline-variant/50"
+                  : "bg-white/40 border border-outline-variant/50 hover:bg-surface-container/30"
               )}
             >
               <div className="flex justify-between items-center mb-4">
@@ -136,16 +177,17 @@ export default function MyWorkPage() {
               </div>
               <div className="space-y-3 flex-1 overflow-y-auto">
                 {items.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-outline-variant bg-white/60 p-4 text-center text-body-sm text-on-surface-variant">
-                    No work items.
+                  <div className="rounded-xl border border-dashed border-outline-variant bg-white/60 p-4 text-center text-body-sm text-on-surface-variant pointer-events-none">
+                    Drop items here.
                   </div>
                 ) : items.map((item) => (
-                  <WorkItemCard key={item.id} item={item} />
+                  <WorkItemCard key={item.id} item={item} onDragStart={handleDragStart} />
                 ))}
               </div>
             </div>
           );
         })}
+        </div>
       </div>
 
       <div className="px-8 py-3 bg-white/80 border-t border-outline-variant flex justify-between items-center">

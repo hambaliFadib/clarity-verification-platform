@@ -139,8 +139,7 @@ export default function DefectsPage() {
 
   return (
     <>
-      <div className="flex h-full">
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 animate-fade-in">
+      <div className="p-6 space-y-6 animate-fade-in">
           <PageHeader
             title="Defects"
             subtitle="Track and manage bugs found during testing"
@@ -151,11 +150,11 @@ export default function DefectsPage() {
             }
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <KpiCard label="CRITICAL" value={criticalCount} valueColor="text-error" hoverBorderColor="hover:border-error" className="[&_span:last-child]:text-display-lg" />
-            <KpiCard label="HIGH" value={highCount} hoverBorderColor="hover:border-orange-400" className="[&_span:last-child]:text-display-lg" />
-            <KpiCard label="MEDIUM" value={mediumCount} hoverBorderColor="hover:border-primary-fixed-dim" className="[&_span:last-child]:text-display-lg" />
-            <KpiCard label="LOW" value={lowCount} hoverBorderColor="hover:border-outline" className="[&_span:last-child]:text-display-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <KpiCard label="CRITICAL" value={criticalCount} valueColor="text-error" hoverBorderColor="hover:border-error" />
+            <KpiCard label="HIGH" value={highCount} hoverBorderColor="hover:border-orange-400" />
+            <KpiCard label="MEDIUM" value={mediumCount} hoverBorderColor="hover:border-primary-fixed-dim" />
+            <KpiCard label="LOW" value={lowCount} hoverBorderColor="hover:border-outline" />
           </div>
 
           <StatusTabs tabs={statusTabs} defaultValue="open" onChange={setActiveTab} />
@@ -220,7 +219,6 @@ export default function DefectsPage() {
               System Operational
             </div>
           </div>
-        </div>
       </div>
 
       <ReportDefectModal

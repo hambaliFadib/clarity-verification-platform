@@ -58,6 +58,7 @@ export default function CreateTestCasePage() {
   const router = useRouter();
   
   const [users, setUsers] = useState<any[]>([]);
+  const [environments, setEnvironments] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   
   const [tags, setTags] = useState<string[]>([]);
@@ -67,13 +68,13 @@ export default function CreateTestCasePage() {
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
-    fetch("/api/users")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch users");
-        return res.json();
-      })
-      .then((data) => {
-        setUsers(data);
+    Promise.all([
+      fetch("/api/users").then((res) => (res.ok ? res.json() : [])),
+      fetch("/api/environments").then((res) => (res.ok ? res.json() : [])),
+    ])
+      .then(([userData, envData]) => {
+        setUsers(userData);
+        setEnvironments(envData);
         setIsLoadingUsers(false);
       })
       .catch((err) => {
@@ -492,10 +493,11 @@ export default function CreateTestCasePage() {
                       <div className="relative">
                         <select className={`${inputClass} appearance-none pr-10`} {...register("environment")}>
                           <option value="">Select environment</option>
-                          <option value="Development">Development</option>
-                          <option value="Staging">Staging</option>
-                          <option value="UAT">UAT</option>
-                          <option value="Production">Production</option>
+                          {environments.map((env) => (
+                            <option key={env.id} value={env.name}>
+                              {env.name} ({env.type})
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-on-surface-variant/80" />
                       </div>
