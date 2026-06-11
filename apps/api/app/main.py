@@ -5,6 +5,7 @@ from app.routers.activity_items import router as activity_items_router
 from app.routers.defects import router as defects_router
 from app.routers.environments import router as environments_router
 from app.routers.health import router as health_router
+from app.routers.import_export import router as import_export_router
 from app.routers.projects import router as projects_router
 from app.routers.releases import router as releases_router
 from app.routers.test_cases import router as test_cases_router
@@ -33,6 +34,7 @@ app.include_router(health_router)
 app.include_router(activity_items_router, prefix="/api/v1")
 app.include_router(defects_router, prefix="/api/v1")
 app.include_router(environments_router, prefix="/api/v1")
+app.include_router(import_export_router, prefix="/api/v1")
 app.include_router(projects_router, prefix="/api/v1")
 app.include_router(releases_router, prefix="/api/v1")
 app.include_router(users_router, prefix="/api/v1")

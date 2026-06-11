@@ -34,9 +34,8 @@ def create_test_case(db: Session, schema: TestCaseCreate, creator_id: uuid.UUID 
         description=schema.description,
         module=schema.module,
         type=schema.type,
-        priority=schema.priority,
+        severity=schema.severity,
         status=schema.status,
-        complexity=schema.complexity,
         assigned_to=schema.assigned_to,
         created_by=creator_id,
         requirement_id=schema.requirement_id,
@@ -57,8 +56,6 @@ def create_test_case(db: Session, schema: TestCaseCreate, creator_id: uuid.UUID 
             test_case_id=db_tc.id,
             step_number=idx + 1,
             action=step_schema.action,
-            test_data=step_schema.test_data,
-            expected_result=step_schema.expected_result or (schema.expected_result if idx == len(schema.test_steps) - 1 else None),
             status=step_schema.status or "Not Run",
             actual_result=step_schema.actual_result,
         )
@@ -75,7 +72,7 @@ def get_test_cases(
     limit: int = 100,
     search: str | None = None,
     status: str | None = None,
-    priority: str | None = None,
+    severity: str | None = None,
     type_filter: str | None = None,
 ) -> tuple[list[TestCase], int]:
     query = db.query(TestCase).filter(TestCase.deleted_at.is_(None))
@@ -93,8 +90,8 @@ def get_test_cases(
     if status and status.lower() != "all":
         query = query.filter(TestCase.status.ilike(status))
         
-    if priority:
-        query = query.filter(TestCase.priority.ilike(priority))
+    if severity:
+        query = query.filter(TestCase.severity.ilike(severity))
         
     if type_filter:
         query = query.filter(TestCase.type.ilike(type_filter))
@@ -133,8 +130,6 @@ def update_test_case(db: Session, display_id: str, schema: TestCaseUpdate) -> Te
                     test_case_id=db_tc.id,
                     step_number=idx + 1,
                     action=step_schema["action"],
-                    test_data=step_schema.get("test_data"),
-                    expected_result=step_schema.get("expected_result") or (update_data.get("expected_result", db_tc.expected_result) if idx == len(steps_data) - 1 else None),
                     status=step_schema.get("status") or "Not Run",
                     actual_result=step_schema.get("actual_result"),
                 )

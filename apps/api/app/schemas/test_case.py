@@ -5,8 +5,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class TestStepCreate(BaseModel):
     action: str
-    test_data: str | None = None
-    expected_result: str | None = None
     status: str | None = "Not Run"
     actual_result: str | None = None
 
@@ -15,8 +13,6 @@ class TestStepResponse(BaseModel):
     id: uuid.UUID
     step_number: int
     action: str
-    test_data: str | None = None
-    expected_result: str | None = None
     status: str | None = "Not Run"
     actual_result: str | None = None
 
@@ -27,10 +23,9 @@ class TestCaseCreate(BaseModel):
     title: str = Field(..., min_length=5)
     module: str
     type: str
-    priority: str
+    severity: str
     status: str = "Draft"
     description: str | None = None
-    complexity: str | None = None
     assigned_to: uuid.UUID | None = None
     requirement_id: str | None = None
     estimated_time: str | None = None
@@ -47,10 +42,9 @@ class TestCaseUpdate(BaseModel):
     title: str | None = None
     module: str | None = None
     type: str | None = None
-    priority: str | None = None
+    severity: str | None = None
     status: str | None = None
     description: str | None = None
-    complexity: str | None = None
     assigned_to: uuid.UUID | None = None
     requirement_id: str | None = None
     estimated_time: str | None = None
@@ -70,9 +64,8 @@ class TestCaseResponse(BaseModel):
     description: str | None = None
     module: str
     type: str
-    priority: str
+    severity: str
     status: str
-    complexity: str | None = None
     assigned_to: uuid.UUID | None = None
     created_by: uuid.UUID | None = None
     requirement_id: str | None = None
@@ -96,7 +89,7 @@ class TestCaseListResponse(BaseModel):
     display_id: str
     title: str
     module: str
-    priority: str
+    severity: str
     status: str
     type: str
     assigned_to_name: str | None = None

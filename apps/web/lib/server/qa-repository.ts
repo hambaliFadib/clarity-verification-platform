@@ -33,11 +33,9 @@ function mapTestStep(row: any) {
     id: row.id,
     stepNumber: row.step_number,
     action: row.action,
-    expectedResult: row.expected_result || "",
     status: row.status || "Not Run",
     actualResult: row.actual_result || undefined,
     order: row.step_number,
-    testData: row.test_data || undefined,
   };
 }
 
@@ -48,7 +46,7 @@ function mapTestCase(row: any, steps: any[] = []) {
     title: row.title,
     description: row.description || undefined,
     module: row.module,
-    priority: row.priority,
+    severity: row.severity,
     status: row.status,
     type: row.type,
     assignedTo: row.assigned_to_name || undefined,
@@ -58,7 +56,6 @@ function mapTestCase(row: any, steps: any[] = []) {
     requirementId: row.requirement_id || undefined,
     estimatedTime: row.estimated_time || undefined,
     tags: row.tags || undefined,
-    complexity: row.complexity || undefined,
     environment: row.environment || undefined,
     automationStatus: row.automation_status || undefined,
     preconditions: row.preconditions || undefined,
@@ -98,8 +95,8 @@ export async function listTestCases(searchParams: URLSearchParams) {
   }
   const status = searchParams.get("status");
   if (status && status.toLowerCase() !== "all") filters.push(`tc.status ilike ${addValue(status)}`);
-  const priority = searchParams.get("priority");
-  if (priority) filters.push(`tc.priority ilike ${addValue(priority)}`);
+  const severity = searchParams.get("severity");
+  if (severity) filters.push(`tc.severity ilike ${addValue(severity)}`);
   const type = searchParams.get("type");
   if (type) filters.push(`tc.type ilike ${addValue(type)}`);
 
@@ -117,9 +114,9 @@ export async function listTestCases(searchParams: URLSearchParams) {
      offset ${offset} limit ${limit}`,
     values,
   );
-  const steps = await getStepsByCaseIds(result.rows.map((row) => row.id));
+  const steps = await getStepsByCaseIds(result.rows.map((row: any) => row.id));
   return {
-    items: result.rows.map((row) => mapTestCase(row, steps.get(row.id) || [])),
+    items: result.rows.map((row: any) => mapTestCase(row, steps.get(row.id) || [])),
     total: Number(count.rows[0]?.total || 0),
   };
 }
@@ -132,11 +129,11 @@ export async function createTestCase(payload: any) {
     const now = new Date();
     const created = await client.query(
       `insert into test_cases (
-        id, display_id, title, description, module, type, priority, status, complexity,
+        id, display_id, title, description, module, type, severity, status,
         assigned_to, requirement_id, estimated_time, tags, environment, automation_status,
         preconditions, expected_result, notes, created_at, updated_at
       ) values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
       ) returning *`,
       [
         randomUUID(),
@@ -145,9 +142,8 @@ export async function createTestCase(payload: any) {
         emptyToNull(payload.description),
         payload.module,
         payload.type,
-        payload.priority,
+        payload.severity || payload.priority || "Medium",
         payload.status || "Draft",
-        emptyToNull(payload.complexity),
         isUuid(payload.assignedTo || payload.assigned_to) ? (payload.assignedTo || payload.assigned_to) : null,
         emptyToNull(payload.requirementId || payload.requirement_id),
         emptyToNull(payload.estimatedTime || payload.estimated_time),
@@ -164,15 +160,13 @@ export async function createTestCase(payload: any) {
 
     for (const [index, step] of steps.entries()) {
       await client.query(
-        `insert into test_steps (id, test_case_id, step_number, action, test_data, expected_result, status, actual_result)
-         values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        `insert into test_steps (id, test_case_id, step_number, action, status, actual_result)
+         values ($1,$2,$3,$4,$5,$6)`,
         [
           randomUUID(),
           created.rows[0].id,
           index + 1,
           step.action,
-          emptyToNull(step.testData || step.test_data),
-          emptyToNull(step.expectedResult || step.expected_result || (index === steps.length - 1 ? expectedResult : null)),
           step.status || "Not Run",
           emptyToNull(step.actualResult || step.actual_result),
         ],
@@ -209,9 +203,8 @@ export async function updateTestCase(displayId: string, payload: any) {
     if (payload.description !== undefined) fields.description = emptyToNull(payload.description);
     if (payload.module !== undefined) fields.module = payload.module;
     if (payload.type !== undefined) fields.type = payload.type;
-    if (payload.priority !== undefined) fields.priority = payload.priority;
+    if (payload.severity !== undefined || payload.priority !== undefined) fields.severity = payload.severity ?? payload.priority;
     if (payload.status !== undefined) fields.status = payload.status;
-    if (payload.complexity !== undefined) fields.complexity = emptyToNull(payload.complexity);
     if (payload.assignedTo !== undefined || payload.assigned_to !== undefined) {
       const assignee = payload.assignedTo ?? payload.assigned_to;
       fields.assigned_to = isUuid(assignee) ? assignee : null;
@@ -242,15 +235,13 @@ export async function updateTestCase(displayId: string, payload: any) {
       await client.query("delete from test_steps where test_case_id = $1", [row.id]);
       for (const [index, step] of steps.entries()) {
         await client.query(
-          `insert into test_steps (id, test_case_id, step_number, action, test_data, expected_result, status, actual_result)
-           values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+          `insert into test_steps (id, test_case_id, step_number, action, status, actual_result)
+           values ($1,$2,$3,$4,$5,$6)`,
           [
             randomUUID(),
             row.id,
             index + 1,
             step.action,
-            emptyToNull(step.testData || step.test_data),
-            emptyToNull(step.expectedResult || step.expected_result),
             step.status || "Not Run",
             emptyToNull(step.actualResult || step.actual_result),
           ],
@@ -331,7 +322,7 @@ export async function listDefects(searchParams: URLSearchParams) {
   const limit = addValue(toInt(searchParams.get("limit"), 100));
   const result = await query(`select * from defects where ${whereSql} order by updated_at desc offset ${offset} limit ${limit}`, values);
   return {
-    items: result.rows.map((row) => mapDefect(row)),
+    items: result.rows.map((row: any) => mapDefect(row)),
     total: Number(count.rows[0]?.total || 0),
   };
 }
@@ -571,13 +562,13 @@ export async function listReleases() {
   const items = [];
   for (const [index, row] of modules.rows.entries()) {
     const tests = await query("select display_id, status from test_cases where module = $1 and deleted_at is null", [row.module]);
-    const testIds = tests.rows.map((item) => item.display_id);
+    const testIds = tests.rows.map((item: any) => item.display_id);
     const defects = testIds.length
       ? await query("select severity, status from defects where deleted_at is null and linked_test_case = any($1::text[])", [testIds])
       : { rows: [] };
-    const passed = tests.rows.filter((item) => ["Approved", "Ready"].includes(item.status)).length;
-    const openDefects = defects.rows.filter((item) => ["Open", "In Progress", "Blocked", "Reopened"].includes(item.status)).length;
-    const criticalDefects = defects.rows.filter((item) => item.severity === "Critical").length;
+    const passed = tests.rows.filter((item: any) => ["Approved", "Ready"].includes(item.status)).length;
+    const openDefects = defects.rows.filter((item: any) => ["Open", "In Progress", "Blocked", "Reopened"].includes(item.status)).length;
+    const criticalDefects = defects.rows.filter((item: any) => item.severity === "Critical").length;
     items.push({
       id: `module-${index + 1}`,
       version: `${row.module.slice(0, 3).toUpperCase()}-REL`,

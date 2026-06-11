@@ -1,17 +1,16 @@
 export type TestCaseStatus = "Draft" | "Ready" | "In Review" | "Approved" | "Obsolete";
+export type TestCaseSeverity = "Minor" | "Major" | "Critical" | "Blocker";
 export type TestCasePriority = "Critical" | "High" | "Medium" | "Low";
 export type TestCaseType = "Functional" | "Regression" | "Smoke" | "Integration" | "UI" | "Performance" | "Security";
 
 export interface TestStep {
   stepNumber: number;
   action: string;
-  expectedResult: string;
   status?: "Passed" | "Failed" | "Blocked" | "Not Run" | "Skipped";
   actualResult?: string;
-  
+
   id?: string;
   order?: number;
-  testData?: string;
 }
 
 export interface TestCase {
@@ -19,7 +18,7 @@ export interface TestCase {
   title: string;
   description?: string;
   module: string;
-  priority: TestCasePriority;
+  severity: TestCaseSeverity;
   status: TestCaseStatus;
   type: TestCaseType;
   assignedTo?: string;
@@ -31,7 +30,6 @@ export interface TestCase {
   tags?: string[];
   estimatedTime?: string;
 
-  complexity?: "Simple" | "Medium" | "Complex";
   environment?: "Staging" | "Production" | "UAT" | "Development";
   automationStatus?: "Manual" | "Automated" | "Candidate to Automate";
   preconditions?: string;

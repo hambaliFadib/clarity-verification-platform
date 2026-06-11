@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { SearchFilter } from "@/components/ui/search-filter";
 import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, FlaskConical, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Upload } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
-  priorityBadgeVariants,
+  testCaseSeverityBadgeVariants,
   testCaseStatusBadgeVariants,
   testCaseTypeBadgeVariants,
 } from "@/lib/badge-variants";
@@ -21,6 +21,8 @@ import {
   AdvancedFilterModal,
   type TestCaseAdvancedFilters,
 } from "@/components/test-cases/advanced-filter-modal";
+import { ImportReviewModal } from "@/components/test-cases/import-review-modal";
+import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 
 export default function TestCasesPage() {
   const router = useRouter();
@@ -28,6 +30,10 @@ export default function TestCasesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("all");
+  const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+  const [importToast, setImportToast] = useState<string | null>(null);
+  const [isParseResultOpen, setIsParseResultOpen] = useState(false);
+  const [parseResult, setParseResult] = useState<any>(null);
 
   useEffect(() => {
     async function loadTestCases() {
@@ -46,11 +52,32 @@ export default function TestCasesPage() {
     loadTestCases();
   }, []);
 
+  function handleImportComplete(result: { created: number; skipped: number; overwritten: number; errors: any[] }) {
+    setIsParseResultOpen(false);
+    setParseResult(null);
+    const parts = [
+      result.created > 0 && `${result.created} created`,
+      result.overwritten > 0 && `${result.overwritten} overwritten`,
+      result.skipped > 0 && `${result.skipped} skipped`,
+    ].filter(Boolean);
+    setImportToast(
+      result.errors.length > 0
+        ? `Import completed with errors: ${result.errors.length} row(s) failed.`
+        : `Import successful — ${parts.join(", ")}.`
+    );
+    setTimeout(() => setImportToast(null), 6000);
+    async function reload() {
+      const res = await fetch("/api/test-cases");
+      if (res.ok) setAllCases(await res.json());
+    }
+    reload();
+  }
+
   const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<TestCaseAdvancedFilters>({
     module: "",
     type: "",
-    priority: "",
+    severity: "",
   });
 
   const availableModules = Array.from(new Set(allCases.map(tc => tc.module)));
@@ -72,9 +99,9 @@ export default function TestCasesPage() {
 
     const matchesModule = !advancedFilters.module || tc.module === advancedFilters.module;
     const matchesType = !advancedFilters.type || tc.type === advancedFilters.type;
-    const matchesPriority = !advancedFilters.priority || tc.priority === advancedFilters.priority;
+    const matchesSeverity = !advancedFilters.severity || tc.severity === advancedFilters.severity;
 
-    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesPriority;
+    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesSeverity;
   });
 
   const statusTabs = [
@@ -96,16 +123,31 @@ export default function TestCasesPage() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      {importToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl px-5 py-3 text-body-sm text-on-surface max-w-sm animate-fade-in">
+          {importToast}
+        </div>
+      )}
       <PageHeader
         title="Test Cases"
         subtitle="Manage and organize your test case library"
         actions={
-          <Link href="/test-cases/create">
-            <Button>
-              <Plus className="h-4 w-4" />
-              Create Test Case
+          <div className="flex items-center gap-2">
+            <Button
+              id="import-export-trigger-btn"
+              variant="outline"
+              onClick={() => setIsImportExportOpen(true)}
+            >
+              <Upload className="h-4 w-4" />
+              Import / Export
             </Button>
-          </Link>
+            <Link href="/test-cases/create">
+              <Button id="create-test-case-btn">
+                <Plus className="h-4 w-4" />
+                Create Test Case
+              </Button>
+            </Link>
+          </div>
         }
       />
 
@@ -152,7 +194,7 @@ export default function TestCasesPage() {
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Title</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Module</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Priority</th>
+              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Severity</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Assigned</th>
@@ -180,7 +222,7 @@ export default function TestCasesPage() {
                 </td>
                 <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.module}</td>
                 <td className="px-4 py-3">
-                  <Badge variant={priorityBadgeVariants[tc.priority]}>{tc.priority}</Badge>
+                  <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
@@ -206,6 +248,27 @@ export default function TestCasesPage() {
         currentFilters={advancedFilters}
         onApply={setAdvancedFilters}
         availableModules={availableModules}
+      />
+
+      <ImportReviewModal
+        isOpen={isParseResultOpen}
+        parseResult={parseResult}
+        onClose={() => { setIsParseResultOpen(false); setParseResult(null); }}
+        onComplete={handleImportComplete}
+      />
+
+      <ImportExportModal
+        isOpen={isImportExportOpen}
+        onClose={() => setIsImportExportOpen(false)}
+        onParseSuccess={(result) => {
+          setParseResult(result);
+          setIsParseResultOpen(true);
+        }}
+        onImportError={(msg) => {
+          setImportToast(msg);
+          setTimeout(() => setImportToast(null), 6000);
+        }}
+        totalCount={totalCount}
       />
     </div>
   );
