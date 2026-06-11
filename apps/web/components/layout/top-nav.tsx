@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { HelpCircle, Shield, Menu } from "lucide-react";
+import { HelpCircle, Menu } from "lucide-react";
 import { NotificationPopover } from "./notification-popover";
 import type { TeamMember } from "@/lib/types";
 
@@ -59,7 +59,6 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <Shield className="h-6 w-6 text-primary" />
         <span className="text-headline-sm font-headline font-bold text-on-surface">
           NexQA
         </span>
