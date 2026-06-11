@@ -1,16 +1,18 @@
 # NexQA - Clarity Platform
 
-NexQA is a QA project management platform focused on clarity across test case management, test execution, defect management, QA collaboration, and release readiness.
+NexQA is a QA project management platform focused on clarity across test case management, defect management, and the evidence that connects quality work to release readiness.
 
 This repository is the Phase 1 foundation for the Clarity Platform product area. It sets up a clean monorepo with a Next.js frontend, a FastAPI backend, PostgreSQL on NeonDB, Vercel deployment preparation, GitHub Actions CI, and developer documentation for a small team of 3 contributors.
 
 ## Phase 1 Scope
 
-- Test Case Management
-- Test Run Management
-- Defect / Bug Management
-- Release Readiness foundation
-- QA collaboration workflow
+Phase 1 focuses first on two stable workflow anchors:
+
+- Test case management
+- Defect / bug management
+- The relationship between test cases, execution history, and reported defects
+
+Supporting surfaces such as My Work, Test Runs, Settings, and Release Readiness are included as MVP context, but they remain intentionally lightweight until the core test case and defect flows are stable.
 
 Phase 1 intentionally avoids full integrations, authentication, payments, and advanced automation. The goal is to create a stable foundation before adding complex product logic.
 
@@ -101,11 +103,13 @@ Copy `.env.example` to your local environment file and fill in the values:
 DATABASE_URL=
 NEXT_PUBLIC_API_BASE_URL=
 ENVIRONMENT=local
+ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
 ```
 
 - `DATABASE_URL`: PostgreSQL connection string from NeonDB.
 - `NEXT_PUBLIC_API_BASE_URL`: frontend-visible API base URL, for example `http://127.0.0.1:8000`.
 - `ENVIRONMENT`: local, dev, preview, production, or ci.
+- `ALLOWED_ORIGINS`: comma-separated web origins allowed by the FastAPI CORS middleware.
 
 Never commit `.env.local` or real secrets.
 
@@ -132,6 +136,8 @@ alembic downgrade -1
 ```
 
 See [docs/database-migration.md](docs/database-migration.md) for the full workflow.
+
+For production NeonDB setup, Singapore region selection, and cleanup steps, see [docs/neon-production.md](docs/neon-production.md).
 
 ## Git Branching Strategy
 
