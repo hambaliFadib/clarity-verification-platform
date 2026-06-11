@@ -1,20 +1,15 @@
 import { NextResponse } from "next/server";
+import { generateTestCasesTemplateXlsx, XLSX_MIME } from "@/lib/server/test-case-xlsx";
 
-const API_BASE = process.env.INTERNAL_API_URL ?? "http://127.0.0.1:8000";
+export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const res = await fetch(`${API_BASE}/api/v1/test-cases/template/xlsx`, {
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      return NextResponse.json({ error: "Failed to generate template" }, { status: res.status });
-    }
-    const buffer = await res.arrayBuffer();
+    const buffer = generateTestCasesTemplateXlsx();
     return new NextResponse(buffer, {
       status: 200,
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Type": XLSX_MIME,
         "Content-Disposition": "attachment; filename=\"test-cases-template.xlsx\"",
       },
     });
