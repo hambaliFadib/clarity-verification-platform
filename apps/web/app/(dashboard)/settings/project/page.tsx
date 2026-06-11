@@ -1,37 +1,20 @@
 "use client";
-import { useState } from "react";
-import { teamMembers } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Save, Trash2, Users, Mail, Plus, Folder, Check } from "lucide-react";
 import { roleBadgeVariants } from "@/lib/badge-variants";
+import type { Project, TeamMember } from "@/lib/types";
 
-interface Project {
-  id: string;
-  name: string;
-  prefix: string;
-  description: string;
-  priority: string;
-}
-
-const mockProjects: Project[] = [
-  {
-    id: "p1",
-    name: "Clarity Platform",
-    prefix: "CLR",
-    description: "QA project management platform focused on clarity across test case management, test execution, defect management, and release readiness.",
-    priority: "Medium"
-  },
-  {
-    id: "p2",
-    name: "NexQA Mobile App",
-    prefix: "NXM",
-    description: "Testing suite for the iOS and Android NexQA companion applications.",
-    priority: "High"
-  },
-];
+const emptyProject: Project = {
+  id: "",
+  name: "",
+  prefix: "",
+  description: "",
+  priority: "Medium",
+};
 
 const inputClass =
   "w-full border border-outline-variant rounded-lg px-4 py-2.5 text-body-md bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-fixed-dim focus:outline-none transition-all";
@@ -39,22 +22,61 @@ const labelClass =
   "block text-label-bold font-label-bold text-on-surface-variant uppercase tracking-normal mb-1.5";
 
 export default function ProjectSettingsPage() {
-  const [projects] = useState<Project[]>(mockProjects);
-  const [activeProjectId, setActiveProjectId] = useState<string>("p1");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string>("");
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
-
-  const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
-  const [formData, setFormData] = useState<Project>(activeProject);
+  const [formData, setFormData] = useState<Project>(emptyProject);
   const [isSaved, setIsSaved] = useState(false);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSettings() {
+      const [projectResponse, userResponse] = await Promise.all([
+        fetch("/api/projects", { cache: "no-store" }),
+        fetch("/api/users", { cache: "no-store" }),
+      ]);
+
+      if (!isMounted) return;
+      if (projectResponse.ok) {
+        const projectData: Project[] = await projectResponse.json();
+        setProjects(projectData);
+        if (projectData[0]) {
+          setActiveProjectId(projectData[0].id);
+          setFormData(projectData[0]);
+        }
+      }
+      if (userResponse.ok) setTeamMembers(await userResponse.json());
+    }
+
+    loadSettings().catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleSwitchProject = (id: string) => {
+    const selectedProject = projects.find(p => p.id === id);
+    if (!selectedProject) return;
     setActiveProjectId(id);
-    setFormData(projects.find(p => p.id === id) || projects[0]);
+    setFormData(selectedProject);
     setIsProjectDropdownOpen(false);
     setIsSaved(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!formData.id) return;
+    const response = await fetch(`/api/projects/${formData.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    });
+    if (!response.ok) return;
+    const updatedProject: Project = await response.json();
+    setProjects(projects.map(project => project.id === updatedProject.id ? updatedProject : project));
+    setFormData(updatedProject);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 2000);
   };
@@ -80,11 +102,13 @@ export default function ProjectSettingsPage() {
               onClick={() => setIsProjectDropdownOpen(!isProjectDropdownOpen)}
               className="w-full bg-white border border-outline-variant rounded-lg px-4 py-2 text-left flex items-center justify-between hover:border-primary-container transition-colors"
             >
-              <span className="text-body-md font-medium text-on-surface truncate">{activeProject.name}</span>
+              <span className="text-body-md font-medium text-on-surface truncate">{formData.name || "No project selected"}</span>
             </button>
             {isProjectDropdownOpen && (
               <div className="absolute top-full left-0 mt-1 w-full bg-white rounded-xl shadow-elevated border border-outline-variant z-10 py-1 overflow-hidden">
-                {projects.map(p => (
+                {projects.length === 0 ? (
+                  <div className="px-4 py-2.5 text-body-sm text-on-surface-variant">No projects configured</div>
+                ) : projects.map(p => (
                   <button
                     key={p.id}
                     onClick={() => handleSwitchProject(p.id)}
@@ -143,7 +167,7 @@ export default function ProjectSettingsPage() {
           <select
             className={inputClass}
             value={formData.priority}
-            onChange={(e) => setFormData({...formData, priority: e.target.value})}
+            onChange={(e) => setFormData({...formData, priority: e.target.value as Project["priority"]})}
           >
             <option value="Critical">Critical</option>
             <option value="High">High</option>
@@ -154,7 +178,7 @@ export default function ProjectSettingsPage() {
 
         <div className="flex justify-end items-center gap-3">
           {isSaved && <span className="text-body-sm text-emerald-600 font-medium animate-fade-in flex items-center gap-1"><Check className="h-4 w-4" /> Saved successfully</span>}
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} disabled={!formData.id}>
             <Save className="h-4 w-4" /> Save Changes
           </Button>
         </div>
@@ -177,7 +201,9 @@ export default function ProjectSettingsPage() {
           </div>
 
           <div className="divide-y divide-outline-variant/50">
-            {teamMembers.map((member) => (
+            {teamMembers.length === 0 ? (
+              <div className="py-3 text-body-sm text-on-surface-variant">No team members configured.</div>
+            ) : teamMembers.map((member) => (
               <div
                 key={member.id}
                 className="flex items-center justify-between py-3"

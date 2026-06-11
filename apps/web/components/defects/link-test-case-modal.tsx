@@ -2,16 +2,23 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { testCases } from "@/lib/mock-data";
+import type { TestCase } from "@/lib/types";
 
 interface LinkTestCaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   alreadyLinked: string[];
-  onLink: (selectedTestCaseIds: string[]) => void;
+  onLink: (selectedTestCaseIds: string[]) => void | Promise<void>;
+  testCases?: TestCase[];
 }
 
-export function LinkTestCaseModal({ isOpen, onClose, alreadyLinked, onLink }: LinkTestCaseModalProps) {
+export function LinkTestCaseModal({
+  isOpen,
+  onClose,
+  alreadyLinked,
+  onLink,
+  testCases = [],
+}: LinkTestCaseModalProps) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   if (!isOpen) return null;
@@ -28,8 +35,8 @@ export function LinkTestCaseModal({ isOpen, onClose, alreadyLinked, onLink }: Li
     setSelected(newSelected);
   };
 
-  const handleLink = () => {
-    onLink(Array.from(selected));
+  const handleLink = async () => {
+    await onLink(Array.from(selected));
     setSelected(new Set());
     onClose();
   };

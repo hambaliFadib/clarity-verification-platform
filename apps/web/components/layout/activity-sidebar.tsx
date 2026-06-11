@@ -2,17 +2,25 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { activityFeed } from "@/lib/mock-data";
 import { timeAgo } from "@/lib/utils";
 import type { ActivityItem } from "@/lib/types";
 
-let globalActivities = [...activityFeed];
+let globalActivities: ActivityItem[] = [];
 
 export function ActivitySidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityItem[]>(globalActivities);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function loadActivities() {
+      const response = await fetch("/api/activity", { cache: "no-store" });
+      if (!isMounted || !response.ok) return;
+      globalActivities = await response.json();
+      setActivities([...globalActivities]);
+    }
+
     const handleToggle = () => setIsOpen((prev) => !prev);
     const handleClose = () => setIsOpen(false);
 
@@ -25,8 +33,10 @@ export function ActivitySidebar() {
     window.addEventListener("toggle-activity-sidebar", handleToggle);
     window.addEventListener("close-activity-sidebar", handleClose);
     window.addEventListener("new-activity", handleNewActivity);
+    loadActivities().catch(() => undefined);
 
     return () => {
+      isMounted = false;
       window.removeEventListener("toggle-activity-sidebar", handleToggle);
       window.removeEventListener("close-activity-sidebar", handleClose);
       window.removeEventListener("new-activity", handleNewActivity);

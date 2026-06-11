@@ -2,7 +2,6 @@
 
 import { use, useState, useEffect, type ReactNode } from "react";
 import Link from "next/link";
-import { defects } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +24,7 @@ import {
   testCaseStatusBadgeVariants,
   testCaseTypeBadgeVariants,
 } from "@/lib/badge-variants";
-import type { TestCase } from "@/lib/types";
+import type { Defect, TestCase } from "@/lib/types";
 
 const tabs = ["Details", "Steps", "Defects"];
 
@@ -41,6 +40,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
   const { id } = use(params);
   const [activeTab, setActiveTab] = useState("Details");
   const [tc, setTc] = useState<TestCase | null>(null);
+  const [linkedDefects, setLinkedDefects] = useState<Defect[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,8 +52,14 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           setError(`The test case "${id}" does not exist.`);
           return;
         }
-        const data = await res.json();
+        const data: TestCase = await res.json();
         setTc(data);
+
+        const defectRes = await fetch(`/api/defects?search=${encodeURIComponent(data.id)}`, { cache: "no-store" });
+        if (defectRes.ok) {
+          const defectsData: Defect[] = await defectRes.json();
+          setLinkedDefects(defectsData.filter((defect) => defect.linkedTestCase === data.id));
+        }
       } catch (err) {
         setError("Failed to fetch test case details.");
       } finally {
@@ -83,8 +89,6 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
       </div>
     );
   }
-
-  const linkedDefects = defects.filter((d) => d.linkedTestCase === tc.id);
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">

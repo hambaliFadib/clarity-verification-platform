@@ -1,7 +1,6 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { defects as initialDefects } from "@/lib/mock-data";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
@@ -10,14 +9,17 @@ import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
 import { Plus, ChevronDown, ChevronRight, Bug, FileWarning } from "lucide-react";
 import { timeAgo } from "@/lib/utils";
-import type { Defect } from "@/lib/types";
+import type { Defect, Environment, TestCase, TestRun } from "@/lib/types";
 import { ReportDefectModal } from "@/components/defects/report-defect-modal";
 import { AdvancedFilterModal, type AdvancedFilters } from "@/components/defects/advanced-filter-modal";
 import { getDefectStatusBadgeVariant, severityBadgeVariants } from "@/lib/badge-variants";
 
 export default function DefectsPage() {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-  const [localDefects, setLocalDefects] = useState<Defect[]>(initialDefects);
+  const [localDefects, setLocalDefects] = useState<Defect[]>([]);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [testRuns, setTestRuns] = useState<TestRun[]>([]);
+  const [environments, setEnvironments] = useState<Environment[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
 
@@ -28,6 +30,33 @@ export default function DefectsPage() {
     type: "",
     priority: ""
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDefectData() {
+      const [defectResponse, testCaseResponse, testRunResponse, environmentResponse] = await Promise.all([
+        fetch("/api/defects", { cache: "no-store" }),
+        fetch("/api/test-cases", { cache: "no-store" }),
+        fetch("/api/test-runs", { cache: "no-store" }),
+        fetch("/api/environments", { cache: "no-store" }),
+      ]);
+
+      if (!isMounted) return;
+      if (defectResponse.ok) setLocalDefects(await defectResponse.json());
+      if (testCaseResponse.ok) setTestCases(await testCaseResponse.json());
+      if (testRunResponse.ok) setTestRuns(await testRunResponse.json());
+      if (environmentResponse.ok) setEnvironments(await environmentResponse.json());
+    }
+
+    loadDefectData().catch(() => {
+      if (isMounted) setLocalDefects([]);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const criticalCount = localDefects.filter((d) => d.severity === "Critical").length;
   const highCount = localDefects.filter((d) => d.severity === "High").length;
@@ -76,20 +105,35 @@ export default function DefectsPage() {
 
   const isExpanded = (key: string) => expandedGroups[key] !== false;
 
-  const handleCreateDefect = (newDefect: Defect) => {
-    setLocalDefects([newDefect, ...localDefects]);
+  const handleCreateDefect = async (newDefect: Defect) => {
+    const response = await fetch("/api/defects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newDefect),
+    });
+    if (!response.ok) return;
+
+    const result = await response.json();
+    const createdDefect: Defect = result.defect;
+    setLocalDefects([createdDefect, ...localDefects]);
+
     const event = new CustomEvent("new-activity", {
       detail: {
         id: `act-${Date.now()}`,
-        user: newDefect.reportedBy,
+        user: createdDefect.reportedBy || "Unassigned",
         userInitials: "HF",
         action: "reported",
         targetType: "defect",
-        targetId: newDefect.id,
-        targetTitle: newDefect.title,
-        timestamp: newDefect.createdAt
+        targetId: createdDefect.id,
+        targetTitle: createdDefect.title,
+        timestamp: createdDefect.createdAt
       }
     });
+    fetch("/api/activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(event.detail),
+    }).catch(() => undefined);
     window.dispatchEvent(event);
   };
 
@@ -183,6 +227,9 @@ export default function DefectsPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleCreateDefect}
+        testCases={testCases}
+        testRuns={testRuns}
+        environments={environments}
       />
 
       <AdvancedFilterModal

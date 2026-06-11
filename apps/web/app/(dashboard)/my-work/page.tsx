@@ -1,5 +1,5 @@
 "use client";
-import { workItems } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,31 @@ function WorkItemCard({ item }: { item: WorkItem }) {
 }
 
 export default function MyWorkPage() {
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadWorkItems() {
+      const response = await fetch("/api/work-items", { cache: "no-store" });
+      if (isMounted && response.ok) setWorkItems(await response.json());
+    }
+
+    loadWorkItems().catch(() => {
+      if (isMounted) setWorkItems([]);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const activeTasks = workItems.filter((item) => item.status === "In Progress").length;
+  const needsAttention = workItems.filter((item) => item.status === "Blocked").length;
+  const averageProgress = workItems.length
+    ? Math.round(workItems.reduce((sum, item) => sum + item.progress, 0) / workItems.length)
+    : 0;
+
   return (
     <div className="flex flex-col h-full">
       <div className="px-8 py-6">
@@ -82,10 +107,10 @@ export default function MyWorkPage() {
       </div>
 
       <div className="px-8 pb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiCard label="Total Projects" value={12} icon={Folder} />
-        <KpiCard label="Active Tasks" value={24} icon={BarChart3} valueColor="text-primary" iconColor="text-tertiary" />
-        <KpiCard label="Needs Attention" value="03" icon={AlertCircle} valueColor="text-error" iconColor="text-error" hoverBorderColor="hover:border-error" />
-        <KpiCard label="Team Load" value="85%" icon={Users} />
+        <KpiCard label="Total Work" value={workItems.length} icon={Folder} />
+        <KpiCard label="Active Tasks" value={activeTasks} icon={BarChart3} valueColor="text-primary" iconColor="text-tertiary" />
+        <KpiCard label="Needs Attention" value={needsAttention.toString().padStart(2, "0")} icon={AlertCircle} valueColor="text-error" iconColor="text-error" hoverBorderColor="hover:border-error" />
+        <KpiCard label="Avg Progress" value={`${averageProgress}%`} icon={Users} />
       </div>
 
       <div className="flex-1 overflow-x-auto px-8 pb-8 flex gap-5 min-h-0">
@@ -110,7 +135,11 @@ export default function MyWorkPage() {
                 <span className={cn("font-bold text-xs", col.countColor)}>{items.length}</span>
               </div>
               <div className="space-y-3 flex-1 overflow-y-auto">
-                {items.map((item) => (
+                {items.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-outline-variant bg-white/60 p-4 text-center text-body-sm text-on-surface-variant">
+                    No work items.
+                  </div>
+                ) : items.map((item) => (
                   <WorkItemCard key={item.id} item={item} />
                 ))}
               </div>

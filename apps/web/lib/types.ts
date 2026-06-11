@@ -45,6 +45,7 @@ export type DefectType = "Bug" | "Extension" | "Enhancement" | "Task";
 
 export interface Defect {
   id: string;
+  realId?: string;
   title: string;
   description?: string;
   severity: DefectSeverity;
@@ -62,12 +63,22 @@ export interface Defect {
   updatedAt: string;
   resolvedAt?: string;
   tags?: string[];
+  comments?: DefectComment[];
+}
+
+export interface DefectComment {
+  id: string;
+  author: string;
+  initials: string;
+  timestamp: string;
+  text: string;
 }
 
 export type TestRunStatus = "Not Started" | "In Progress" | "Completed" | "Aborted";
 
 export interface TestRun {
   id: string;
+  realId?: string;
   name: string;
   description?: string;
   status: TestRunStatus;
@@ -96,6 +107,8 @@ export interface Environment {
   lastDeployed?: string;
   version?: string;
   description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type ReleaseStatus = "Planning" | "In Progress" | "Ready" | "Released" | "Cancelled";
@@ -114,6 +127,16 @@ export interface Release {
   totalDefects: number;
   openDefects: number;
   criticalDefects: number;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  prefix: string;
+  description?: string;
+  priority: TestCasePriority;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type UserRole = "Admin" | "QA Lead" | "QA Engineer" | "Developer" | "Viewer";

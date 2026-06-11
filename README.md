@@ -103,11 +103,13 @@ Copy `.env.example` to your local environment file and fill in the values:
 DATABASE_URL=
 NEXT_PUBLIC_API_BASE_URL=
 ENVIRONMENT=local
+ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
 ```
 
 - `DATABASE_URL`: PostgreSQL connection string from NeonDB.
 - `NEXT_PUBLIC_API_BASE_URL`: frontend-visible API base URL, for example `http://127.0.0.1:8000`.
 - `ENVIRONMENT`: local, dev, preview, production, or ci.
+- `ALLOWED_ORIGINS`: comma-separated web origins allowed by the FastAPI CORS middleware.
 
 Never commit `.env.local` or real secrets.
 
@@ -134,6 +136,8 @@ alembic downgrade -1
 ```
 
 See [docs/database-migration.md](docs/database-migration.md) for the full workflow.
+
+For production NeonDB setup, Singapore region selection, and cleanup steps, see [docs/neon-production.md](docs/neon-production.md).
 
 ## Git Branching Strategy
 

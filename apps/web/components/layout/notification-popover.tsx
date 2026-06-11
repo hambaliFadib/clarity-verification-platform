@@ -1,17 +1,34 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { Bell, Check } from "lucide-react";
-import { activityFeed } from "@/lib/mock-data";
 import { timeAgo, cn } from "@/lib/utils";
 import type { ActivityItem } from "@/lib/types";
 
-let globalActivities = [...activityFeed];
+let globalActivities: ActivityItem[] = [];
 
 export function NotificationPopover() {
   const [isOpen, setIsOpen] = useState(false);
   const [activities, setActivities] = useState<ActivityItem[]>(globalActivities);
   const [unreadCount, setUnreadCount] = useState(activities.length);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadActivities() {
+      const response = await fetch("/api/activity", { cache: "no-store" });
+      if (!isMounted || !response.ok) return;
+      globalActivities = await response.json();
+      setActivities([...globalActivities]);
+      setUnreadCount(globalActivities.length);
+    }
+
+    loadActivities().catch(() => undefined);
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (isOpen) {

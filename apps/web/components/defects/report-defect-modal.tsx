@@ -3,16 +3,25 @@ import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import type { Defect } from "@/lib/types";
-import { testCases, testRuns, environments } from "@/lib/mock-data";
+import type { Defect, Environment, TestCase, TestRun } from "@/lib/types";
 
 interface ReportDefectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (defect: Defect) => void;
+  onSubmit: (defect: Defect) => void | Promise<void>;
+  testCases?: TestCase[];
+  testRuns?: TestRun[];
+  environments?: Environment[];
 }
 
-export function ReportDefectModal({ isOpen, onClose, onSubmit }: ReportDefectModalProps) {
+export function ReportDefectModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  testCases = [],
+  testRuns = [],
+  environments = [],
+}: ReportDefectModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<Defect["severity"]>("Medium");
@@ -37,7 +46,7 @@ export function ReportDefectModal({ isOpen, onClose, onSubmit }: ReportDefectMod
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const newDefect: Defect = {
@@ -49,7 +58,7 @@ export function ReportDefectModal({ isOpen, onClose, onSubmit }: ReportDefectMod
       type,
       priority: severity,
       assignedTo: "Unassigned",
-      reportedBy: "Hambali Fadib",
+      reportedBy: "System",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       tags: tagsInput.split(",").map(t => t.trim()).filter(Boolean),
@@ -59,7 +68,7 @@ export function ReportDefectModal({ isOpen, onClose, onSubmit }: ReportDefectMod
       ...(browser ? { browser } : {}),
     };
 
-    onSubmit(newDefect);
+    await onSubmit(newDefect);
     setTitle("");
     setDescription("");
     setSeverity("Medium");

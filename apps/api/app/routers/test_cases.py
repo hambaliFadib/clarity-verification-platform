@@ -1,4 +1,3 @@
-import uuid
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app.db.session import get_db_session
@@ -32,8 +31,7 @@ def create_new_test_case(
     schema: TestCaseCreate,
     db: Session = Depends(get_db_session)
 ):
-    creator_id = uuid.UUID("4472c67d-d42f-48d6-9dc4-1be8bc7b71f1")
-    return test_case_service.create_test_case(db, schema, creator_id)
+    return test_case_service.create_test_case(db, schema)
 
 
 @router.get("/{display_id}", response_model=TestCaseResponse)

@@ -25,7 +25,7 @@ def generate_display_id(db: Session) -> str:
     return f"CLR-TC-{max_num + 1:03d}"
 
 
-def create_test_case(db: Session, schema: TestCaseCreate, creator_id: uuid.UUID) -> TestCase:
+def create_test_case(db: Session, schema: TestCaseCreate, creator_id: uuid.UUID | None = None) -> TestCase:
     display_id = generate_display_id(db)
     
     db_tc = TestCase(

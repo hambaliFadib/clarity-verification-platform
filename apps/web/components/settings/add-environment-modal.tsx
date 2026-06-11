@@ -8,7 +8,7 @@ import type { Environment } from "@/lib/types";
 interface AddEnvironmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (env: Environment) => void;
+  onSubmit: (env: Environment) => void | Promise<void>;
 }
 
 export function AddEnvironmentModal({ isOpen, onClose, onSubmit }: AddEnvironmentModalProps) {
@@ -19,7 +19,7 @@ export function AddEnvironmentModal({ isOpen, onClose, onSubmit }: AddEnvironmen
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newEnv: Environment = {
       id: `env-${Date.now()}`,
@@ -29,7 +29,7 @@ export function AddEnvironmentModal({ isOpen, onClose, onSubmit }: AddEnvironmen
       status: "Active",
       description,
     };
-    onSubmit(newEnv);
+    await onSubmit(newEnv);
     setName("");
     setUrl("");
     setType("Development");

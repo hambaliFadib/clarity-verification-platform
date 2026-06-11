@@ -1,6 +1,5 @@
 "use client";
-import { useState } from "react";
-import { environments as initialEnvironments } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,11 +13,36 @@ import {
 } from "@/lib/badge-variants";
 
 export default function EnvironmentsPage() {
-  const [environments, setEnvironments] = useState<Environment[]>(initialEnvironments);
+  const [environments, setEnvironments] = useState<Environment[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleAddEnvironment = (env: Environment) => {
-    setEnvironments([...environments, env]);
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadEnvironments() {
+      const response = await fetch("/api/environments", { cache: "no-store" });
+      if (isMounted && response.ok) setEnvironments(await response.json());
+    }
+
+    loadEnvironments().catch(() => {
+      if (isMounted) setEnvironments([]);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleAddEnvironment = async (env: Environment) => {
+    const response = await fetch("/api/environments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(env),
+    });
+    if (!response.ok) return;
+
+    const result = await response.json();
+    setEnvironments([...environments, result.environment]);
   };
 
   return (
@@ -30,7 +54,11 @@ export default function EnvironmentsPage() {
           actions={<Button onClick={() => setIsModalOpen(true)}><Plus className="h-4 w-4" /> Add Environment</Button>}
         />
         <div className="space-y-3">
-          {environments.map((env) => (
+          {environments.length === 0 ? (
+            <div className="bg-white border border-outline-variant rounded-xl p-8 text-center text-body-md text-on-surface-variant">
+              No environments configured.
+            </div>
+          ) : environments.map((env) => (
             <div key={env.id} className="bg-white border border-outline-variant rounded-xl p-5 hover:shadow-card transition-all">
               <div className="flex items-start justify-between">
                 <div className="space-y-1.5">

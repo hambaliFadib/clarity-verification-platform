@@ -1,6 +1,5 @@
 "use client";
-import { useMemo } from "react";
-import { testCases, defects } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Bug, FlaskConical, Layers } from "lucide-react";
@@ -9,43 +8,23 @@ import { releaseStatusBadgeVariants } from "@/lib/badge-variants";
 import type { Release } from "@/lib/types";
 
 export default function ReleasesPage() {
-  const dynamicReleases = useMemo(() => {
-    const modules = Array.from(new Set(testCases.map(tc => tc.module)));
+  const [releases, setReleases] = useState<Release[]>([]);
 
-    return modules.map((mod, index) => {
-      const moduleTests = testCases.filter(tc => tc.module === mod);
+  useEffect(() => {
+    let isMounted = true;
 
-      let passedTests = 0;
-      moduleTests.forEach(tc => {
-        if (tc.status === "Approved" || tc.status === "Ready") passedTests++;
-      });
+    async function loadReleases() {
+      const response = await fetch("/api/releases", { cache: "no-store" });
+      if (isMounted && response.ok) setReleases(await response.json());
+    }
 
-      const moduleDefects = defects.filter(d =>
-        d.linkedTestCase && moduleTests.some(tc => tc.id === d.linkedTestCase)
-      );
+    loadReleases().catch(() => {
+      if (isMounted) setReleases([]);
+    });
 
-      const openDefects = moduleDefects.filter(d => d.status === "Open" || d.status === "In Progress").length;
-      const criticalDefects = moduleDefects.filter(d => d.severity === "Critical").length;
-
-      const progressStatus = passedTests === moduleTests.length && moduleTests.length > 0
-        ? "Released"
-        : (passedTests > 0 ? "In Progress" : "Planning");
-
-      return {
-        id: `mod-rel-${index}`,
-        version: mod.toUpperCase().substring(0, 3) + "-REL",
-        name: `${mod} Module`,
-        status: progressStatus,
-        startDate: "2026-06-01",
-        targetDate: "2026-06-30",
-        description: `Aggregated release readiness for the ${mod} module based on current test cases.`,
-        totalTestCases: moduleTests.length,
-        passedTestCases: passedTests,
-        totalDefects: moduleDefects.length,
-        openDefects,
-        criticalDefects,
-      } as Release;
-    }).sort((a, b) => b.totalTestCases - a.totalTestCases);
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -61,7 +40,11 @@ export default function ReleasesPage() {
       </div>
 
       <div className="space-y-4">
-        {dynamicReleases.map((rel) => {
+        {releases.length === 0 ? (
+          <div className="bg-white border border-outline-variant rounded-xl p-8 text-center text-body-md text-on-surface-variant">
+            No release readiness data yet.
+          </div>
+        ) : releases.map((rel) => {
           const passRate = rel.totalTestCases > 0 ? Math.round((rel.passedTestCases / rel.totalTestCases) * 100) : 0;
           return (
             <div key={rel.id} className="bg-white border border-outline-variant rounded-xl p-6 hover:shadow-card transition-all">

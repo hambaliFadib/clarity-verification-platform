@@ -1,7 +1,6 @@
 "use client";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { defects, teamMembers } from "@/lib/mock-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, User, Calendar, Globe, Monitor, Link2, Tag, MessageSquare, Plus, Check } from "lucide-react";
@@ -12,36 +11,60 @@ import {
   severityBadgeVariants,
 } from "@/lib/badge-variants";
 import { LinkTestCaseModal } from "@/components/defects/link-test-case-modal";
-import type { Defect, DefectStatus } from "@/lib/types";
-
-interface Comment {
-  id: string;
-  author: string;
-  initials: string;
-  timestamp: string;
-  text: string;
-}
-
-const mockComments: Comment[] = [
-  { id: "c1", author: "Sarah Chen", initials: "SC", timestamp: new Date(Date.now() - 7200000).toISOString(), text: "I can reproduce this consistently on Chrome 126. The API returns a 500 with no error body." },
-  { id: "c2", author: "David Park", initials: "DP", timestamp: new Date(Date.now() - 3600000).toISOString(), text: "Looking into this now. Seems like a missing validation middleware on the auth endpoint." }
-];
+import type { Defect, DefectComment, DefectStatus, TeamMember, TestCase } from "@/lib/types";
 
 export default function DefectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const initialDefect = defects.find((d) => d.id === id);
-
-  const [defect, setDefect] = useState<Defect | undefined>(initialDefect);
-
-  const [comments, setComments] = useState<Comment[]>(mockComments);
+  const [defect, setDefect] = useState<Defect | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [comments, setComments] = useState<DefectComment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [linkedTestCases, setLinkedTestCases] = useState<string[]>(
-    initialDefect?.linkedTestCase ? [initialDefect.linkedTestCase] : []
-  );
+  const [linkedTestCases, setLinkedTestCases] = useState<string[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
 
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isAssignDropdownOpen, setIsAssignDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDetail() {
+      const [defectResponse, usersResponse, testCasesResponse] = await Promise.all([
+        fetch(`/api/defects/${id}`, { cache: "no-store" }),
+        fetch("/api/users", { cache: "no-store" }),
+        fetch("/api/test-cases", { cache: "no-store" }),
+      ]);
+
+      if (!isMounted) return;
+      if (defectResponse.ok) {
+        const data: Defect = await defectResponse.json();
+        setDefect(data);
+        setComments(data.comments || []);
+        setLinkedTestCases(data.linkedTestCase ? [data.linkedTestCase] : []);
+      }
+      if (usersResponse.ok) setTeamMembers(await usersResponse.json());
+      if (testCasesResponse.ok) setTestCases(await testCasesResponse.json());
+      setIsLoading(false);
+    }
+
+    loadDetail().catch(() => {
+      if (isMounted) setIsLoading(false);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center text-body-md text-on-surface-variant">
+        Loading defect...
+      </div>
+    );
+  }
 
   if (!defect) {
     return (
@@ -53,12 +76,25 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const handlePostComment = () => {
+  const handlePostComment = async () => {
     if (!newComment.trim()) return;
-    const comment: Comment = {
+    const currentUser = teamMembers[0] || { name: "System", initials: "SY" };
+    const response = await fetch(`/api/defects/${defect.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        author: currentUser.name,
+        initials: currentUser.initials,
+        text: newComment.trim(),
+      }),
+    });
+
+    if (!response.ok) return;
+    const result = await response.json();
+    const comment: DefectComment = result.comment || {
       id: `c${Date.now()}`,
-      author: "Hambali Fadib",
-      initials: "HF",
+      author: currentUser.name,
+      initials: currentUser.initials,
       timestamp: new Date().toISOString(),
       text: newComment.trim()
     };
@@ -66,17 +102,35 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
     setNewComment("");
   };
 
-  const handleStatusChange = (status: DefectStatus) => {
-    setDefect({ ...defect, status });
+  const handleStatusChange = async (status: DefectStatus) => {
+    const response = await fetch(`/api/defects/${defect.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (response.ok) setDefect(await response.json());
     setIsStatusDropdownOpen(false);
   };
 
-  const handleAssign = (assignee: string) => {
-    setDefect({ ...defect, assignedTo: assignee });
+  const handleAssign = async (assignee: string) => {
+    const response = await fetch(`/api/defects/${defect.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assignedTo: assignee === "Unassigned" ? "" : assignee }),
+    });
+    if (response.ok) setDefect(await response.json());
     setIsAssignDropdownOpen(false);
   };
 
-  const handleLinkTestCases = (newLinks: string[]) => {
+  const handleLinkTestCases = async (newLinks: string[]) => {
+    if (newLinks.length > 0) {
+      const response = await fetch(`/api/defects/${defect.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ linkedTestCase: newLinks[0] }),
+      });
+      if (response.ok) setDefect(await response.json());
+    }
     setLinkedTestCases([...linkedTestCases, ...newLinks]);
   };
 
@@ -284,6 +338,7 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
         onClose={() => setIsLinkModalOpen(false)}
         alreadyLinked={linkedTestCases}
         onLink={handleLinkTestCases}
+        testCases={testCases}
       />
     </>
   );
