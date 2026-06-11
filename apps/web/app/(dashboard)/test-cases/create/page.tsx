@@ -29,7 +29,6 @@ interface FormStep {
   id: string;
   order: number;
   action: string;
-  testData: string;
 }
 
 interface FormValues {
@@ -37,9 +36,8 @@ interface FormValues {
   description: string;
   module: string;
   type: "Functional" | "UI" | "Performance" | "Integration" | "Security";
-  priority: "Critical" | "High" | "Medium" | "Low";
+  severity: "Minor" | "Major" | "Critical" | "Blocker";
   status: "Draft" | "Ready" | "Approved" | "In Review";
-  complexity: "Simple" | "Medium" | "Complex" | "";
   assignedTo: string;
   requirementId: string;
   estimatedTime: string;
@@ -101,16 +99,15 @@ export default function CreateTestCasePage() {
       description: "",
       module: "",
       type: "Functional",
-      priority: "Medium",
+      severity: "Major",
       status: "Draft",
-      complexity: "",
       assignedTo: "",
       requirementId: "",
       estimatedTime: "",
       environment: "",
       automationStatus: "",
       preconditions: "",
-      testSteps: [{ id: "step-1", order: 1, action: "", testData: "" }],
+      testSteps: [{ id: "step-1", order: 1, action: "" }],
       expectedResult: "",
       notes: "",
     },
@@ -170,7 +167,6 @@ export default function CreateTestCasePage() {
           id: step.id || `step-${idx + 1}`,
           order: idx + 1,
           action: step.action.trim(),
-          testData: step.testData.trim(),
         })),
       };
 
@@ -345,18 +341,18 @@ export default function CreateTestCasePage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>Priority *</label>
+                    <label className={labelClass}>Severity *</label>
                     <div className="relative">
                       <select
                         className={`${inputClass} appearance-none pr-10`}
-                        {...register("priority", { required: "Priority is required" })}
+                        {...register("severity", { required: "Severity is required" })}
                       >
+                        <option value="Blocker">Blocker</option>
                         <option value="Critical">Critical</option>
-                        <option value="High">High</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Low">Low</option>
+                        <option value="Major">Major</option>
+                        <option value="Minor">Minor</option>
                       </select>
                       <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-on-surface-variant/80" />
                     </div>
@@ -373,19 +369,6 @@ export default function CreateTestCasePage() {
                         <option value="Ready">Ready</option>
                         <option value="Approved">Approved</option>
                         <option value="In Review">In Review</option>
-                      </select>
-                      <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-on-surface-variant/80" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>Complexity</label>
-                    <div className="relative">
-                      <select className={`${inputClass} appearance-none pr-10`} {...register("complexity")}>
-                        <option value="">Select complexity</option>
-                        <option value="Simple">Simple</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Complex">Complex</option>
                       </select>
                       <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-on-surface-variant/80" />
                     </div>
@@ -571,7 +554,7 @@ export default function CreateTestCasePage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => append({ id: generateStepId(), order: fields.length + 1, action: "", testData: "" })}
+              onClick={() => append({ id: generateStepId(), order: fields.length + 1, action: "" })}
             >
               <Plus className="h-3.5 w-3.5" /> Add Step
             </Button>
@@ -579,7 +562,6 @@ export default function CreateTestCasePage() {
 
           <div className="hidden md:flex gap-3 px-10 text-[11px] font-bold text-outline uppercase tracking-wider mb-2">
             <div className="flex-1">Action *</div>
-            <div className="flex-1">Test Data</div>
             <div className="w-24"></div>
           </div>
 
@@ -590,8 +572,7 @@ export default function CreateTestCasePage() {
                   {index + 1}
                 </div>
 
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                <div className="flex-1">
                     <input
                       type="text"
                       placeholder={`Step ${index + 1} Action (e.g. Navigate to /login)*`}
@@ -610,16 +591,6 @@ export default function CreateTestCasePage() {
                       </span>
                     )}
                   </div>
-
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="e.g. admin@clarity.io / P@ssw0rd"
-                      className={inputClass}
-                      {...register(`testSteps.${index}.testData` as const)}
-                    />
-                  </div>
-                </div>
 
                 <div className="flex items-center gap-1 mt-1 flex-shrink-0">
                   <Button
@@ -753,9 +724,8 @@ export default function CreateTestCasePage() {
                 </h1>
                 <div className="flex gap-2 mt-3 flex-wrap">
                   <Badge variant="medium">{previewData.status || "Draft"}</Badge>
-                  <Badge variant="medium">{previewData.priority || "Medium"}</Badge>
+                  <Badge variant="medium">{previewData.severity || "Medium"}</Badge>
                   <Badge variant="medium">{previewData.type || "Functional"}</Badge>
-                  {previewData.complexity && <Badge variant="outline">{previewData.complexity}</Badge>}
                   {previewData.environment && <Badge variant="outline">{previewData.environment}</Badge>}
                   {previewData.automationStatus && (
                     <Badge variant="outline">{previewData.automationStatus}</Badge>
@@ -829,9 +799,6 @@ export default function CreateTestCasePage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-body-sm whitespace-pre-wrap">{step.action || "Empty action"}</td>
-                        <td className="px-4 py-3 text-body-sm font-mono text-outline bg-surface-container-lowest">
-                          {step.testData || <span className="italic text-on-surface-variant/40">-</span>}
-                        </td>
                       </tr>
                     ))}
                   </tbody>

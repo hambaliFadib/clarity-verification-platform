@@ -14,12 +14,12 @@ def read_test_cases(
     limit: int = 100,
     search: str | None = None,
     status: str | None = None,
-    priority: str | None = None,
+    severity: str | None = None,
     type: str | None = None,
     db: Session = Depends(get_db_session)
 ):
     items, total = test_case_service.get_test_cases(
-        db, skip=skip, limit=limit, search=search, status=status, priority=priority, type_filter=type
+        db, skip=skip, limit=limit, search=search, status=status, severity=severity, type_filter=type
     )
     response.headers["X-Total-Count"] = str(total)
     response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"

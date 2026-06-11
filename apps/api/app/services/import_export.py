@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import io
+import re
 import uuid
 from datetime import datetime, timezone
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.worksheet.datavalidation import DataValidation
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
@@ -24,24 +26,71 @@ from app.schemas.import_export import (
 )
 
 MAX_IMPORT_ROWS = 500
-MAX_STEP_COLUMNS = 20
 
-REQUIRED_COLUMNS = {"title", "module", "type", "priority", "expected_result", "step_1_action"}
+COL = {
+    "display_id":        "TC ID",
+    "title":             "Title",
+    "module":            "Module",
+    "type":              "Type",
+    "severity":          "Severity",
+    "status":            "Status",
+    "description":       "Description",
+    "preconditions":     "Preconditions",
+    "step_actions":      "Step Actions",
+    "expected_result":   "Expected Result",
+    "notes":             "Notes",
+    "automation_status": "Automation Status",
+    "environment":       "Environment",
+    "estimated_time":    "Estimated Time",
+    "tags":              "Tags",
+    "requirement_id":    "Requirement ID",
+    "assigned_to_name":  "Assigned To",
+}
 
-EXPORT_HEADER = [
-    "display_id", "title", "description", "module", "type", "priority", "status",
-    "complexity", "assigned_to_name", "requirement_id", "estimated_time", "tags",
-    "environment", "automation_status", "preconditions", "expected_result", "notes",
-]
-for _n in range(1, MAX_STEP_COLUMNS + 1):
-    EXPORT_HEADER.extend([f"step_{_n}_action", f"step_{_n}_expected_result", f"step_{_n}_test_data"])
+EXPORT_HEADER = list(COL.values())
+
+REQUIRED_COLUMNS = {
+    COL["title"],
+    COL["module"],
+    COL["type"],
+    COL["severity"],
+    COL["expected_result"],
+    COL["step_actions"],
+}
 
 VALID_TYPES = {"Functional", "Regression", "Smoke", "Integration", "UI", "Performance", "Security"}
-VALID_PRIORITIES = {"Critical", "High", "Medium", "Low"}
+VALID_SEVERITIES = {"Blocker", "Critical", "Major", "Minor"}
 VALID_STATUSES = {"Draft", "Ready", "In Review", "Approved", "Obsolete"}
-VALID_COMPLEXITIES = {"Simple", "Medium", "Complex", None}
 VALID_ENVIRONMENTS = {"Staging", "Production", "UAT", "Development", None}
 VALID_AUTOMATION_STATUSES = {"Manual", "Automated", "Candidate to Automate", None}
+
+
+def _numbered_list(items: list[str | None]) -> str | None:
+    lines = []
+    for i, item in enumerate(items, start=1):
+        if item:
+            lines.append(f"{i}. {item}")
+    return "\n".join(lines) if lines else None
+
+
+def _parse_numbered_list(text: str | None) -> list[str | None]:
+    if not text:
+        return []
+    lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+    result: dict[int, str] = {}
+    max_n = 0
+    for line in lines:
+        match = re.match(r"^(\d+)\.\s*(.*)$", line)
+        if match:
+            n = int(match.group(1))
+            result[n] = match.group(2).strip()
+            if n > max_n:
+                max_n = n
+        else:
+            pass
+    if not result:
+        return [text.strip()] if text.strip() else []
+    return [result.get(i) for i in range(1, max_n + 1)]
 
 
 def export_test_cases_xlsx(db: Session) -> bytes:
@@ -52,7 +101,7 @@ def export_test_cases_xlsx(db: Session) -> bytes:
     ws.title = "Test Cases"
 
     header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill(fill_type="solid", fgColor="1E293B")
+    header_fill = PatternFill(fill_type="solid", fgColor="595959")
     header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
     for col_idx, header in enumerate(EXPORT_HEADER, start=1):
@@ -64,45 +113,140 @@ def export_test_cases_xlsx(db: Session) -> bytes:
     ws.row_dimensions[1].height = 30
     ws.freeze_panes = "A2"
 
+    step_cell_alignment = Alignment(vertical="top", wrap_text=True)
+
     for row_idx, tc in enumerate(cases, start=2):
+        sorted_steps = sorted(tc.steps, key=lambda s: s.step_number)
+
+        step_actions = _numbered_list([s.action for s in sorted_steps])
+
         row_data = [
-            tc.display_id,
-            tc.title,
-            tc.description,
-            tc.module,
-            tc.type,
-            tc.priority,
-            tc.status,
-            tc.complexity,
-            tc.assigned_to_name,
-            tc.requirement_id,
-            tc.estimated_time,
-            ";".join(tc.tags) if tc.tags else None,
-            tc.environment,
-            tc.automation_status,
-            tc.preconditions,
-            tc.expected_result,
-            tc.notes,
+            tc.display_id,          # A  TC ID
+            tc.title,               # B  Title
+            tc.module,              # C  Module
+            tc.type,                # D  Type
+            tc.severity,            # E  Severity
+            tc.status,              # F  Status
+            tc.description,         # G  Description
+            tc.preconditions,       # H  Preconditions
+            step_actions,           # I  Step Actions
+            tc.expected_result,     # J  Expected Result
+            tc.notes,               # K  Notes
+            tc.automation_status,   # L  Automation Status
+            tc.environment,         # M  Environment
+            tc.estimated_time,      # N  Estimated Time
+            ";".join(tc.tags) if tc.tags else None,  # O  Tags
+            tc.requirement_id,      # P  Requirement ID
+            tc.assigned_to_name,    # Q  Assigned To
         ]
 
-        for step_num in range(1, MAX_STEP_COLUMNS + 1):
-            step = next((s for s in tc.steps if s.step_number == step_num), None)
-            if step:
-                row_data.extend([step.action, step.expected_result, step.test_data])
-            else:
-                row_data.extend([None, None, None])
-
         for col_idx, value in enumerate(row_data, start=1):
-            ws.cell(row=row_idx, column=col_idx, value=value)
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
 
-    ws.column_dimensions["A"].width = 14
-    ws.column_dimensions["B"].width = 40
-    ws.column_dimensions["C"].width = 30
-    ws.column_dimensions["D"].width = 18
-    ws.column_dimensions["E"].width = 16
-    ws.column_dimensions["F"].width = 12
-    ws.column_dimensions["G"].width = 14
-    ws.column_dimensions["P"].width = 40
+    for col_idx, header in enumerate(EXPORT_HEADER, start=1):
+        from openpyxl.utils import get_column_letter
+        col_letter = get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = max(len(header) + 4, 10)
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Helpers shared by export & template
+# ---------------------------------------------------------------------------
+
+_REQUIRED_KEYS = {"title", "module", "type", "severity", "expected_result", "step_actions"}
+
+_COL_KEYS = list(COL.keys())
+
+# Enum lists for dropdown data-validation
+_DV_MAP: dict[str, list[str]] = {
+    COL["type"]:             sorted(VALID_TYPES),
+    COL["severity"]:         sorted(VALID_SEVERITIES),
+    COL["status"]:           sorted(VALID_STATUSES),
+    COL["automation_status"]: sorted(v for v in VALID_AUTOMATION_STATUSES if v),
+    COL["environment"]:      sorted(v for v in VALID_ENVIRONMENTS if v),
+}
+
+
+def generate_template_xlsx() -> bytes:
+    """Return an XLSX template with coloured headers, dropdowns, and one example row."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Test Cases"
+
+    # ---- fonts & fills -------------------------------------------------
+    hdr_font     = Font(bold=True, color="FFFFFF")
+    hdr_fill     = PatternFill(fill_type="solid", fgColor="595959")
+    hdr_align    = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    body_align   = Alignment(vertical="top", wrap_text=True)
+
+    # ---- write headers -------------------------------------------------
+    col_letter_map: dict[str, str] = {}
+    for col_idx, (key, header) in enumerate(COL.items(), start=1):
+        from openpyxl.utils import get_column_letter
+        col_letter = get_column_letter(col_idx)
+        col_letter_map[header] = col_letter
+
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font    = hdr_font
+        cell.fill    = hdr_fill
+        cell.alignment = hdr_align
+
+    ws.row_dimensions[1].height = 30
+    ws.freeze_panes = "A2"
+
+    # ---- example row ---------------------------------------------------
+    example = [
+        "",                                          # A  TC ID  (blank = auto-assign)
+        "Verify login with valid credentials",        # B  Title
+        "Authentication",                             # C  Module
+        "Functional",                                 # D  Type
+        "Major",                                      # E  Severity
+        "Draft",                                      # F  Status
+        "Test that a registered user can log in using correct credentials",  # G  Description
+        "User must be registered in the system",      # H  Preconditions
+        "1. Open the login page\n2. Enter valid username and password\n3. Click the Login button",  # I  Step Actions
+        "User is redirected to dashboard after successful login",  # J  Expected Result
+        "",                                           # K  Notes
+        "Manual",                                     # L  Automation Status
+        "Staging",                                    # M  Environment
+        "5 min",                                      # N  Estimated Time
+        "auth;login",                                 # O  Tags  (semicolon-separated)
+        "REQ-AUTH-001",                               # P  Requirement ID
+        "",                                           # Q  Assigned To
+    ]
+    for col_idx, value in enumerate(example, start=1):
+        cell = ws.cell(row=2, column=col_idx, value=value)
+        cell.alignment = body_align
+
+    ws.row_dimensions[2].height = 60
+
+    # ---- dropdown data validation for rows 2-501 -----------------------
+    for header, choices in _DV_MAP.items():
+        col_letter = col_letter_map.get(header)
+        if not col_letter:
+            continue
+        formula = '"' + ",".join(choices) + '"'
+        dv = DataValidation(
+            type="list",
+            formula1=formula,
+            allow_blank=True,
+            showErrorMessage=True,
+            errorTitle="Invalid value",
+            error=f"Choose one of: {', '.join(choices)}",
+        )
+        dv.sqref = f"{col_letter}2:{col_letter}501"
+        ws.add_data_validation(dv)
+
+    # ---- column widths -------------------------------------------------
+    for col_idx, (key, header) in enumerate(COL.items(), start=1):
+        from openpyxl.utils import get_column_letter
+        col_letter = get_column_letter(col_idx)
+        ws.column_dimensions[col_letter].width = max(len(header) + 4, 10)
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -164,11 +308,11 @@ def parse_xlsx_import(file_bytes: bytes, db: Session) -> ParseResult:
 
     existing_ids: set[str] = set()
     existing_map: dict[str, TestCase] = {}
-    if "display_id" in header_map:
+    if COL["display_id"] in header_map:
         candidate_ids = [
-            _cell_str(data_rows[i][header_map["display_id"]])
+            _cell_str(data_rows[i][header_map[COL["display_id"]]])
             for i in range(len(data_rows))
-            if _cell_str(data_rows[i][header_map["display_id"]])
+            if _cell_str(data_rows[i][header_map[COL["display_id"]]])
         ]
         if candidate_ids:
             db_results = db.query(TestCase).filter(
@@ -191,77 +335,77 @@ def parse_xlsx_import(file_bytes: bytes, db: Session) -> ParseResult:
     for row_num, row in enumerate(data_rows, start=2):
         row_errors: list[ImportError] = []
 
-        title = get_cell(row, "title")
+        title = get_cell(row, COL["title"])
         if not title:
-            row_errors.append(ImportError(row=row_num, field="title", message="Required"))
+            row_errors.append(ImportError(row=row_num, field="Title", message="Required"))
 
-        module = get_cell(row, "module")
+        module = get_cell(row, COL["module"])
         if not module:
-            row_errors.append(ImportError(row=row_num, field="module", message="Required"))
+            row_errors.append(ImportError(row=row_num, field="Module", message="Required"))
 
-        tc_type = get_cell(row, "type")
+        tc_type = get_cell(row, COL["type"])
         if not tc_type:
-            row_errors.append(ImportError(row=row_num, field="type", message="Required"))
+            row_errors.append(ImportError(row=row_num, field="Type", message="Required"))
         elif tc_type not in VALID_TYPES:
-            row_errors.append(ImportError(row=row_num, field="type", message=f"Must be one of: {', '.join(sorted(VALID_TYPES))}"))
+            row_errors.append(ImportError(row=row_num, field="Type", message=f"Must be one of: {', '.join(sorted(VALID_TYPES))}"))
 
-        priority = get_cell(row, "priority")
-        if not priority:
-            row_errors.append(ImportError(row=row_num, field="priority", message="Required"))
-        elif priority not in VALID_PRIORITIES:
-            row_errors.append(ImportError(row=row_num, field="priority", message=f"Must be one of: {', '.join(sorted(VALID_PRIORITIES))}"))
+        severity = get_cell(row, COL["severity"])
+        if not severity:
+            row_errors.append(ImportError(row=row_num, field="Severity", message="Required"))
+        elif severity not in VALID_SEVERITIES:
+            row_errors.append(ImportError(row=row_num, field="Severity", message=f"Must be one of: {', '.join(sorted(VALID_SEVERITIES))}"))
 
-        expected_result = get_cell(row, "expected_result")
+        expected_result = get_cell(row, COL["expected_result"])
         if not expected_result:
-            row_errors.append(ImportError(row=row_num, field="expected_result", message="Required"))
+            row_errors.append(ImportError(row=row_num, field="Expected Result", message="Required"))
 
-        step_1_action = get_cell(row, "step_1_action")
-        if not step_1_action:
-            row_errors.append(ImportError(row=row_num, field="step_1_action", message="At least one step action is required"))
+        step_actions_raw = get_cell(row, COL["step_actions"])
+        if not step_actions_raw:
+            row_errors.append(ImportError(row=row_num, field="Step Actions", message="At least one step action is required"))
 
         if row_errors:
             errors.extend(row_errors)
             continue
 
+        actions = _parse_numbered_list(step_actions_raw)
+
         steps: list[ImportStepRow] = []
-        for n in range(1, MAX_STEP_COLUMNS + 1):
-            action = get_cell(row, f"step_{n}_action")
+        for i, action in enumerate(actions):
             if not action:
-                break
+                continue
             steps.append(ImportStepRow(
                 action=action,
-                expected_result=get_cell(row, f"step_{n}_expected_result"),
-                test_data=get_cell(row, f"step_{n}_test_data"),
+                expected_result=None,
+                test_data=None,
             ))
 
-        status = get_cell(row, "status") or "Draft"
+        status = get_cell(row, COL["status"]) or "Draft"
         if status not in VALID_STATUSES:
             status = "Draft"
 
-        tags_raw = get_cell(row, "tags")
+        tags_raw = get_cell(row, COL["tags"])
         tags = [t.strip() for t in tags_raw.split(";") if t.strip()] if tags_raw else None
 
-        display_id = get_cell(row, "display_id")
+        display_id = get_cell(row, COL["display_id"])
 
         import_row = TestCaseImportRow(
             row_index=row_num,
             display_id=display_id,
             title=title,
-            description=get_cell(row, "description"),
+            description=get_cell(row, COL["description"]),
             module=module,
             type=tc_type,
-            priority=priority,
+            severity=severity,
             status=status,
-            complexity=get_cell(row, "complexity"),
-            assigned_to_name=get_cell(row, "assigned_to_name"),
-            requirement_id=get_cell(row, "requirement_id"),
-            estimated_time=get_cell(row, "estimated_time"),
+            assigned_to_name=get_cell(row, COL["assigned_to_name"]),
+            requirement_id=get_cell(row, COL["requirement_id"]),
+            estimated_time=get_cell(row, COL["estimated_time"]),
             tags=tags,
-            environment=get_cell(row, "environment"),
-            automation_status=get_cell(row, "automation_status"),
-            preconditions=get_cell(row, "preconditions"),
+            environment=get_cell(row, COL["environment"]),
+            automation_status=get_cell(row, COL["automation_status"]),
+            preconditions=get_cell(row, COL["preconditions"]),
             expected_result=expected_result,
-            notes=get_cell(row, "notes"),
+            notes=get_cell(row, COL["notes"]),
             steps=steps,
         )
 
@@ -345,9 +489,8 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                 existing.description = import_row.description
                 existing.module = import_row.module
                 existing.type = import_row.type
-                existing.priority = import_row.priority
+                existing.severity = import_row.severity
                 existing.status = import_row.status
-                existing.complexity = import_row.complexity
                 existing.assigned_to = assignee_id
                 existing.requirement_id = import_row.requirement_id
                 existing.estimated_time = import_row.estimated_time
@@ -366,8 +509,6 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                         test_case_id=existing.id,
                         step_number=step_idx + 1,
                         action=step.action,
-                        expected_result=step.expected_result,
-                        test_data=step.test_data,
                         status="Not Run",
                     ))
 
@@ -382,9 +523,8 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                     description=import_row.description,
                     module=import_row.module,
                     type=import_row.type,
-                    priority=import_row.priority,
+                    severity=import_row.severity,
                     status=import_row.status,
-                    complexity=import_row.complexity,
                     assigned_to=assignee_id,
                     requirement_id=import_row.requirement_id,
                     estimated_time=import_row.estimated_time,
@@ -405,8 +545,6 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                         test_case_id=new_tc.id,
                         step_number=step_idx + 1,
                         action=step.action,
-                        expected_result=step.expected_result,
-                        test_data=step.test_data,
                         status="Not Run",
                     ))
 

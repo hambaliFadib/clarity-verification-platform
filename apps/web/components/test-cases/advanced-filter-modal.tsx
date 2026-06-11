@@ -2,12 +2,12 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { TestCasePriority, TestCaseType } from "@/lib/types";
+import type { TestCaseSeverity, TestCaseType } from "@/lib/types";
 
 export interface TestCaseAdvancedFilters {
   module: string;
   type: TestCaseType | "";
-  priority: TestCasePriority | "";
+  severity: TestCaseSeverity | "";
 }
 
 interface AdvancedFilterModalProps {
@@ -29,7 +29,7 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply, 
   };
 
   const handleReset = () => {
-    const emptyFilters: TestCaseAdvancedFilters = { module: "", type: "", priority: "" };
+    const emptyFilters: TestCaseAdvancedFilters = { module: "", type: "", severity: "" };
     setFilters(emptyFilters);
     onApply(emptyFilters);
     onClose();
@@ -38,7 +38,7 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply, 
   const selectClass = "w-full border border-outline-variant rounded-lg px-3 py-2 text-body-sm bg-white focus:border-primary-container focus:outline-none transition-all";
   const labelClass = "block text-label-bold font-label-bold text-on-surface-variant uppercase tracking-normal mb-1.5";
   const testCaseTypes: TestCaseType[] = ["Functional", "Regression", "Smoke", "Integration", "UI", "Performance", "Security"];
-  const priorities: TestCasePriority[] = ["Critical", "High", "Medium", "Low"];
+  const severities: TestCaseSeverity[] = ["Blocker", "Critical", "Major", "Minor"];
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -82,15 +82,15 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply, 
           </div>
 
           <div>
-            <label className={labelClass}>Priority</label>
+            <label className={labelClass}>Severity</label>
             <select
-              value={filters.priority}
-              onChange={(e) => setFilters({ ...filters, priority: e.target.value as TestCasePriority | "" })}
+              value={filters.severity}
+              onChange={(e) => setFilters({ ...filters, severity: e.target.value as TestCaseSeverity | "" })}
               className={selectClass}
             >
               <option value="">All</option>
-              {priorities.map((priority) => (
-                <option key={priority} value={priority}>{priority}</option>
+              {severities.map((severity) => (
+                <option key={severity} value={severity}>{severity}</option>
               ))}
             </select>
           </div>

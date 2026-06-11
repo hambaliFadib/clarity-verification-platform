@@ -25,6 +25,16 @@ def export_xlsx(db: Session = Depends(get_db_session)):
     )
 
 
+@router.get("/template/xlsx")
+def download_template():
+    xlsx_bytes = import_export_service.generate_template_xlsx()
+    return StreamingResponse(
+        io.BytesIO(xlsx_bytes),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=\"test-cases-template.xlsx\""},
+    )
+
+
 @router.post("/import/parse", response_model=ParseResult)
 async def parse_import(file: UploadFile = File(...), db: Session = Depends(get_db_session)):
     if not file.filename or not file.filename.lower().endswith(".xlsx"):

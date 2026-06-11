@@ -2,17 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
 import { SearchFilter } from "@/components/ui/search-filter";
 import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Download, Upload } from "lucide-react";
+import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Upload } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
-  priorityBadgeVariants,
+  testCaseSeverityBadgeVariants,
   testCaseStatusBadgeVariants,
   testCaseTypeBadgeVariants,
 } from "@/lib/badge-variants";
@@ -22,6 +22,7 @@ import {
   type TestCaseAdvancedFilters,
 } from "@/components/test-cases/advanced-filter-modal";
 import { ImportReviewModal } from "@/components/test-cases/import-review-modal";
+import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 
 export default function TestCasesPage() {
   const router = useRouter();
@@ -29,7 +30,7 @@ export default function TestCasesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("all");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImportExportOpen, setIsImportExportOpen] = useState(false);
   const [importToast, setImportToast] = useState<string | null>(null);
   const [isParseResultOpen, setIsParseResultOpen] = useState(false);
   const [parseResult, setParseResult] = useState<any>(null);
@@ -50,49 +51,6 @@ export default function TestCasesPage() {
     }
     loadTestCases();
   }, []);
-
-  function handleExport() {
-    window.location.href = "/api/test-cases/export/xlsx";
-  }
-
-  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-    const formData = new FormData();
-    formData.append("file", file);
-    try {
-      const res = await fetch("/api/test-cases/import/parse", { method: "POST", body: formData });
-      const result = await res.json();
-      if (!res.ok) {
-        setImportToast(`Error: ${result.error ?? "Parse failed"}`);
-        setTimeout(() => setImportToast(null), 5000);
-        return;
-      }
-      const normalized = {
-        totalParsed: result.total_parsed,
-        validRows: result.valid_rows,
-        duplicates: (result.duplicates ?? []).map((d: any) => ({
-          rowIndex: d.row_index,
-          displayId: d.display_id,
-          importTitle: d.import_title,
-          existingTitle: d.existing_title,
-          existingStatus: d.existing_status,
-        })),
-        errors: (result.errors ?? []).map((e: any) => ({ row: e.row, field: e.field, message: e.message })),
-      };
-      if (normalized.validRows.length === 0 && normalized.duplicates.length === 0) {
-        setImportToast(`No importable rows found. ${normalized.errors.length} error(s).`);
-        setTimeout(() => setImportToast(null), 6000);
-        return;
-      }
-      setParseResult(normalized);
-      setIsParseResultOpen(true);
-    } catch (err: any) {
-      setImportToast(`Error: ${err.message}`);
-      setTimeout(() => setImportToast(null), 5000);
-    }
-  }
 
   function handleImportComplete(result: { created: number; skipped: number; overwritten: number; errors: any[] }) {
     setIsParseResultOpen(false);
@@ -119,7 +77,7 @@ export default function TestCasesPage() {
   const [advancedFilters, setAdvancedFilters] = useState<TestCaseAdvancedFilters>({
     module: "",
     type: "",
-    priority: "",
+    severity: "",
   });
 
   const availableModules = Array.from(new Set(allCases.map(tc => tc.module)));
@@ -141,9 +99,9 @@ export default function TestCasesPage() {
 
     const matchesModule = !advancedFilters.module || tc.module === advancedFilters.module;
     const matchesType = !advancedFilters.type || tc.type === advancedFilters.type;
-    const matchesPriority = !advancedFilters.priority || tc.priority === advancedFilters.priority;
+    const matchesSeverity = !advancedFilters.severity || tc.severity === advancedFilters.severity;
 
-    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesPriority;
+    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesSeverity;
   });
 
   const statusTabs = [
@@ -175,29 +133,13 @@ export default function TestCasesPage() {
         subtitle="Manage and organize your test case library"
         actions={
           <div className="flex items-center gap-2">
-            <input
-              id="import-file-input"
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
             <Button
-              id="export-xlsx-btn"
+              id="import-export-trigger-btn"
               variant="outline"
-              onClick={handleExport}
-            >
-              <Download className="h-4 w-4" />
-              Export XLSX
-            </Button>
-            <Button
-              id="import-xlsx-btn"
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setIsImportExportOpen(true)}
             >
               <Upload className="h-4 w-4" />
-              Import XLSX
+              Import / Export
             </Button>
             <Link href="/test-cases/create">
               <Button id="create-test-case-btn">
@@ -252,7 +194,7 @@ export default function TestCasesPage() {
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Title</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Module</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Priority</th>
+              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Severity</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
               <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Assigned</th>
@@ -280,7 +222,7 @@ export default function TestCasesPage() {
                 </td>
                 <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.module}</td>
                 <td className="px-4 py-3">
-                  <Badge variant={priorityBadgeVariants[tc.priority]}>{tc.priority}</Badge>
+                  <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
                 </td>
                 <td className="px-4 py-3">
                   <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
@@ -313,6 +255,20 @@ export default function TestCasesPage() {
         parseResult={parseResult}
         onClose={() => { setIsParseResultOpen(false); setParseResult(null); }}
         onComplete={handleImportComplete}
+      />
+
+      <ImportExportModal
+        isOpen={isImportExportOpen}
+        onClose={() => setIsImportExportOpen(false)}
+        onParseSuccess={(result) => {
+          setParseResult(result);
+          setIsParseResultOpen(true);
+        }}
+        onImportError={(msg) => {
+          setImportToast(msg);
+          setTimeout(() => setImportToast(null), 6000);
+        }}
+        totalCount={totalCount}
       />
     </div>
   );

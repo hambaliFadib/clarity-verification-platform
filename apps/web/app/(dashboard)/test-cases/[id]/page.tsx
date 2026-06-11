@@ -21,6 +21,7 @@ import {
   getDefectStatusBadgeVariant,
   priorityBadgeVariants,
   severityBadgeVariants,
+  testCaseSeverityBadgeVariants,
   testCaseStatusBadgeVariants,
   testCaseTypeBadgeVariants,
 } from "@/lib/badge-variants";
@@ -104,9 +105,9 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           <span className="font-mono text-code text-primary-container">{tc.id}</span>
           <h1 className="text-headline-md font-headline font-semibold text-on-surface">{tc.title}</h1>
           <div className="flex gap-2">
-            <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
-            <Badge variant={priorityBadgeVariants[tc.priority]}>{tc.priority}</Badge>
-            <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
+              <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
+              <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
+              <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
           </div>
         </div>
         <div className="flex gap-2">
@@ -192,8 +193,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               <tr className="bg-surface-container-low border-b border-outline-variant">
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal w-16">#</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Action</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Expected Result</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal w-28">Status</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal w-40">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50">
@@ -206,16 +206,13 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
                   </td>
                   <td className="px-4 py-3 text-body-sm text-on-surface">{step.action}</td>
                   <td className="px-4 py-3">
-                    <div className="text-body-sm text-on-surface">{step.expectedResult}</div>
-                    {step.status === "Failed" && step.actualResult && (
-                      <div className="text-body-sm text-error mt-1 italic">Actual: {step.actualResult}</div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
                       {stepStatusIcon[step.status || "Not Run"]}
                       <span className="text-body-sm">{step.status || "Not Run"}</span>
                     </div>
+                    {step.status === "Failed" && step.actualResult && (
+                      <div className="text-body-sm text-error mt-1 italic pl-5.5">Actual: {step.actualResult}</div>
+                    )}
                   </td>
                 </tr>
               ))}

@@ -9,6 +9,13 @@ export const priorityBadgeVariants = {
 
 export const severityBadgeVariants = priorityBadgeVariants;
 
+export const testCaseSeverityBadgeVariants = {
+  Blocker: "critical",
+  Critical: "high",
+  Major: "medium",
+  Minor: "low",
+} as const satisfies Record<string, BadgeVariant>;
+
 export const testCaseStatusBadgeVariants = {
   Draft: "draft",
   Ready: "ready",
