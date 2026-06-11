@@ -117,9 +117,9 @@ export async function listTestCases(searchParams: URLSearchParams) {
      offset ${offset} limit ${limit}`,
     values,
   );
-  const steps = await getStepsByCaseIds(result.rows.map((row) => row.id));
+  const steps = await getStepsByCaseIds(result.rows.map((row: any) => row.id));
   return {
-    items: result.rows.map((row) => mapTestCase(row, steps.get(row.id) || [])),
+    items: result.rows.map((row: any) => mapTestCase(row, steps.get(row.id) || [])),
     total: Number(count.rows[0]?.total || 0),
   };
 }
@@ -331,7 +331,7 @@ export async function listDefects(searchParams: URLSearchParams) {
   const limit = addValue(toInt(searchParams.get("limit"), 100));
   const result = await query(`select * from defects where ${whereSql} order by updated_at desc offset ${offset} limit ${limit}`, values);
   return {
-    items: result.rows.map((row) => mapDefect(row)),
+    items: result.rows.map((row: any) => mapDefect(row)),
     total: Number(count.rows[0]?.total || 0),
   };
 }
@@ -571,13 +571,13 @@ export async function listReleases() {
   const items = [];
   for (const [index, row] of modules.rows.entries()) {
     const tests = await query("select display_id, status from test_cases where module = $1 and deleted_at is null", [row.module]);
-    const testIds = tests.rows.map((item) => item.display_id);
+    const testIds = tests.rows.map((item: any) => item.display_id);
     const defects = testIds.length
       ? await query("select severity, status from defects where deleted_at is null and linked_test_case = any($1::text[])", [testIds])
       : { rows: [] };
-    const passed = tests.rows.filter((item) => ["Approved", "Ready"].includes(item.status)).length;
-    const openDefects = defects.rows.filter((item) => ["Open", "In Progress", "Blocked", "Reopened"].includes(item.status)).length;
-    const criticalDefects = defects.rows.filter((item) => item.severity === "Critical").length;
+    const passed = tests.rows.filter((item: any) => ["Approved", "Ready"].includes(item.status)).length;
+    const openDefects = defects.rows.filter((item: any) => ["Open", "In Progress", "Blocked", "Reopened"].includes(item.status)).length;
+    const criticalDefects = defects.rows.filter((item: any) => item.severity === "Critical").length;
     items.push({
       id: `module-${index + 1}`,
       version: `${row.module.slice(0, 3).toUpperCase()}-REL`,
