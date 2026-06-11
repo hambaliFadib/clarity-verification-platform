@@ -122,124 +122,126 @@ export default function TestCasesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      {importToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl px-5 py-3 text-body-sm text-on-surface max-w-sm animate-fade-in">
-          {importToast}
-        </div>
-      )}
-      <PageHeader
-        title="Test Cases"
-        subtitle="Manage and organize your test case library"
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              id="import-export-trigger-btn"
-              variant="outline"
-              onClick={() => setIsImportExportOpen(true)}
-            >
-              <Upload className="h-4 w-4" />
-              Import / Export
-            </Button>
-            <Link href="/test-cases/create">
-              <Button id="create-test-case-btn">
-                <Plus className="h-4 w-4" />
-                Create Test Case
-              </Button>
-            </Link>
+    <>
+      <div className="p-6 space-y-6 animate-fade-in">
+        {importToast && (
+          <div className="fixed bottom-6 right-6 z-50 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl px-5 py-3 text-body-sm text-on-surface max-w-sm animate-fade-in">
+            {importToast}
           </div>
-        }
-      />
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiCard label="Total" value={totalCount} icon={FlaskConical} />
-        <KpiCard
-          label="Approved"
-          value={approvedCount}
-          icon={CheckCircle2}
-          valueColor="text-emerald-600"
-          iconColor="text-emerald-600"
-          hoverBorderColor="hover:border-emerald-500"
-        />
-        <KpiCard
-          label="Has Failures"
-          value={failedCount}
-          icon={XCircle}
-          valueColor="text-error"
-          iconColor="text-error"
-          hoverBorderColor="hover:border-error"
-        />
-        <KpiCard
-          label="In Review / Draft"
-          value={reviewCount}
-          icon={Clock}
-          valueColor="text-amber-600"
-          iconColor="text-amber-600"
-          hoverBorderColor="hover:border-amber-400"
-        />
-      </div>
-
-      <StatusTabs tabs={statusTabs} defaultValue={activeStatus} onChange={setActiveStatus} />
-      <SearchFilter
-        placeholder="Search test cases..."
-        value={search}
-        onChange={setSearch}
-        onAddFilterClick={() => setIsAdvancedFilterOpen(true)}
-      />
-
-      <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-surface-container-low border-b border-outline-variant">
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Title</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Module</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Severity</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Assigned</th>
-              <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Updated</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-outline-variant/50">
-            {filteredCases.map((tc) => (
-              <tr
-                key={tc.id}
-                role="link"
-                tabIndex={0}
-                onClick={() => router.push(`/test-cases/${tc.id}`)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    router.push(`/test-cases/${tc.id}`);
-                  }
-                }}
-                className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
+        )}
+        <PageHeader
+          title="Test Cases"
+          subtitle="Manage and organize your test case library"
+          actions={
+            <div className="flex items-center gap-2">
+              <Button
+                id="import-export-trigger-btn"
+                variant="outline"
+                onClick={() => setIsImportExportOpen(true)}
               >
-                <td className="px-4 py-3 font-mono text-code text-primary-container font-medium">{tc.id}</td>
-                <td className="px-4 py-3 text-body-sm font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
-                  {tc.title}
-                </td>
-                <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.module}</td>
-                <td className="px-4 py-3">
-                  <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
-                </td>
-                <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.assignedTo || "-"}</td>
-                <td className="px-4 py-3 text-body-sm text-outline">{formatDate(tc.updatedAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                <Upload className="h-4 w-4" />
+                Import / Export
+              </Button>
+              <Link href="/test-cases/create">
+                <Button id="create-test-case-btn">
+                  <Plus className="h-4 w-4" />
+                  Create Test Case
+                </Button>
+              </Link>
+            </div>
+          }
+        />
 
-      <div className="text-body-sm text-on-surface-variant">
-        Showing {filteredCases.length} of {totalCount} test cases
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <KpiCard label="Total" value={totalCount} icon={FlaskConical} />
+          <KpiCard
+            label="Approved"
+            value={approvedCount}
+            icon={CheckCircle2}
+            valueColor="text-emerald-600"
+            iconColor="text-emerald-600"
+            hoverBorderColor="hover:border-emerald-500"
+          />
+          <KpiCard
+            label="Has Failures"
+            value={failedCount}
+            icon={XCircle}
+            valueColor="text-error"
+            iconColor="text-error"
+            hoverBorderColor="hover:border-error"
+          />
+          <KpiCard
+            label="In Review / Draft"
+            value={reviewCount}
+            icon={Clock}
+            valueColor="text-amber-600"
+            iconColor="text-amber-600"
+            hoverBorderColor="hover:border-amber-400"
+          />
+        </div>
+
+        <StatusTabs tabs={statusTabs} defaultValue={activeStatus} onChange={setActiveStatus} />
+        <SearchFilter
+          placeholder="Search test cases..."
+          value={search}
+          onChange={setSearch}
+          onAddFilterClick={() => setIsAdvancedFilterOpen(true)}
+        />
+
+        <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-surface-container-low border-b border-outline-variant">
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Title</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Module</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Severity</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Assigned</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Updated</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant/50">
+              {filteredCases.map((tc) => (
+                <tr
+                  key={tc.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/test-cases/${tc.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      router.push(`/test-cases/${tc.id}`);
+                    }
+                  }}
+                  className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
+                >
+                  <td className="px-4 py-3 font-mono text-code text-primary-container font-medium">{tc.id}</td>
+                  <td className="px-4 py-3 text-body-sm font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
+                    {tc.title}
+                  </td>
+                  <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.module}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.assignedTo || "-"}</td>
+                  <td className="px-4 py-3 text-body-sm text-outline">{formatDate(tc.updatedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="text-body-sm text-on-surface-variant">
+          Showing {filteredCases.length} of {totalCount} test cases
+        </div>
       </div>
 
       <AdvancedFilterModal
@@ -270,6 +272,6 @@ export default function TestCasesPage() {
         }}
         totalCount={totalCount}
       />
-    </div>
+    </>
   );
 }

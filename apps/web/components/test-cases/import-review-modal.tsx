@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, AlertTriangle, CheckCircle2, SkipForward, RefreshCw } from "lucide-react";
@@ -52,6 +52,17 @@ export function ImportReviewModal({ isOpen, parseResult, onClose, onComplete }: 
   const [duplicateActions, setDuplicateActions] = useState<Record<string, DuplicateActionType>>({});
   const [isExecuting, setIsExecuting] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
+
   if (!isOpen || !parseResult) return null;
 
   const { totalParsed, validRows, duplicates, errors } = parseResult;
@@ -95,8 +106,8 @@ export function ImportReviewModal({ isOpen, parseResult, onClose, onComplete }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-surface-container rounded-2xl shadow-2xl border border-outline-variant w-full max-w-2xl max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
           <h2 className="text-title-md font-semibold text-on-surface">Import Review</h2>
