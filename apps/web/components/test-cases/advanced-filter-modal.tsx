@@ -8,6 +8,7 @@ export interface TestCaseAdvancedFilters {
   module: string;
   type: TestCaseType | "";
   severity: TestCaseSeverity | "";
+  tags: string;
 }
 
 interface AdvancedFilterModalProps {
@@ -29,7 +30,7 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply, 
   };
 
   const handleReset = () => {
-    const emptyFilters: TestCaseAdvancedFilters = { module: "", type: "", severity: "" };
+    const emptyFilters: TestCaseAdvancedFilters = { module: "", type: "", severity: "", tags: "" };
     setFilters(emptyFilters);
     onApply(emptyFilters);
     onClose();
@@ -93,6 +94,17 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply, 
                 <option key={severity} value={severity}>{severity}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Tags</label>
+            <input
+              type="text"
+              placeholder="Filter by tags..."
+              value={filters.tags}
+              onChange={(e) => setFilters({ ...filters, tags: e.target.value })}
+              className={selectClass}
+            />
           </div>
         </div>
 

@@ -78,6 +78,7 @@ export default function TestCasesPage() {
     module: "",
     type: "",
     severity: "",
+    tags: "",
   });
 
   const availableModules = Array.from(new Set(allCases.map(tc => tc.module)));
@@ -100,8 +101,14 @@ export default function TestCasesPage() {
     const matchesModule = !advancedFilters.module || tc.module === advancedFilters.module;
     const matchesType = !advancedFilters.type || tc.type === advancedFilters.type;
     const matchesSeverity = !advancedFilters.severity || tc.severity === advancedFilters.severity;
+    
+    let matchesTags = true;
+    if (advancedFilters.tags) {
+      const q = advancedFilters.tags.toLowerCase();
+      matchesTags = !!tc.tags && tc.tags.some(tag => tag.toLowerCase().includes(q));
+    }
 
-    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesSeverity;
+    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesSeverity && matchesTags;
   });
 
   const statusTabs = [

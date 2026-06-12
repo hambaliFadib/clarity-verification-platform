@@ -7,6 +7,7 @@ export interface AdvancedFilters {
   severity: string;
   type: string;
   priority: string;
+  tags: string;
 }
 
 interface AdvancedFilterModalProps {
@@ -27,7 +28,7 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply }
   };
 
   const handleReset = () => {
-    const emptyFilters = { severity: "", type: "", priority: "" };
+    const emptyFilters = { severity: "", type: "", priority: "", tags: "" };
     setFilters(emptyFilters);
     onApply(emptyFilters);
     onClose();
@@ -91,6 +92,17 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply }
               <option value="Medium">Medium</option>
               <option value="Low">Low</option>
             </select>
+          </div>
+
+          <div>
+            <label className={labelClass}>Tags</label>
+            <input
+              type="text"
+              placeholder="Filter by tags..."
+              value={filters.tags}
+              onChange={(e) => setFilters({ ...filters, tags: e.target.value })}
+              className={selectClass}
+            />
           </div>
         </div>
 

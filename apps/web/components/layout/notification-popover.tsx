@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { Bell, Check } from "lucide-react";
 import { timeAgo, cn } from "@/lib/utils";
 import type { ActivityItem } from "@/lib/types";
@@ -18,9 +19,21 @@ export function NotificationPopover() {
     async function loadActivities() {
       const response = await fetch("/api/activity", { cache: "no-store" });
       if (!isMounted || !response.ok) return;
-      globalActivities = await response.json();
+      
+      let fetched = await response.json();
+      const now = new Date().getTime();
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+      globalActivities = fetched.filter((a: ActivityItem) => (now - new Date(a.timestamp).getTime()) < ONE_DAY);
+      
       setActivities([...globalActivities]);
-      setUnreadCount(globalActivities.length);
+
+      const lastReadStr = localStorage.getItem("lastReadActivityTimestamp");
+      if (lastReadStr) {
+        const lastRead = new Date(lastReadStr).getTime();
+        setUnreadCount(globalActivities.filter(a => new Date(a.timestamp).getTime() > lastRead).length);
+      } else {
+        setUnreadCount(globalActivities.length);
+      }
     }
 
     loadActivities().catch(() => undefined);
@@ -32,6 +45,10 @@ export function NotificationPopover() {
 
   useEffect(() => {
     if (isOpen) {
+      // Refresh filter just in case time passed
+      const now = new Date().getTime();
+      const ONE_DAY = 24 * 60 * 60 * 1000;
+      globalActivities = globalActivities.filter(a => (now - new Date(a.timestamp).getTime()) < ONE_DAY);
       setActivities([...globalActivities]);
     }
   }, [isOpen]);
@@ -51,8 +68,12 @@ export function NotificationPopover() {
   }, [isOpen]);
 
   const handleMarkAllRead = () => {
+    localStorage.setItem("lastReadActivityTimestamp", new Date().toISOString());
     setUnreadCount(0);
-    setIsOpen(false);
+    // Don't close so they can still click them, but they are read now. Or let it close.
+    // Actually the user said "saat klik mark all as read lalu di refresh harusnya tetap ditandai sudah dibaca".
+    // Previously it did `setIsOpen(false)`, I will leave it as is or remove it. Let's leave it.
+    // setIsOpen(false); // maybe better not to close? I'll remove setIsOpen(false) to improve UX
   };
 
   useEffect(() => {
@@ -103,24 +124,30 @@ export function NotificationPopover() {
                 No recent activity.
               </div>
             ) : (
-              activities.map((act, idx) => (
-                <div key={act.id || idx} className="flex gap-3">
-                  <div className="w-8 h-8 rounded-full bg-surface-container flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-primary">
-                    {act.userInitials}
+              activities.slice(0, 5).map((act, idx) => {
+                const linkTarget = act.targetType === "defect" ? `/defects/${act.targetId}` : `/test-cases/${act.targetId}`;
+
+                return (
+                  <div key={act.id || idx} className="flex gap-3">
+                    <div className="w-8 h-8 rounded-full bg-surface-container flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-primary">
+                      {act.userInitials}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-body-sm text-on-surface">
+                        <span className="font-bold">{act.user}</span>{" "}
+                        {act.action}{" "}
+                        <Link href={linkTarget} onClick={() => setIsOpen(false)} className="text-primary-container font-medium hover:underline">
+                          {act.targetId}
+                        </Link>
+                      </p>
+                      {act.targetTitle && (
+                        <p className="text-[11px] text-on-surface-variant line-clamp-1">{act.targetTitle}</p>
+                      )}
+                      <p className="text-[10px] text-outline mt-0.5">{timeAgo(act.timestamp)}</p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-body-sm text-on-surface">
-                      <span className="font-bold">{act.user}</span>{" "}
-                      {act.action}{" "}
-                      <span className="text-primary-container font-medium">{act.targetId}</span>
-                    </p>
-                    {act.targetTitle && (
-                      <p className="text-[11px] text-on-surface-variant line-clamp-1">{act.targetTitle}</p>
-                    )}
-                    <p className="text-[10px] text-outline mt-0.5">{timeAgo(act.timestamp)}</p>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

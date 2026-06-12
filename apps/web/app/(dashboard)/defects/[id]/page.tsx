@@ -11,6 +11,7 @@ import {
   severityBadgeVariants,
 } from "@/lib/badge-variants";
 import { LinkTestCaseModal } from "@/components/defects/link-test-case-modal";
+import { ReportDefectModal } from "@/components/defects/report-defect-modal";
 import type { Defect, DefectComment, DefectStatus, TeamMember, TestCase } from "@/lib/types";
 
 export default function DefectDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,6 +27,7 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isAssignDropdownOpen, setIsAssignDropdownOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,6 +104,33 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
     setNewComment("");
   };
 
+  const handleEditDefect = async (updatedDefect: Defect) => {
+    const payload = {
+      title: updatedDefect.title,
+      description: updatedDefect.description,
+      severity: updatedDefect.severity,
+      status: updatedDefect.status,
+      type: updatedDefect.type,
+      priority: updatedDefect.priority,
+      assigned_to: updatedDefect.assignedTo,
+      reported_by: updatedDefect.reportedBy,
+      linked_test_case: updatedDefect.linkedTestCase,
+      linked_test_run: updatedDefect.linkedTestRun,
+      environment: updatedDefect.environment,
+      browser: updatedDefect.browser,
+      tags: updatedDefect.tags,
+    };
+    const response = await fetch(`/api/defects/${defect.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (response.ok) {
+      setDefect(await response.json());
+      setIsEditModalOpen(false);
+    }
+  };
+
   const handleStatusChange = async (status: DefectStatus) => {
     const response = await fetch(`/api/defects/${defect.id}`, {
       method: "PATCH",
@@ -116,7 +145,7 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
     const response = await fetch(`/api/defects/${defect.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assignedTo: assignee === "Unassigned" ? "" : assignee }),
+      body: JSON.stringify({ assigned_to: assignee === "Unassigned" ? "" : assignee }),
     });
     if (response.ok) setDefect(await response.json());
     setIsAssignDropdownOpen(false);
@@ -127,7 +156,7 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
       const response = await fetch(`/api/defects/${defect.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ linkedTestCase: newLinks[0] }),
+        body: JSON.stringify({ linked_test_case: newLinks[0] }),
       });
       if (response.ok) setDefect(await response.json());
     }
@@ -171,6 +200,9 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
           <div className="flex gap-2 relative">
+            <Button variant="secondary" size="sm" onClick={() => setIsEditModalOpen(true)}>
+              Edit Defect
+            </Button>
             <div className="relative">
               <Button variant="secondary" size="sm" onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}>
                 Change Status
@@ -338,6 +370,14 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
         onClose={() => setIsLinkModalOpen(false)}
         alreadyLinked={linkedTestCases}
         onLink={handleLinkTestCases}
+        testCases={testCases}
+      />
+
+      <ReportDefectModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSubmit={handleEditDefect}
+        initialData={defect}
         testCases={testCases}
       />
     </>

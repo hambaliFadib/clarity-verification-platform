@@ -12,6 +12,7 @@ interface ReportDefectModalProps {
   testCases?: TestCase[];
   testRuns?: TestRun[];
   environments?: Environment[];
+  initialData?: Defect;
 }
 
 export function ReportDefectModal({
@@ -21,6 +22,7 @@ export function ReportDefectModal({
   testCases = [],
   testRuns = [],
   environments = [],
+  initialData,
 }: ReportDefectModalProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -36,30 +38,53 @@ export function ReportDefectModal({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      if (initialData) {
+        setTitle(initialData.title || "");
+        setDescription(initialData.description || "");
+        setSeverity(initialData.severity || "Medium");
+        setStatus(initialData.status || "Open");
+        setType(initialData.type || "Bug");
+        setLinkedTestRun(initialData.linkedTestRun || "");
+        setLinkedTestCase(initialData.linkedTestCase || "");
+        setEnvironment(initialData.environment || "");
+        setBrowser(initialData.browser || "");
+        setTagsInput(initialData.tags?.join(", ") || "");
+      } else {
+        setTitle("");
+        setDescription("");
+        setSeverity("Medium");
+        setStatus("Open");
+        setType("Bug");
+        setLinkedTestRun("");
+        setLinkedTestCase("");
+        setEnvironment("");
+        setBrowser("");
+        setTagsInput("");
+      }
     } else {
       document.body.style.overflow = "unset";
     }
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen]);
+  }, [isOpen, initialData]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const newDefect: Defect = {
-      id: `CLR-DEF-${Math.floor(100 + Math.random() * 900)}`,
+    const defectToSubmit: Defect = {
+      id: initialData?.id || `CLR-DEF-${Math.floor(100 + Math.random() * 900)}`,
       title,
       description,
       severity,
       status,
       type,
       priority: severity,
-      assignedTo: "Unassigned",
-      reportedBy: "System",
-      createdAt: new Date().toISOString(),
+      assignedTo: initialData?.assignedTo || "Unassigned",
+      reportedBy: initialData?.reportedBy || "System",
+      createdAt: initialData?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       tags: tagsInput.split(",").map(t => t.trim()).filter(Boolean),
       ...(linkedTestCase ? { linkedTestCase } : {}),
@@ -68,17 +93,7 @@ export function ReportDefectModal({
       ...(browser ? { browser } : {}),
     };
 
-    await onSubmit(newDefect);
-    setTitle("");
-    setDescription("");
-    setSeverity("Medium");
-    setStatus("Open");
-    setType("Bug");
-    setLinkedTestRun("");
-    setLinkedTestCase("");
-    setEnvironment("");
-    setBrowser("");
-    setTagsInput("");
+    await onSubmit(defectToSubmit);
     onClose();
   };
 
@@ -91,7 +106,9 @@ export function ReportDefectModal({
 
       <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-elevated flex flex-col max-h-[90vh] animate-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
-          <h2 className="text-headline-sm font-headline font-semibold text-on-surface">Report New Defect</h2>
+          <h2 className="text-headline-sm font-headline font-semibold text-on-surface">
+            {initialData ? "Edit Defect" : "Report New Defect"}
+          </h2>
           <button onClick={onClose} className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-full transition-colors">
             <X className="h-5 w-5" />
           </button>
@@ -212,7 +229,7 @@ export function ReportDefectModal({
             Cancel
           </Button>
           <Button type="submit" form="defect-form">
-            Create Defect
+            {initialData ? "Save Changes" : "Create Defect"}
           </Button>
         </div>
       </div>

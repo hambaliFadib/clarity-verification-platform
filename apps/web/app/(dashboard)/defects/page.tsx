@@ -28,7 +28,8 @@ export default function DefectsPage() {
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     severity: "",
     type: "",
-    priority: ""
+    priority: "",
+    tags: ""
   });
 
   useEffect(() => {
@@ -87,6 +88,13 @@ export default function DefectsPage() {
       if (advancedFilters.severity && defect.severity !== advancedFilters.severity) return false;
       if (advancedFilters.type && defect.type !== advancedFilters.type) return false;
       if (advancedFilters.priority && defect.priority !== advancedFilters.priority) return false;
+      
+      if (advancedFilters.tags) {
+        const q = advancedFilters.tags.toLowerCase();
+        if (!defect.tags || !defect.tags.some(tag => tag.toLowerCase().includes(q))) {
+          return false;
+        }
+      }
 
       return true;
     });

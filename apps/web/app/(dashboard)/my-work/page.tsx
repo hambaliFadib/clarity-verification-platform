@@ -7,6 +7,7 @@ import { Folder, BarChart3, AlertCircle, Users, Plus, Eye, Pencil } from "lucide
 import { cn } from "@/lib/utils";
 import type { WorkItem, WorkItemStatus } from "@/lib/types";
 import { CreateWorkItemModal } from "@/components/my-work/create-work-item-modal";
+import { WorkItemDetailModal } from "@/components/my-work/work-item-detail-modal";
 
 const columns = [
   { key: "To Do", label: "Not Started", subtitle: "Belum dimulai atau masih draft.", countColor: "text-outline" },
@@ -25,12 +26,22 @@ function getStatusBadgeClass(status: string) {
   }
 }
 
-function WorkItemCard({ item, onDragStart }: { item: WorkItem, onDragStart: (e: React.DragEvent, id: string) => void }) {
+function WorkItemCard({
+  item,
+  onDragStart,
+  onView,
+  onEdit,
+}: {
+  item: WorkItem;
+  onDragStart: (e: React.DragEvent, id: string) => void;
+  onView: (item: WorkItem) => void;
+  onEdit: (item: WorkItem) => void;
+}) {
   return (
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item.id)}
-      className="bg-white border border-outline-variant rounded-xl p-4 shadow-subtle hover:border-primary hover:-translate-y-0.5 transition-all duration-200 group cursor-grab active:cursor-grabbing"
+      className="bg-white border border-outline-variant rounded-xl p-4 shadow-subtle hover:border-primary hover:-translate-y-px transition-all duration-200 group cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex flex-wrap gap-1.5">
@@ -42,10 +53,28 @@ function WorkItemCard({ item, onDragStart }: { item: WorkItem, onDragStart: (e: 
           </span>
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="text-outline hover:text-primary transition-colors p-0.5" type="button" aria-label={`View ${item.title}`}>
+          <button
+            className="text-outline hover:text-primary transition-colors p-0.5"
+            type="button"
+            aria-label={`View ${item.title}`}
+            draggable={false}
+            onClick={(event) => {
+              event.stopPropagation();
+              onView(item);
+            }}
+          >
             <Eye className="h-3.5 w-3.5" />
           </button>
-          <button className="text-outline hover:text-primary transition-colors p-0.5" type="button" aria-label={`Edit ${item.title}`}>
+          <button
+            className="text-outline hover:text-primary transition-colors p-0.5"
+            type="button"
+            aria-label={`Edit ${item.title}`}
+            draggable={false}
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(item);
+            }}
+          >
             <Pencil className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -75,6 +104,8 @@ function WorkItemCard({ item, onDragStart }: { item: WorkItem, onDragStart: (e: 
 export default function MyWorkPage() {
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [detailItem, setDetailItem] = useState<WorkItem | null>(null);
+  const [editItem, setEditItem] = useState<WorkItem | null>(null);
 
   const loadWorkItems = async () => {
     try {
@@ -189,13 +220,19 @@ export default function MyWorkPage() {
                 </div>
                 <span className={cn("font-bold text-xs", col.countColor)}>{items.length}</span>
               </div>
-              <div className="space-y-3 flex-1 overflow-y-auto">
+              <div className="space-y-3 flex-1 overflow-y-auto px-0.5 pt-1 pb-1">
                 {items.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-outline-variant bg-white/60 p-4 text-center text-body-sm text-on-surface-variant pointer-events-none">
                     Drop items here.
                   </div>
                 ) : items.map((item) => (
-                  <WorkItemCard key={item.id} item={item} onDragStart={handleDragStart} />
+                  <WorkItemCard
+                    key={item.id}
+                    item={item}
+                    onDragStart={handleDragStart}
+                    onView={setDetailItem}
+                    onEdit={setEditItem}
+                  />
                 ))}
               </div>
             </div>
@@ -226,6 +263,22 @@ export default function MyWorkPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSuccess={loadWorkItems}
+      />
+      <CreateWorkItemModal
+        isOpen={!!editItem}
+        mode="edit"
+        workItem={editItem}
+        onClose={() => setEditItem(null)}
+        onSuccess={loadWorkItems}
+      />
+      <WorkItemDetailModal
+        isOpen={!!detailItem}
+        item={detailItem}
+        onClose={() => setDetailItem(null)}
+        onEdit={(item) => {
+          setDetailItem(null);
+          setEditItem(item);
+        }}
       />
     </div>
   );

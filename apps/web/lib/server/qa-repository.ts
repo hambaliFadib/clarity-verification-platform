@@ -652,12 +652,14 @@ function workItemFields(payload: any, relationColumns: Set<string>, partial = fa
   if (has("dueIn", "due_in") || !partial) fields.due_in = emptyToNull(payload.dueIn ?? payload.due_in);
 
   const testCaseId = payload.testCaseId ?? payload.test_case_id;
-  if (relationColumns.has("test_case_id") && (isUuid(testCaseId) || (!partial && testCaseId === undefined))) {
+  const hasTestCaseId = has("testCaseId", "test_case_id");
+  if (relationColumns.has("test_case_id") && (isUuid(testCaseId) || (hasTestCaseId && testCaseId === null) || (!partial && testCaseId === undefined))) {
     fields.test_case_id = emptyToNull(testCaseId);
   }
 
   const defectId = payload.defectId ?? payload.defect_id;
-  if (relationColumns.has("defect_id") && (isUuid(defectId) || (!partial && defectId === undefined))) {
+  const hasDefectId = has("defectId", "defect_id");
+  if (relationColumns.has("defect_id") && (isUuid(defectId) || (hasDefectId && defectId === null) || (!partial && defectId === undefined))) {
     fields.defect_id = emptyToNull(defectId);
   }
 
