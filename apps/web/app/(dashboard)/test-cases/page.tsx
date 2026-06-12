@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +25,16 @@ import { ImportReviewModal } from "@/components/test-cases/import-review-modal";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 import { AlertModal } from "@/components/ui/alert-modal";
 
-export default function TestCasesPage() {
+function TestCasesLoading() {
+  return (
+    <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[400px]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
+      <div className="text-body-sm text-outline">Loading test cases...</div>
+    </div>
+  );
+}
+
+function TestCasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [allCases, setAllCases] = useState<TestCase[]>([]);
@@ -149,12 +158,7 @@ export default function TestCasesPage() {
   ];
 
   if (loading) {
-    return (
-      <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
-        <div className="text-body-sm text-outline">Loading test cases...</div>
-      </div>
-    );
+    return <TestCasesLoading />;
   }
 
   return (
@@ -315,5 +319,13 @@ export default function TestCasesPage() {
         totalCount={totalCount}
       />
     </>
+  );
+}
+
+export default function TestCasesPage() {
+  return (
+    <Suspense fallback={<TestCasesLoading />}>
+      <TestCasesContent />
+    </Suspense>
   );
 }
