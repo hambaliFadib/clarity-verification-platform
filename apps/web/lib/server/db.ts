@@ -1,4 +1,14 @@
+import { existsSync } from "fs";
+import path from "path";
 import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from "pg";
+import { loadEnvConfig } from "@next/env";
+
+const envRoot =
+  [process.cwd(), path.resolve(process.cwd(), "../..")].find((candidate) =>
+    existsSync(path.join(candidate, ".env.local")),
+  ) || process.cwd();
+
+loadEnvConfig(envRoot);
 
 let pool: Pool | undefined;
 

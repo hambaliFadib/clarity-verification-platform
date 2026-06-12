@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Folder, BarChart3, AlertCircle, Users, Plus, Eye, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { WorkItem, WorkItemStatus } from "@/lib/types";
+import { CreateWorkItemModal } from "@/components/my-work/create-work-item-modal";
 
 const columns = [
   { key: "To Do", label: "Not Started", subtitle: "Belum dimulai atau masih draft.", countColor: "text-outline" },
@@ -73,16 +74,29 @@ function WorkItemCard({ item, onDragStart }: { item: WorkItem, onDragStart: (e: 
 
 export default function MyWorkPage() {
   const [workItems, setWorkItems] = useState<WorkItem[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const loadWorkItems = async () => {
+    try {
+      const response = await fetch("/api/work-items", { cache: "no-store" });
+      if (response.ok) {
+        setWorkItems(await response.json());
+      }
+    } catch (err) {
+      console.error(err);
+      setWorkItems([]);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadWorkItems() {
+    async function initialLoad() {
       const response = await fetch("/api/work-items", { cache: "no-store" });
       if (isMounted && response.ok) setWorkItems(await response.json());
     }
 
-    loadWorkItems().catch(() => {
+    initialLoad().catch(() => {
       if (isMounted) setWorkItems([]);
     });
 
@@ -197,6 +211,7 @@ export default function MyWorkPage() {
       </div>
 
       <button
+        onClick={() => setIsCreateModalOpen(true)}
         className="fixed bottom-8 right-8 bg-primary text-white w-14 h-14 rounded-2xl shadow-float flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50 group"
         type="button"
         aria-label="Create work item"
@@ -206,6 +221,12 @@ export default function MyWorkPage() {
           New Work Item
         </span>
       </button>
+
+      <CreateWorkItemModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSuccess={loadWorkItems}
+      />
     </div>
   );
 }

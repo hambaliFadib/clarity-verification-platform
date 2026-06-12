@@ -12,6 +12,8 @@ class WorkItemCreate(BaseModel):
     progress: int = Field(0, ge=0, le=100)
     scope: str | None = None
     assigned_to: str
+    test_case_id: uuid.UUID | None = None
+    defect_id: uuid.UUID | None = None
     due_in: str | None = None
 
 
@@ -23,6 +25,8 @@ class WorkItemUpdate(BaseModel):
     progress: int | None = Field(None, ge=0, le=100)
     scope: str | None = None
     assigned_to: str | None = None
+    test_case_id: uuid.UUID | None = None
+    defect_id: uuid.UUID | None = None
     due_in: str | None = None
 
 
@@ -35,6 +39,8 @@ class WorkItemResponse(BaseModel):
     progress: int
     scope: str | None = None
     assigned_to: str
+    test_case_id: uuid.UUID | None = None
+    defect_id: uuid.UUID | None = None
     due_in: str | None = None
     created_at: datetime
     updated_at: datetime

@@ -597,6 +597,8 @@ function mapWorkItem(row: any) {
     progress: row.progress,
     scope: row.scope || undefined,
     assignedTo: row.assigned_to,
+    testCaseId: row.test_case_id || undefined,
+    defectId: row.defect_id || undefined,
     dueIn: row.due_in || undefined,
     createdAt: row.created_at,
   };
@@ -620,6 +622,98 @@ export async function listWorkItems(searchParams: URLSearchParams) {
   values.push(toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100));
   const result = await query(`select * from work_items where ${whereSql} order by updated_at desc offset $${values.length - 1} limit $${values.length}`, values);
   return { items: result.rows.map(mapWorkItem), total: Number(count.rows[0]?.total || 0) };
+}
+
+async function getWorkItemColumns() {
+  const result = await query<{ column_name: string }>(
+    `select column_name
+     from information_schema.columns
+     where table_name = 'work_items'
+       and column_name in ('test_case_id', 'defect_id')`,
+  );
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
+function workItemFields(payload: any, relationColumns: Set<string>, partial = false) {
+  const fields: Record<string, unknown> = {};
+  const has = (...keys: string[]) => keys.some((key) => Object.prototype.hasOwnProperty.call(payload, key));
+  const add = (key: string, value: unknown, fallback?: unknown) => {
+    if (value !== undefined) fields[key] = value;
+    else if (!partial && fallback !== undefined) fields[key] = fallback;
+  };
+
+  add("title", payload.title);
+  add("type", payload.type, "Task");
+  add("status", payload.status, "To Do");
+  add("priority", payload.priority, "Medium");
+  add("progress", payload.progress, 0);
+  if (has("scope") || !partial) fields.scope = emptyToNull(payload.scope);
+  add("assigned_to", payload.assignedTo ?? payload.assigned_to, "Unassigned");
+  if (has("dueIn", "due_in") || !partial) fields.due_in = emptyToNull(payload.dueIn ?? payload.due_in);
+
+  const testCaseId = payload.testCaseId ?? payload.test_case_id;
+  if (relationColumns.has("test_case_id") && (isUuid(testCaseId) || (!partial && testCaseId === undefined))) {
+    fields.test_case_id = emptyToNull(testCaseId);
+  }
+
+  const defectId = payload.defectId ?? payload.defect_id;
+  if (relationColumns.has("defect_id") && (isUuid(defectId) || (!partial && defectId === undefined))) {
+    fields.defect_id = emptyToNull(defectId);
+  }
+
+  return fields;
+}
+
+export async function createWorkItem(payload: any) {
+  if (!payload.title || String(payload.title).trim().length < 2) {
+    throw new Error("Work item title is required.");
+  }
+
+  const relationColumns = await getWorkItemColumns();
+  const now = new Date();
+  const fields = {
+    id: randomUUID(),
+    ...workItemFields(payload, relationColumns),
+    created_at: now,
+    updated_at: now,
+  };
+  const entries = Object.entries(fields);
+  const columns = entries.map(([key]) => key).join(", ");
+  const placeholders = entries.map((_, index) => `$${index + 1}`).join(", ");
+  const values = entries.map(([, value]) => value);
+  const result = await query(
+    `insert into work_items (${columns}) values (${placeholders}) returning *`,
+    values,
+  );
+  return mapWorkItem(result.rows[0]);
+}
+
+export async function getWorkItem(id: string) {
+  const result = await query("select * from work_items where id = $1 and deleted_at is null limit 1", [id]);
+  return result.rows[0] ? mapWorkItem(result.rows[0]) : null;
+}
+
+export async function updateWorkItem(id: string, payload: any) {
+  const relationColumns = await getWorkItemColumns();
+  const fields = workItemFields(payload, relationColumns, true);
+  const entries = Object.entries(fields);
+  if (entries.length === 0) return getWorkItem(id);
+
+  const values = entries.map(([, value]) => value);
+  const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
+  const result = await query(
+    `update work_items
+     set ${assignments}, updated_at = now()
+     where id = $${entries.length + 1} and deleted_at is null
+     returning *`,
+    [...values, id],
+  );
+  return result.rows[0] ? mapWorkItem(result.rows[0]) : null;
+}
+
+export async function deleteWorkItem(id: string) {
+  const result = await query("update work_items set deleted_at = now(), updated_at = now() where id = $1 and deleted_at is null", [id]);
+  return (result.rowCount || 0) > 0;
 }
 
 function mapActivity(row: any) {

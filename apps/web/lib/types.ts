@@ -196,6 +196,8 @@ export interface WorkItem {
   progress: number;
   scope?: string;
   assignedTo: string;
+  testCaseId?: string;
+  defectId?: string;
   dueIn?: string;
   createdAt: string;
 }
