@@ -6,6 +6,8 @@ export type TestCaseType = "Functional" | "Regression" | "Smoke" | "Integration"
 export interface TestStep {
   stepNumber: number;
   action: string;
+  expectedResult?: string;
+  testData?: string;
   status?: "Passed" | "Failed" | "Blocked" | "Not Run" | "Skipped";
   actualResult?: string;
 
@@ -22,6 +24,7 @@ export interface TestCase {
   status: TestCaseStatus;
   type: TestCaseType;
   assignedTo?: string;
+  assignedToId?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

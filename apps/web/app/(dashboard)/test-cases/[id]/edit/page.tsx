@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -45,7 +45,7 @@ interface FormValues {
   assignedTo: string;
   requirementId: string;
   estimatedTime: string;
-  environment: "Staging" | "Production" | "UAT" | "Development" | "";
+  environment: string;
   automationStatus: "Manual" | "Automated" | "Candidate to Automate" | "";
   preconditions: string;
   testSteps: FormStep[];
@@ -58,25 +58,17 @@ const inputClass =
 const labelClass =
   "block text-label-bold font-label-bold text-on-surface-variant uppercase tracking-normal mb-1.5";
 
-export default function CreateTestCasePage() {
+export default function EditTestCasePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const router = useRouter();
-  
+
   const [users, setUsers] = useState<any[]>([]);
   const [environments, setEnvironments] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
-  
+  const [isLoadingTestCase, setIsLoadingTestCase] = useState(true);
+
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<FormValues | null>(null);
-  const [expandedPreviewSteps, setExpandedPreviewSteps] = useState<Record<number, boolean>>({});
-
-  const togglePreviewStepExpand = (stepNumber: number) => {
-    setExpandedPreviewSteps((prev) => ({
-      ...prev,
-      [stepNumber]: !prev[stepNumber],
-    }));
-  };
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
     title: string;
@@ -89,33 +81,12 @@ export default function CreateTestCasePage() {
     type: "success",
   });
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/users").then((res) => (res.ok ? res.json() : [])),
-      fetch("/api/environments").then((res) => (res.ok ? res.json() : [])),
-    ])
-      .then(([userData, envData]) => {
-        setUsers(userData);
-        setEnvironments(envData);
-        setIsLoadingUsers(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setIsLoadingUsers(false);
-      });
-  }, []);
-
-  const generateStepId = () => {
-    return "step-" + Math.random().toString(36).substring(2, 9);
-  };
-
   const {
     register,
     control,
     handleSubmit,
-    getValues,
-    setValue,
-    formState: { errors, isSubmitting, isDirty },
+    reset,
+    formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: {
       title: "",
@@ -141,6 +112,71 @@ export default function CreateTestCasePage() {
     control,
     name: "testSteps",
   });
+
+  useEffect(() => {
+    // Fetch users and environments first
+    Promise.all([
+      fetch("/api/users").then((res) => (res.ok ? res.json() : [])),
+      fetch("/api/environments").then((res) => (res.ok ? res.json() : [])),
+    ])
+      .then(([userData, envData]) => {
+        setUsers(userData);
+        setEnvironments(envData);
+        setIsLoadingUsers(false);
+
+        // Fetch the test case to edit
+        return fetch(`/api/test-cases/${id}`);
+      })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load test case");
+        return res.json();
+      })
+      .then((data) => {
+        // Find corresponding user ID by name if needed, since repository returns name
+        // (but we added assignedToId as well in previous step!)
+        const assignedToValue = data.assignedToId || "";
+        
+        reset({
+          title: data.title || "",
+          description: data.description || "",
+          module: data.module || "",
+          type: data.type || "Functional",
+          severity: data.severity || "Major",
+          status: data.status || "Draft",
+          assignedTo: assignedToValue,
+          requirementId: data.requirementId || "",
+          estimatedTime: data.estimatedTime || "",
+          environment: data.environment || "",
+          automationStatus: data.automationStatus || "",
+          preconditions: data.preconditions || "",
+          testSteps: data.steps && data.steps.length > 0
+            ? data.steps.map((s: any, idx: number) => ({
+                id: s.id || `step-${idx + 1}`,
+                order: s.stepNumber || idx + 1,
+                action: s.action || "",
+                expectedResult: s.expectedResult || "",
+                testData: s.testData || "",
+              }))
+            : [{ id: "step-1", order: 1, action: "" }],
+          expectedResult: data.expectedResult || "",
+          notes: data.notes || "",
+        });
+
+        if (data.tags) {
+          setTags(data.tags);
+        }
+        setIsLoadingTestCase(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        showToast("Error loading test case details", "error");
+        setIsLoadingTestCase(false);
+      });
+  }, [id, reset]);
+
+  const generateStepId = () => {
+    return "step-" + Math.random().toString(36).substring(2, 9);
+  };
 
   const showToast = (message: string, type: "success" | "error") => {
     setAlertState({
@@ -170,28 +206,12 @@ export default function CreateTestCasePage() {
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  const handleCancel = () => {
-    if (isDirty) {
-      if (confirm("Are you sure you want to discard your changes?")) {
-        router.push("/test-cases");
-      }
-    } else {
-      router.push("/test-cases");
-    }
-  };
-
-  const handlePreview = () => {
-    setPreviewData(getValues());
-    setIsPreviewOpen(true);
-  };
-
   const onSubmit = async (data: FormValues) => {
     try {
       const payload = {
         ...data,
         tags,
         testSteps: data.testSteps.map((step, idx) => ({
-          id: step.id || `step-${idx + 1}`,
           order: idx + 1,
           action: step.action.trim(),
           expectedResult: step.expectedResult?.trim() || undefined,
@@ -199,8 +219,8 @@ export default function CreateTestCasePage() {
         })),
       };
 
-      const response = await fetch("/api/test-cases", {
-        method: "POST",
+      const response = await fetch(`/api/test-cases/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -208,15 +228,15 @@ export default function CreateTestCasePage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Failed to create test case");
+        throw new Error(result.error || "Failed to update test case");
       }
 
-      router.push(`/test-cases/${result.testCase.id}?toast=created`);
+      router.push(`/test-cases/${id}?toast=updated`);
     } catch (err: any) {
       console.error(err);
       setAlertState({
         isOpen: true,
-        title: "Creation Failed",
+        title: "Update Failed",
         message: err.message || "An error occurred",
         type: "error",
       });
@@ -248,14 +268,22 @@ export default function CreateTestCasePage() {
     }
   };
 
+  if (isLoadingTestCase) {
+    return (
+      <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
+        <div className="text-body-sm text-outline">Loading test case for editing...</div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <div className="p-6 space-y-6 animate-fade-in w-full pb-20">
-        <Link
-          href="/test-cases"
+    <div className="p-6 space-y-6 animate-fade-in w-full pb-20">
+      <Link
+        href={`/test-cases/${id}`}
         className="inline-flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-primary-container transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" /> Back to Test Cases
+        <ArrowLeft className="h-4 w-4" /> Back to Test Case Details
       </Link>
 
       <AlertModal
@@ -267,33 +295,25 @@ export default function CreateTestCasePage() {
       />
 
       <form
-        id="create-test-case-form"
+        id="edit-test-case-form"
         onSubmit={handleSubmit(onSubmit, onError)}
         className="space-y-6"
       >
         <PageHeader
-          title="Create test case"
-          subtitle="Redesign form layout with dynamic execution step fields"
+          title="Edit Test Case"
+          subtitle={`Modifying details for test case ${id}`}
           actions={
             <div className="flex gap-2">
               <Button
                 variant="secondary"
                 type="button"
-                onClick={handleCancel}
+                onClick={() => router.push(`/test-cases/${id}`)}
                 disabled={isSubmitting}
               >
                 Cancel
               </Button>
-              <Button
-                variant="outline"
-                type="button"
-                onClick={handlePreview}
-                disabled={isSubmitting}
-              >
-                Preview
-              </Button>
-              <Button type="submit" form="create-test-case-form" loading={isSubmitting}>
-                <Save className="h-4 w-4" /> Save
+              <Button type="submit" form="edit-test-case-form" loading={isSubmitting}>
+                <Save className="h-4 w-4" /> Save Changes
               </Button>
             </div>
           }
@@ -724,206 +744,16 @@ export default function CreateTestCasePage() {
           <Button
             variant="secondary"
             type="button"
-            onClick={handleCancel}
+            onClick={() => router.push(`/test-cases/${id}`)}
             disabled={isSubmitting}
           >
             Cancel
           </Button>
-          <Button
-            variant="outline"
-            type="button"
-            onClick={handlePreview}
-            disabled={isSubmitting}
-          >
-            Preview
-          </Button>
           <Button type="submit" loading={isSubmitting}>
-            <Save className="h-4 w-4" /> Save Test Case
+            <Save className="h-4 w-4" /> Save Changes
           </Button>
         </div>
       </form>
-      </div>
-
-      {isPreviewOpen && previewData && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-white border border-outline-variant rounded-2xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 bg-surface-container-low border-b border-outline-variant flex justify-between items-center flex-shrink-0">
-              <div className="flex flex-col">
-                <span className="text-label-bold text-outline uppercase tracking-normal">Read-Only View</span>
-                <h3 className="text-headline-sm font-headline font-semibold text-on-surface">
-                  Test Case Preview
-                </h3>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsPreviewOpen(false)}>
-                Close Preview
-              </Button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-on-surface">
-              <div>
-                <span className="text-[11px] font-mono text-outline">CLR-TC-NEW (Simulated)</span>
-                <h1 className="text-headline-md font-headline font-semibold mt-1">
-                  {previewData.title || "Untitled Test Case"}
-                </h1>
-                <div className="flex gap-2 mt-3 flex-wrap">
-                  <Badge variant="medium">{previewData.status || "Draft"}</Badge>
-                  <Badge variant="medium">{previewData.severity || "Medium"}</Badge>
-                  <Badge variant="medium">{previewData.type || "Functional"}</Badge>
-                  {previewData.environment && <Badge variant="outline">{previewData.environment}</Badge>}
-                  {previewData.automationStatus && (
-                    <Badge variant="outline">{previewData.automationStatus}</Badge>
-                  )}
-                </div>
-              </div>
-
-              {previewData.description && (
-                <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
-                  <h4 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-2">
-                    Description
-                  </h4>
-                  <p className="text-body-md whitespace-pre-wrap">{previewData.description}</p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {[
-                  { label: "Module", value: previewData.module || "N/A" },
-                  {
-                    label: "Assigned To",
-                    value:
-                      users.find((u) => u.id === previewData.assignedTo)?.name ||
-                      previewData.assignedTo ||
-                      "Unassigned",
-                  },
-                  { label: "Requirement", value: previewData.requirementId || "None" },
-                  { label: "Estimated Time", value: previewData.estimatedTime || "N/A" },
-                ].map((item) => (
-                  <div key={item.label} className="bg-surface-container-low/50 border border-outline-variant/65 rounded-xl p-4">
-                    <div className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-1">
-                      {item.label}
-                    </div>
-                    <div className="text-body-md font-medium">{item.value}</div>
-                  </div>
-                ))}
-              </div>
-
-              {previewData.preconditions && (
-                <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
-                  <h4 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-2">
-                    Preconditions
-                  </h4>
-                  <p className="text-body-md whitespace-pre-wrap">{previewData.preconditions}</p>
-                </div>
-              )}
-
-              <div className="bg-white border border-outline-variant rounded-xl overflow-hidden">
-                <div className="bg-surface-container-low px-4 py-3 border-b border-outline-variant flex items-center justify-between">
-                  <span className="text-label-bold font-label-bold text-outline uppercase tracking-normal">
-                    Execution Steps
-                  </span>
-                  <span className="text-body-xs font-medium text-on-surface-variant">
-                    {previewData.testSteps.length} steps total
-                  </span>
-                </div>
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-surface-container-low/30 border-b border-outline-variant text-[11px] font-bold text-outline uppercase tracking-normal">
-                      <th className="text-left px-4 py-2.5 w-16">#</th>
-                      <th className="text-left px-4 py-2.5">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-outline-variant/50">
-                    {previewData.testSteps.map((step, idx) => {
-                      const stepNumber = idx + 1;
-                      const hasDetails = !!(step.expectedResult || step.testData);
-                      const isExpanded = !!expandedPreviewSteps[stepNumber];
-                      return (
-                        <tr key={step.id || idx} className="hover:bg-surface-container-low/20 transition-colors">
-                          <td className="px-4 py-3 align-top">
-                            <div className="w-7 h-7 rounded-full bg-surface-container-high flex items-center justify-center text-label-bold text-on-surface-variant mt-0.5">
-                              {stepNumber}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-body-sm text-on-surface align-top">
-                            <div
-                              className={cn(
-                                "flex items-center gap-2 select-none",
-                                hasDetails ? "cursor-pointer hover:text-primary transition-colors font-medium" : ""
-                              )}
-                              onClick={() => hasDetails && togglePreviewStepExpand(stepNumber)}
-                            >
-                              {hasDetails && (
-                                <ChevronDown
-                                  className={cn(
-                                    "h-4 w-4 text-on-surface-variant transition-transform flex-shrink-0",
-                                    isExpanded ? "" : "-rotate-90"
-                                  )}
-                                />
-                              )}
-                              <span>{step.action || "Empty action"}</span>
-                            </div>
-
-                            {isExpanded && hasDetails && (
-                              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 animate-fade-in">
-                                {step.testData && (
-                                  <div className="space-y-1">
-                                    <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Test Data</span>
-                                    <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap">{step.testData}</p>
-                                  </div>
-                                )}
-                                {step.expectedResult && (
-                                  <div className="space-y-1">
-                                    <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Expected Result</span>
-                                    <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap font-mono">
-                                      {stepNumber}.1 {step.expectedResult}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div>
-                <h4 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-2">
-                  Expected Result
-                </h4>
-                <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-5">
-                  <p className="text-body-md whitespace-pre-wrap">{previewData.expectedResult || "No expected result specified."}</p>
-                </div>
-              </div>
-
-              {previewData.notes && (
-                <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">
-                  <h4 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-2">
-                    Reviewer Notes
-                  </h4>
-                  <p className="text-body-md whitespace-pre-wrap">{previewData.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 bg-surface-container-low border-t border-outline-variant flex justify-end gap-2 flex-shrink-0">
-              <Button variant="secondary" onClick={() => setIsPreviewOpen(false)}>
-                Dismiss
-              </Button>
-              <Button
-                onClick={() => {
-                  setIsPreviewOpen(false);
-                  handleSubmit(onSubmit, onError)();
-                }}
-              >
-                <Save className="h-4 w-4" /> Save Test Case
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

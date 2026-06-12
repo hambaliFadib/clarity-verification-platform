@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Upload, Download, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -46,13 +47,29 @@ export function ImportExportModal({
   onImportError,
   totalCount,
 }: ImportExportModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"import" | "export">("import");
   const [isDragging, setIsDragging] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && mounted) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, mounted]);
+
+  if (!isOpen || !mounted) return null;
 
   function handleExport() {
     window.location.href = "/api/test-cases/export/xlsx";
@@ -148,11 +165,11 @@ export function ImportExportModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-20 overflow-y-auto">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-md transition-opacity"
+        className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md"
         onClick={isParsing ? undefined : onClose}
       />
 
@@ -325,6 +342,7 @@ export function ImportExportModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -190,6 +190,8 @@ const statements = [
   `insert into alembic_version (version_num)
    values ('20260610_0001')
    on conflict (version_num) do nothing`,
+  `alter table test_steps add column if not exists expected_result text`,
+  `alter table test_steps add column if not exists test_data text`,
 ];
 
 const client = await pool.connect();

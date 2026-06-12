@@ -93,6 +93,19 @@ function numberedList(items: Array<string | undefined>) {
 }
 
 function testCaseRow(testCase: TestCase) {
+  const stepsText = testCase.steps && testCase.steps.length > 0
+    ? testCase.steps.map((step) => {
+        let line = `${step.stepNumber}. ${step.action || ""}`;
+        if (step.testData) {
+          line += `\n   Test Data: ${step.testData}`;
+        }
+        if (step.expectedResult) {
+          line += `\n   Expected: ${step.expectedResult}`;
+        }
+        return line;
+      }).join("\n")
+    : "";
+
   return [
     testCase.id,
     testCase.title,
@@ -102,7 +115,7 @@ function testCaseRow(testCase: TestCase) {
     testCase.status,
     testCase.description,
     testCase.preconditions,
-    numberedList(testCase.steps.map((step) => step.action)),
+    stepsText,
     testCase.expectedResult,
     testCase.notes,
     testCase.automationStatus,

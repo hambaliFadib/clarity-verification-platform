@@ -93,6 +93,37 @@ def _parse_numbered_list(text: str | None) -> list[str | None]:
     return [result.get(i) for i in range(1, max_n + 1)]
 
 
+def _parse_steps_with_details(text: str | None) -> list[dict]:
+    if not text:
+        return []
+    lines = text.strip().splitlines()
+    steps = []
+    current_step = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = re.match(r"^(\d+)\.\s*(.*)$", stripped)
+        if match:
+            step_num = int(match.group(1))
+            action = match.group(2).strip()
+            current_step = {
+                "step_number": step_num,
+                "action": action,
+                "test_data": None,
+                "expected_result": None
+            }
+            steps.append(current_step)
+        elif current_step:
+            if stripped.startswith("Test Data:"):
+                current_step["test_data"] = stripped[len("Test Data:"):].strip()
+            elif stripped.startswith("Expected:"):
+                current_step["expected_result"] = stripped[len("Expected:"):].strip()
+            else:
+                current_step["action"] += "\n" + stripped
+    return steps
+
+
 def export_test_cases_xlsx(db: Session) -> bytes:
     cases = db.query(TestCase).filter(TestCase.deleted_at.is_(None)).order_by(TestCase.updated_at.desc()).all()
 
@@ -118,7 +149,15 @@ def export_test_cases_xlsx(db: Session) -> bytes:
     for row_idx, tc in enumerate(cases, start=2):
         sorted_steps = sorted(tc.steps, key=lambda s: s.step_number)
 
-        step_actions = _numbered_list([s.action for s in sorted_steps])
+        step_lines = []
+        for s in sorted_steps:
+            line = f"{s.step_number}. {s.action or ''}"
+            if s.test_data:
+                line += f"\n   Test Data: {s.test_data}"
+            if s.expected_result:
+                line += f"\n   Expected: {s.expected_result}"
+            step_lines.append(line)
+        step_actions = "\n".join(step_lines) if step_lines else None
 
         row_data = [
             tc.display_id,          # A  TC ID
@@ -367,16 +406,16 @@ def parse_xlsx_import(file_bytes: bytes, db: Session) -> ParseResult:
             errors.extend(row_errors)
             continue
 
-        actions = _parse_numbered_list(step_actions_raw)
+        parsed_steps = _parse_steps_with_details(step_actions_raw)
 
         steps: list[ImportStepRow] = []
-        for i, action in enumerate(actions):
-            if not action:
+        for ps in parsed_steps:
+            if not ps["action"]:
                 continue
             steps.append(ImportStepRow(
-                action=action,
-                expected_result=None,
-                test_data=None,
+                action=ps["action"],
+                expected_result=ps["expected_result"],
+                test_data=ps["test_data"],
             ))
 
         status = get_cell(row, COL["status"]) or "Draft"
@@ -509,6 +548,8 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                         test_case_id=existing.id,
                         step_number=step_idx + 1,
                         action=step.action,
+                        expected_result=step.expected_result,
+                        test_data=step.test_data,
                         status="Not Run",
                     ))
 
@@ -545,6 +586,8 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                         test_case_id=new_tc.id,
                         step_number=step_idx + 1,
                         action=step.action,
+                        expected_result=step.expected_result,
+                        test_data=step.test_data,
                         status="Not Run",
                     ))
 
