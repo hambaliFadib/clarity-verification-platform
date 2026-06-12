@@ -12,14 +12,17 @@ NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and docum
 
 ## Frontend
 
-The frontend uses the Next.js App Router. Phase 1 starts with a minimal landing surface for the product focus areas:
+The frontend uses the Next.js App Router. Phase 1 now covers the MVP product surfaces:
 
 - Test Cases
 - Test Runs
 - Defects
+- My Work
+- Settings
 - Release Readiness
+- Authentication entry points
 
-The app is intentionally light. Full TCMS screens, authentication, and integrations are later work.
+The app keeps Phase 1 focused on stable QA CRUD, import/export, modal interactions, and production-readiness. Authentication and account flows exist as Phase 2 groundwork; full Google OAuth rollout, invite verification, guest-data lifecycle, and team/project rules remain Phase 2.
 
 ## Backend
 
@@ -27,12 +30,18 @@ The backend uses FastAPI with clear folders for:
 
 - `core`: configuration and environment loading
 - `db`: SQLAlchemy base and session helpers
-- `models`: future SQLAlchemy models
-- `schemas`: future request/response schemas
+- `models`: SQLAlchemy models
+- `schemas`: request/response schemas
 - `routers`: HTTP route modules
-- `services`: future business logic
+- `services`: business logic and import/export handling
 
-Database connections are initialized lazily so simple imports and `/health` checks do not require a live database.
+Database connections are initialized lazily so simple imports and `/health` checks do not require a live database. Runtime CRUD is backed by PostgreSQL/NeonDB.
+
+## Phase Continuation
+
+- Phase 1 release promotes the stable foundation from `dev` to `main`.
+- Phase 2 continues from the authentication scaffolding already present in the app.
+- OAuth credentials, email delivery, guest data behavior, and production callback domains must be confirmed before Phase 2 is treated as complete.
 
 ## Database
 

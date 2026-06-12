@@ -42,7 +42,7 @@ export function AddEnvironmentModal({ isOpen, onClose, onSubmit }: AddEnvironmen
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md" onClick={onClose} />
 
       <div className="relative bg-white w-full max-w-md rounded-2xl shadow-elevated flex flex-col animate-scale-in">
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">

@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useState } from "react";
-import { HelpCircle, Shield, Menu } from "lucide-react";
+import { HelpCircle, Menu } from "lucide-react";
 import { NotificationPopover } from "./notification-popover";
-import type { TeamMember } from "@/lib/types";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+import Image from "next/image";
 
 interface TopNavProps {
   onMenuClick?: () => void;
@@ -11,34 +12,14 @@ interface TopNavProps {
 }
 
 export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: TopNavProps) {
-  const [currentUser, setCurrentUser] = useState<Pick<TeamMember, "name" | "role" | "initials">>({
-    name: "Project User",
-    role: "Viewer",
-    initials: "PU",
-  });
+  const { data: session } = useSession();
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadCurrentUser() {
-      const response = await fetch("/api/users", { cache: "no-store" });
-      if (!isMounted || !response.ok) return;
-      const users: TeamMember[] = await response.json();
-      if (users[0]) {
-        setCurrentUser({
-          name: users[0].name,
-          role: users[0].role,
-          initials: users[0].initials,
-        });
-      }
-    }
-
-    loadCurrentUser().catch(() => undefined);
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const currentUser = {
+    name: session?.user?.name || "Project User",
+    role: session?.user?.role || "Viewer",
+    initials: session?.user?.initials || "PU",
+    avatar: session?.user?.image,
+  };
 
   return (
     <header className="flex justify-between items-center h-14 px-gutter w-full sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-outline-variant transition-all duration-300">
@@ -59,7 +40,6 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <Shield className="h-6 w-6 text-primary" />
         <span className="text-headline-sm font-headline font-bold text-on-surface">
           NexQA
         </span>
@@ -74,7 +54,7 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
           <HelpCircle className="h-[18px] w-[18px] text-on-surface-variant" />
         </button>
 
-        <div className="flex items-center gap-3 pl-3 ml-1 border-l border-outline-variant">
+        <Link href="/account" className="flex items-center gap-3 pl-3 ml-1 border-l border-outline-variant hover:opacity-80 transition-opacity">
           <div className="text-right hidden sm:block">
             <p className="text-label-bold font-label-bold text-on-surface leading-tight">
               {currentUser.name}
@@ -83,10 +63,14 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
               {currentUser.role}
             </span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-bold text-xs border-2 border-white shadow-subtle">
-            {currentUser.initials}
-          </div>
-        </div>
+          {currentUser.avatar ? (
+            <Image src={currentUser.avatar} alt={currentUser.name} width={36} height={36} className="rounded-full border-2 border-white shadow-subtle" />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-bold text-xs border-2 border-white shadow-subtle">
+              {currentUser.initials}
+            </div>
+          )}
+        </Link>
       </div>
     </header>
   );

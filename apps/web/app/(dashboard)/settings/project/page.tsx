@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Save, Trash2, Users, Mail, Plus, Folder, Check } from "lucide-react";
+import { Save, Trash2, Users, Mail, Plus, Folder, Check, Lock } from "lucide-react";
 import { roleBadgeVariants } from "@/lib/badge-variants";
 import type { Project, TeamMember } from "@/lib/types";
 
@@ -121,13 +121,9 @@ export default function ProjectSettingsPage() {
               </div>
             )}
           </div>
-          <Tooltip content="Coming soon">
-            <div>
-              <Button variant="outline" disabled className="w-full sm:w-auto opacity-50">
-                <Plus className="h-4 w-4" /> New Project
-              </Button>
-            </div>
-          </Tooltip>
+          <Button variant="outline" className="w-full sm:w-auto">
+            <Plus className="h-4 w-4" /> New Project
+          </Button>
         </div>
       </div>
 
@@ -185,74 +181,42 @@ export default function ProjectSettingsPage() {
       </div>
 
       {/* Team Members */}
-      <div className="bg-white border border-outline-variant rounded-xl p-6 space-y-5 relative overflow-hidden group">
-        <div className="absolute inset-0 bg-surface/50 backdrop-blur-[1px] z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <Badge variant="outline" className="bg-white px-4 py-2 text-body-md shadow-subtle uppercase tracking-normal font-bold text-on-surface-variant">Coming Soon</Badge>
+      <div className="bg-white border border-outline-variant rounded-xl p-6 space-y-5">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-headline-sm font-headline font-semibold text-on-surface flex items-center gap-2">
+            <Users className="h-5 w-5" /> Team Members
+          </h2>
+          <Button variant="secondary" size="sm">
+            <Mail className="h-3.5 w-3.5" /> Invite Member
+          </Button>
         </div>
 
-        <div className="opacity-60 pointer-events-none">
-          <div className="flex justify-between items-center mb-5">
-            <h2 className="text-headline-sm font-headline font-semibold text-on-surface flex items-center gap-2">
-              <Users className="h-5 w-5" /> Team Members
-            </h2>
-            <Button variant="secondary" size="sm" disabled>
-              <Mail className="h-3.5 w-3.5" /> Invite Member
-            </Button>
-          </div>
-
-          <div className="divide-y divide-outline-variant/50">
-            {teamMembers.length === 0 ? (
-              <div className="py-3 text-body-sm text-on-surface-variant">No team members configured.</div>
-            ) : teamMembers.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-bold text-xs">
-                    {member.initials}
-                  </div>
-                  <div>
-                    <p className="text-body-md font-medium text-on-surface">
-                      {member.name}
-                    </p>
-                    <p className="text-body-sm text-on-surface-variant">
-                      {member.email}
-                    </p>
-                  </div>
+        <div className="divide-y divide-outline-variant/50">
+          {teamMembers.length === 0 ? (
+            <div className="py-3 text-body-sm text-on-surface-variant">No team members configured.</div>
+          ) : teamMembers.map((member) => (
+            <div
+              key={member.id}
+              className="flex items-center justify-between py-3"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-bold text-xs">
+                  {member.initials}
                 </div>
-                <Badge variant={roleBadgeVariants[member.role]}>
-                  {member.role}
-                </Badge>
+                <div>
+                  <p className="text-body-md font-medium text-on-surface">
+                    {member.name}
+                  </p>
+                  <p className="text-body-sm text-on-surface-variant">
+                    {member.email}
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Danger Zone */}
-      <div className="bg-white border border-error/30 rounded-xl p-6 space-y-4">
-        <h2 className="text-headline-sm font-headline font-semibold text-error">
-          Danger Zone
-        </h2>
-        <p className="text-body-sm text-on-surface-variant">
-          These actions are irreversible. Please proceed with caution.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Tooltip content="Coming soon">
-            <div>
-              <Button variant="outline" disabled className="w-full text-error border-error/30 hover:bg-error/5 hover:text-error opacity-50">
-                Archive Project
-              </Button>
+              <Badge variant={roleBadgeVariants[member.role]}>
+                {member.role}
+              </Badge>
             </div>
-          </Tooltip>
-          <Tooltip content="Coming soon">
-            <div>
-              <Button variant="destructive" disabled className="w-full opacity-50">
-                <Trash2 className="h-4 w-4" /> Delete Project
-              </Button>
-            </div>
-          </Tooltip>
+          ))}
         </div>
       </div>
     </div>

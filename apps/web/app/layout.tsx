@@ -27,6 +27,8 @@ export const metadata: Metadata = {
     "QA project management platform focused on clarity across test case management, test execution, defect management, and release readiness.",
 };
 
+import { Providers } from "@/components/providers";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -37,7 +39,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${manrope.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="font-body antialiased">{children}</body>
+      <body className="font-body antialiased">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

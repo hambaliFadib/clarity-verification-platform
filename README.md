@@ -6,15 +6,17 @@ This repository is the Phase 1 foundation for the Clarity Platform product area.
 
 ## Phase 1 Scope
 
-Phase 1 focuses first on two stable workflow anchors:
+Phase 1 focuses first on stable QA workflow anchors:
 
 - Test case management
 - Defect / bug management
 - The relationship between test cases, execution history, and reported defects
+- XLSX import/export for test case operations
+- Environment, project, release, and work item MVP surfaces backed by NeonDB
 
-Supporting surfaces such as My Work, Test Runs, Settings, and Release Readiness are included as MVP context, but they remain intentionally lightweight until the core test case and defect flows are stable.
+Supporting surfaces such as My Work, Test Runs, Settings, account entry points, and Release Readiness are included as MVP context. They remain intentionally lightweight until Phase 2 turns authentication, team workflow, and project-scoped behavior into complete product flows.
 
-Phase 1 intentionally avoids full integrations, authentication, payments, and advanced automation. The goal is to create a stable foundation before adding complex product logic.
+Phase 1 includes authentication scaffolding so the app can move into Phase 2 cleanly, but full Google OAuth rollout, invite verification, guest-data lifecycle, account management, and team/project restrictions remain Phase 2 work.
 
 ## Tech Stack
 
@@ -104,12 +106,19 @@ DATABASE_URL=
 NEXT_PUBLIC_API_BASE_URL=
 ENVIRONMENT=local
 ALLOWED_ORIGINS=http://127.0.0.1:3000,http://localhost:3000
+NEXTAUTH_SECRET=
+NEXTAUTH_URL=http://127.0.0.1:3000
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
 - `DATABASE_URL`: PostgreSQL connection string from NeonDB.
 - `NEXT_PUBLIC_API_BASE_URL`: frontend-visible API base URL, for example `http://127.0.0.1:8000`.
 - `ENVIRONMENT`: local, dev, preview, production, or ci.
 - `ALLOWED_ORIGINS`: comma-separated web origins allowed by the FastAPI CORS middleware.
+- `NEXTAUTH_SECRET`: server-side secret for NextAuth JWT/session signing.
+- `NEXTAUTH_URL`: canonical local or deployed web URL used by NextAuth callbacks.
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials for Phase 2 authentication rollout.
 
 Never commit `.env.local` or real secrets.
 
@@ -138,6 +147,8 @@ alembic downgrade -1
 See [docs/database-migration.md](docs/database-migration.md) for the full workflow.
 
 For production NeonDB setup, Singapore region selection, and cleanup steps, see [docs/neon-production.md](docs/neon-production.md).
+
+For phase release scope and continuation planning, see [docs/phase-roadmap.md](docs/phase-roadmap.md).
 
 ## Git Branching Strategy
 
@@ -180,7 +191,7 @@ See [docs/ci-cd.md](docs/ci-cd.md) for the full GitHub -> Vercel -> NeonDB flow.
 
 ## Phase Roadmap
 
-- Phase 1: TCMS + Defect foundation
-- Phase 2: Test execution workflow
-- Phase 3: Release readiness analytics
-- Phase 4: Integrations and automation
+- Phase 1: TCMS, defect workflow, import/export, Neon-backed CRUD, MVP settings, and UI bugfix release.
+- Phase 2: Google OAuth, guest mode hardening, account settings, one-project initialization, team invites, and My Work drag-to-move.
+- Phase 3: Test execution workflow and release readiness analytics.
+- Phase 4: External integrations, automation runtime, and advanced governance.
