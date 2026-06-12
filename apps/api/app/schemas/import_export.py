@@ -6,6 +6,8 @@ from pydantic import BaseModel
 
 class ImportStepRow(BaseModel):
     action: str
+    expected_result: str | None = None
+    test_data: str | None = None
 
 
 class TestCaseImportRow(BaseModel):
