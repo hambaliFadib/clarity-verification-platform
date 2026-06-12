@@ -48,6 +48,12 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === "guest") {
+        try {
+          const { ensureGuestSeedData } = await import("@/lib/server/qa-repository");
+          await ensureGuestSeedData();
+        } catch (e) {
+          console.error("Failed to seed guest data during sign in", e);
+        }
         return true;
       }
       

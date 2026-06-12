@@ -33,6 +33,8 @@ function mapTestStep(row: any) {
     id: row.id,
     stepNumber: row.step_number,
     action: row.action,
+    expectedResult: row.expected_result || undefined,
+    testData: row.test_data || undefined,
     status: row.status || "Not Run",
     actualResult: row.actual_result || undefined,
     order: row.step_number,
@@ -50,6 +52,7 @@ function mapTestCase(row: any, steps: any[] = []) {
     status: row.status,
     type: row.type,
     assignedTo: row.assigned_to_name || undefined,
+    assignedToId: row.assigned_to || undefined,
     createdBy: row.created_by_name || "System",
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -160,13 +163,15 @@ export async function createTestCase(payload: any) {
 
     for (const [index, step] of steps.entries()) {
       await client.query(
-        `insert into test_steps (id, test_case_id, step_number, action, status, actual_result)
-         values ($1,$2,$3,$4,$5,$6)`,
+        `insert into test_steps (id, test_case_id, step_number, action, expected_result, test_data, status, actual_result)
+         values ($1,$2,$3,$4,$5,$6,$7,$8)`,
         [
           randomUUID(),
           created.rows[0].id,
           index + 1,
           step.action,
+          emptyToNull(step.expectedResult || step.expected_result),
+          emptyToNull(step.testData || step.test_data),
           step.status || "Not Run",
           emptyToNull(step.actualResult || step.actual_result),
         ],
@@ -235,13 +240,15 @@ export async function updateTestCase(displayId: string, payload: any) {
       await client.query("delete from test_steps where test_case_id = $1", [row.id]);
       for (const [index, step] of steps.entries()) {
         await client.query(
-          `insert into test_steps (id, test_case_id, step_number, action, status, actual_result)
-           values ($1,$2,$3,$4,$5,$6)`,
+          `insert into test_steps (id, test_case_id, step_number, action, expected_result, test_data, status, actual_result)
+           values ($1,$2,$3,$4,$5,$6,$7,$8)`,
           [
             randomUUID(),
             row.id,
             index + 1,
             step.action,
+            emptyToNull(step.expectedResult || step.expected_result),
+            emptyToNull(step.testData || step.test_data),
             step.status || "Not Run",
             emptyToNull(step.actualResult || step.actual_result),
           ],
@@ -703,3 +710,50 @@ export async function listUsers() {
   const result = await query("select id, name, email, role, avatar, initials from users order by name asc");
   return result.rows;
 }
+
+export async function ensureGuestSeedData() {
+  return transaction(async (client) => {
+    // Check if defect linked to 'CLR-TC-001' already exists
+    const existing = await client.query(
+      "select id from defects where linked_test_case = $1 and deleted_at is null limit 1",
+      ["CLR-TC-001"]
+    );
+    if (existing.rows.length > 0) {
+      return { seeded: false, message: "Guest seed defect already exists" };
+    }
+
+    const displayId = await nextDisplayId(client, "defects", "CLR-DEF");
+    const now = new Date();
+    await client.query(
+      `insert into defects (
+        id, display_id, title, description, severity, status, type, priority, assigned_to,
+        reported_by, linked_test_case, linked_test_run, environment, browser,
+        steps_to_reproduce, tags, created_at, updated_at
+      ) values (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+      )`,
+      [
+        randomUUID(),
+        displayId,
+        "Failed to load user profile image on navbar",
+        "The navbar displays a broken image placeholder instead of the user's avatar when logged in via Google OAuth. Inspecting the network request shows a 403 Forbidden on the Google avatar URL.",
+        "High",
+        "Open",
+        "Bug",
+        "High",
+        "QA Engineer",
+        "Guest User",
+        "CLR-TC-001",
+        null,
+        "Staging",
+        "Chrome 125.0",
+        "1. Login to the application.\n2. Observe the profile picture on the top right corner.",
+        ["UI", "OAuth", "Guest-Demo"],
+        now,
+        now,
+      ]
+    );
+    return { seeded: true, message: "Successfully seeded guest dummy defect linked to CLR-TC-001" };
+  });
+}
+

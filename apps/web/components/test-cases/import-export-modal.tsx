@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Upload, Download, FileSpreadsheet, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -46,6 +47,7 @@ export function ImportExportModal({
   onImportError,
   totalCount,
 }: ImportExportModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<"import" | "export">("import");
   const [isDragging, setIsDragging] = useState(false);
   const [isParsing, setIsParsing] = useState(false);
@@ -53,7 +55,11 @@ export function ImportExportModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isOpen && mounted) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "unset";
@@ -61,9 +67,9 @@ export function ImportExportModal({
     return () => {
       document.body.style.overflow = "unset";
     };
-  }, [isOpen]);
+  }, [isOpen, mounted]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   function handleExport() {
     window.location.href = "/api/test-cases/export/xlsx";
@@ -159,11 +165,11 @@ export function ImportExportModal({
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md"
         onClick={isParsing ? undefined : onClose}
       />
 
@@ -336,6 +342,7 @@ export function ImportExportModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

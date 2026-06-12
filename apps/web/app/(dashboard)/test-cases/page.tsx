@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -23,17 +23,43 @@ import {
 } from "@/components/test-cases/advanced-filter-modal";
 import { ImportReviewModal } from "@/components/test-cases/import-review-modal";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
+import { AlertModal } from "@/components/ui/alert-modal";
 
 export default function TestCasesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [allCases, setAllCases] = useState<TestCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("all");
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
-  const [importToast, setImportToast] = useState<string | null>(null);
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "warning" | "info";
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "success",
+  });
   const [isParseResultOpen, setIsParseResultOpen] = useState(false);
   const [parseResult, setParseResult] = useState<any>(null);
+
+  useEffect(() => {
+    const toastType = searchParams.get("toast");
+    if (toastType === "deleted") {
+      setAlertState({
+        isOpen: true,
+        title: "Test Case Deleted",
+        message: "The test case was deleted successfully.",
+        type: "success",
+      });
+      const newUrl = window.location.pathname;
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function loadTestCases() {
@@ -60,12 +86,15 @@ export default function TestCasesPage() {
       result.overwritten > 0 && `${result.overwritten} overwritten`,
       result.skipped > 0 && `${result.skipped} skipped`,
     ].filter(Boolean);
-    setImportToast(
-      result.errors.length > 0
+    const isError = result.errors.length > 0;
+    setAlertState({
+      isOpen: true,
+      title: isError ? "Import Completed with Errors" : "Import Successful",
+      message: isError
         ? `Import completed with errors: ${result.errors.length} row(s) failed.`
-        : `Import successful — ${parts.join(", ")}.`
-    );
-    setTimeout(() => setImportToast(null), 6000);
+        : `Import successful — ${parts.join(", ")}.`,
+      type: isError ? "warning" : "success"
+    });
     async function reload() {
       const res = await fetch("/api/test-cases");
       if (res.ok) setAllCases(await res.json());
@@ -123,12 +152,14 @@ export default function TestCasesPage() {
 
   return (
     <>
+      <AlertModal
+        isOpen={alertState.isOpen}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
+      />
       <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in-up">
-        {importToast && (
-          <div className="fixed bottom-6 right-6 z-50 bg-surface-container-high border border-outline-variant rounded-xl shadow-xl px-5 py-3 text-body-sm text-on-surface max-w-sm animate-fade-in">
-            {importToast}
-          </div>
-        )}
         <PageHeader
           title="Test Cases"
           subtitle="Manage and organize your test case library"
@@ -267,8 +298,12 @@ export default function TestCasesPage() {
           setIsParseResultOpen(true);
         }}
         onImportError={(msg) => {
-          setImportToast(msg);
-          setTimeout(() => setImportToast(null), 6000);
+          setAlertState({
+            isOpen: true,
+            title: "Import Failed",
+            message: msg,
+            type: "error",
+          });
         }}
         totalCount={totalCount}
       />
