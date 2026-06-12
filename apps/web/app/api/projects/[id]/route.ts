@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { deleteProject, getProject, updateProject } from "@/lib/server/qa-repository";
+import { guestProjects } from "@/lib/server/guest-fixtures";
+import { getRequestContext, isGuestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
 
@@ -11,11 +11,15 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const ctx = await getRequestContext();
+    if (isGuestContext(ctx)) {
+      const project = guestProjects().find((item) => item.id === id) || guestProjects()[0];
+      return NextResponse.json(project);
+    }
     const project = await getProject(
       id,
-      (session?.user as any)?.id,
-      Boolean((session?.user as any)?.isGuest),
+      ctx.userId,
+      Boolean(ctx.isGuest),
     );
     if (!project) {
       return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
@@ -32,13 +36,17 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const ctx = await getRequestContext();
     const payload = await request.json();
+    if (isGuestContext(ctx)) {
+      const project = { ...guestProjects()[0], ...payload, id };
+      return NextResponse.json(project);
+    }
     const project = await updateProject(
       id,
       payload,
-      (session?.user as any)?.id,
-      Boolean((session?.user as any)?.isGuest),
+      ctx.userId,
+      Boolean(ctx.isGuest),
     );
     if (!project) {
       return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
@@ -55,11 +63,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const ctx = await getRequestContext();
+    if (isGuestContext(ctx)) return new Response(null, { status: 204 });
     const deleted = await deleteProject(
       id,
-      (session?.user as any)?.id,
-      Boolean((session?.user as any)?.isGuest),
+      ctx.userId,
+      Boolean(ctx.isGuest),
     );
     if (!deleted) {
       return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });

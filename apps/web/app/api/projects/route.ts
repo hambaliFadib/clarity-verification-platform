@@ -1,18 +1,27 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { createProject, listProjects } from "@/lib/server/qa-repository";
+import { guestCreated, guestProjects } from "@/lib/server/guest-fixtures";
+import { getRequestContext, isGuestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const session = await getServerSession(authOptions);
+    const ctx = await getRequestContext();
+    if (isGuestContext(ctx)) {
+      const items = guestProjects();
+      return NextResponse.json(items, {
+        headers: {
+          "X-Total-Count": String(items.length),
+          "Access-Control-Expose-Headers": "X-Total-Count",
+        },
+      });
+    }
     const { items, total } = await listProjects(
       searchParams,
-      (session?.user as any)?.id,
-      Boolean((session?.user as any)?.isGuest),
+      ctx.userId,
+      Boolean(ctx.isGuest),
     );
     return NextResponse.json(items, {
       headers: {
@@ -27,12 +36,16 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const ctx = await getRequestContext();
     const payload = await request.json();
+    if (isGuestContext(ctx)) {
+      const project = guestCreated(payload, guestProjects()[0]);
+      return NextResponse.json({ success: true, project }, { status: 201 });
+    }
     const project = await createProject(
       payload,
-      (session?.user as any)?.id,
-      Boolean((session?.user as any)?.isGuest),
+      ctx.userId,
+      Boolean(ctx.isGuest),
     );
     return NextResponse.json({ success: true, project }, { status: 201 });
   } catch (error: any) {

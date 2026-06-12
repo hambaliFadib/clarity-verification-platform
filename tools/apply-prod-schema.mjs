@@ -128,6 +128,22 @@ const statements = [
     created_at timestamptz not null default now(),
     primary key (project_id, user_id)
   )`,
+  `with owner_candidate as (
+     select id from users
+     where lower(email) <> 'guest@clarity.local'
+     order by created_at asc
+     limit 1
+   )
+   update projects
+   set owner_id = (select id from owner_candidate),
+       updated_at = now()
+   where owner_id is null
+     and exists (select 1 from owner_candidate)`,
+  `insert into project_members (project_id, user_id, role, created_at)
+   select id, owner_id, 'Contributor', now()
+   from projects
+   where owner_id is not null
+   on conflict (project_id, user_id) do nothing`,
   `create table if not exists releases (
     id uuid primary key,
     version varchar(50) not null,
@@ -202,6 +218,25 @@ const statements = [
    on conflict (version_num) do nothing`,
   `alter table test_steps add column if not exists expected_result text`,
   `alter table test_steps add column if not exists test_data text`,
+  ...[
+    "test_cases",
+    "defects",
+    "environments",
+    "releases",
+    "test_runs",
+    "work_items",
+    "activity_items",
+  ].flatMap((table) => [
+    `alter table ${table} add column if not exists project_id uuid references projects(id)`,
+    `create index if not exists ix_${table}_project_id on ${table} (project_id)`,
+    `with default_project as (
+       select id from projects where deleted_at is null order by created_at asc limit 1
+     )
+     update ${table}
+     set project_id = (select id from default_project)
+     where project_id is null
+       and exists (select 1 from default_project)`,
+  ]),
 ];
 
 const client = await pool.connect();

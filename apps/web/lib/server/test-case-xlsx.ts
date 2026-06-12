@@ -1,4 +1,6 @@
 import { listTestCases } from "@/lib/server/qa-repository";
+import { guestTestCases } from "@/lib/server/guest-fixtures";
+import type { ProjectAccessContext } from "@/lib/server/qa-repository";
 import type { TestCase } from "@/lib/types";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -356,9 +358,11 @@ function buildWorkbook(sheetXml: string) {
   ]);
 }
 
-export async function generateTestCasesExportXlsx() {
+export async function generateTestCasesExportXlsx(ctx?: ProjectAccessContext) {
   const params = new URLSearchParams({ limit: "10000" });
-  const { items } = await listTestCases(params);
+  const items = ctx?.isGuest || ctx?.userId === "guest-user"
+    ? guestTestCases()
+    : (await listTestCases(params, ctx)).items;
   return buildWorkbook(worksheetXml(items.map(testCaseRow)));
 }
 

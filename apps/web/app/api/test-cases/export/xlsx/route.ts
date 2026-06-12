@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { generateTestCasesExportXlsx, XLSX_MIME } from "@/lib/server/test-case-xlsx";
+import { getRequestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const buffer = await generateTestCasesExportXlsx();
+    const ctx = await getRequestContext();
+    const buffer = await generateTestCasesExportXlsx(ctx);
     const today = new Date().toISOString().slice(0, 10);
     return new NextResponse(buffer, {
       status: 200,

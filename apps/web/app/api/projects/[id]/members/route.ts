@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { inviteProjectMember, listProjectMembers } from "@/lib/server/qa-repository";
+import { guestTeamMembers } from "@/lib/server/guest-fixtures";
+import { getRequestContext, isGuestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
 
@@ -11,11 +11,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const ctx = await getRequestContext();
+    if (isGuestContext(ctx)) return NextResponse.json(guestTeamMembers());
     const members = await listProjectMembers(
       id,
-      (session?.user as any)?.id,
-      Boolean((session?.user as any)?.isGuest),
+      ctx.userId,
+      Boolean(ctx.isGuest),
     );
     return NextResponse.json(members);
   } catch (error: any) {
@@ -29,9 +30,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const session = await getServerSession(authOptions);
+    const ctx = await getRequestContext();
+    if (isGuestContext(ctx)) {
+      return NextResponse.json({ success: false, error: "Guest mode cannot invite members." }, { status: 403 });
+    }
     const payload = await request.json();
-    const member = await inviteProjectMember(id, String(payload.email || ""), (session?.user as any)?.id);
+    const member = await inviteProjectMember(id, String(payload.email || ""), ctx.userId);
     return NextResponse.json(member, { status: 201 });
   } catch (error: any) {
     const message = error.message || "Unable to invite member";

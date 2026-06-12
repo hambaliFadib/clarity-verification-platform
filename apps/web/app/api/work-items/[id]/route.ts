@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteWorkItem, getWorkItem, updateWorkItem } from "@/lib/server/qa-repository";
+import { guestWorkItems } from "@/lib/server/guest-fixtures";
+import { getRequestContext, isGuestContext } from "@/lib/server/request-context";
 
 export const runtime = "nodejs";
 
@@ -9,7 +11,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const workItem = await getWorkItem(id);
+    const ctx = await getRequestContext();
+    const workItem = isGuestContext(ctx)
+      ? (guestWorkItems().find((item) => item.id === id) || { ...guestWorkItems()[0], id })
+      : await getWorkItem(id, ctx);
     if (!workItem) {
       return NextResponse.json({ success: false, error: "Work item not found" }, { status: 404 });
     }
@@ -25,8 +30,11 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const ctx = await getRequestContext();
     const payload = await request.json();
-    const workItem = await updateWorkItem(id, payload);
+    const workItem = isGuestContext(ctx)
+      ? { ...guestWorkItems()[0], ...payload, id }
+      : await updateWorkItem(id, payload, ctx);
     if (!workItem) {
       return NextResponse.json({ success: false, error: "Work item not found" }, { status: 404 });
     }
@@ -42,7 +50,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const deleted = await deleteWorkItem(id);
+    const ctx = await getRequestContext();
+    if (isGuestContext(ctx)) return new Response(null, { status: 204 });
+    const deleted = await deleteWorkItem(id, ctx);
     if (!deleted) {
       return NextResponse.json({ success: false, error: "Work item not found" }, { status: 404 });
     }

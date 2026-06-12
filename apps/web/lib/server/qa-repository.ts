@@ -20,6 +20,90 @@ function isUuid(value: unknown) {
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
+export type ProjectAccessContext = {
+  userId?: string | null;
+  isGuest?: boolean;
+};
+
+const scopedTables = [
+  "test_cases",
+  "defects",
+  "environments",
+  "releases",
+  "test_runs",
+  "work_items",
+  "activity_items",
+];
+
+let membershipSchemaReady: Promise<void> | null = null;
+let scopedDataSchemaReady: Promise<void> | null = null;
+
+function hasSignedInUser(ctx?: ProjectAccessContext) {
+  return Boolean(ctx?.userId && !ctx.isGuest && ctx.userId !== "guest-user");
+}
+
+async function ensureScopedDataSchema() {
+  if (!scopedDataSchemaReady) {
+    scopedDataSchemaReady = (async () => {
+      await ensureProjectMembershipSchema();
+      for (const table of scopedTables) {
+        await query(`alter table ${table} add column if not exists project_id uuid references projects(id)`);
+        await query(`create index if not exists ix_${table}_project_id on ${table} (project_id)`);
+        await query(
+          `with default_project as (
+             select id from projects where deleted_at is null order by created_at asc limit 1
+           )
+           update ${table}
+           set project_id = (select id from default_project)
+           where project_id is null
+             and exists (select 1 from default_project)`,
+        );
+      }
+    })();
+  }
+  return scopedDataSchemaReady;
+}
+
+export async function getAccessibleProjectIds(ctx?: ProjectAccessContext) {
+  if (!hasSignedInUser(ctx)) return [];
+  await ensureProjectMembershipSchema();
+  const result = await query<{ id: string }>(
+    `select distinct p.id
+     from projects p
+     left join project_members pm on pm.project_id = p.id
+     where p.deleted_at is null
+       and (p.owner_id = $1 or pm.user_id = $1)
+     order by p.id asc`,
+    [ctx!.userId],
+  );
+  return result.rows.map((row) => row.id);
+}
+
+async function scopedProjectIds(ctx?: ProjectAccessContext) {
+  if (!ctx) return null;
+  if (!hasSignedInUser(ctx)) return [];
+  await ensureScopedDataSchema();
+  return getAccessibleProjectIds(ctx);
+}
+
+async function primaryProjectId(ctx?: ProjectAccessContext) {
+  const ids = await scopedProjectIds(ctx);
+  if (!ids || ids.length === 0) {
+    throw new Error("Create a project first or ask the project owner for an invitation.");
+  }
+  return ids[0];
+}
+
+function applyProjectScope(filters: string[], values: unknown[], projectIds: string[] | null, column: string) {
+  if (projectIds === null) return;
+  if (projectIds.length === 0) {
+    filters.push("1 = 0");
+    return;
+  }
+  values.push(projectIds);
+  filters.push(`${column} = any($${values.length}::uuid[])`);
+}
+
 async function nextDisplayId(client: DbClient, table: string, prefix: string) {
   const result = await client.query<{ max_number: number }>(
     `select coalesce(max(cast(substring(display_id from $1) as integer)), 0) as max_number from ${table}`,
@@ -82,9 +166,11 @@ async function getStepsByCaseIds(caseIds: string[]) {
   return grouped;
 }
 
-export async function listTestCases(searchParams: URLSearchParams) {
+export async function listTestCases(searchParams: URLSearchParams, ctx?: ProjectAccessContext) {
   const filters = ["tc.deleted_at is null"];
   const values: unknown[] = [];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "tc.project_id");
 
   const addValue = (value: unknown) => {
     values.push(value);
@@ -124,7 +210,8 @@ export async function listTestCases(searchParams: URLSearchParams) {
   };
 }
 
-export async function createTestCase(payload: any) {
+export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
   return transaction(async (client) => {
     const displayId = await nextDisplayId(client, "test_cases", "CLR-TC");
     const steps = payload.testSteps || payload.test_steps || [];
@@ -134,9 +221,9 @@ export async function createTestCase(payload: any) {
       `insert into test_cases (
         id, display_id, title, description, module, type, severity, status,
         assigned_to, requirement_id, estimated_time, tags, environment, automation_status,
-        preconditions, expected_result, notes, created_at, updated_at
+        preconditions, expected_result, notes, created_at, updated_at, project_id
       ) values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
       ) returning *`,
       [
         randomUUID(),
@@ -158,6 +245,7 @@ export async function createTestCase(payload: any) {
         emptyToNull(payload.notes),
         now,
         now,
+        projectId,
       ],
     );
 
@@ -183,24 +271,34 @@ export async function createTestCase(payload: any) {
   });
 }
 
-export async function getTestCase(displayId: string) {
+export async function getTestCase(displayId: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
   const result = await query(
     `select tc.*, assignee.name as assigned_to_name, creator.name as created_by_name
      from test_cases tc
      left join users assignee on assignee.id = tc.assigned_to
      left join users creator on creator.id = tc.created_by
      where tc.display_id = $1 and tc.deleted_at is null
+       ${projectIds === null ? "" : "and tc.project_id = any($2::uuid[])"}
      limit 1`,
-    [displayId],
+    projectIds === null ? [displayId] : [displayId, projectIds],
   );
   if (!result.rows[0]) return null;
   const steps = await getStepsByCaseIds([result.rows[0].id]);
   return mapTestCase(result.rows[0], steps.get(result.rows[0].id) || []);
 }
 
-export async function updateTestCase(displayId: string, payload: any) {
+export async function updateTestCase(displayId: string, payload: any, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
   return transaction(async (client) => {
-    const current = await client.query("select * from test_cases where display_id = $1 and deleted_at is null", [displayId]);
+    const current = await client.query(
+      `select * from test_cases
+       where display_id = $1 and deleted_at is null
+         ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+      projectIds === null ? [displayId] : [displayId, projectIds],
+    );
     if (!current.rows[0]) return null;
 
     const fields: Record<string, unknown> = {};
@@ -261,8 +359,16 @@ export async function updateTestCase(displayId: string, payload: any) {
   });
 }
 
-export async function deleteTestCase(displayId: string) {
-  const result = await query("update test_cases set deleted_at = now(), updated_at = now() where display_id = $1 and deleted_at is null", [displayId]);
+export async function deleteTestCase(displayId: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+  const result = await query(
+    `update test_cases
+     set deleted_at = now(), updated_at = now()
+     where display_id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [displayId] : [displayId, projectIds],
+  );
   return (result.rowCount || 0) > 0;
 }
 
@@ -301,9 +407,11 @@ function mapDefect(row: any, comments: any[] = []) {
   };
 }
 
-export async function listDefects(searchParams: URLSearchParams) {
+export async function listDefects(searchParams: URLSearchParams, ctx?: ProjectAccessContext) {
   const filters = ["deleted_at is null"];
   const values: unknown[] = [];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "project_id");
   const addValue = (value: unknown) => {
     values.push(value);
     return `$${values.length}`;
@@ -334,7 +442,8 @@ export async function listDefects(searchParams: URLSearchParams) {
   };
 }
 
-export async function createDefect(payload: any) {
+export async function createDefect(payload: any, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
   const result = await transaction(async (client) => {
     const displayId = await nextDisplayId(client, "defects", "CLR-DEF");
     const now = new Date();
@@ -342,9 +451,9 @@ export async function createDefect(payload: any) {
       `insert into defects (
         id, display_id, title, description, severity, status, type, priority, assigned_to,
         reported_by, linked_test_case, linked_test_run, environment, browser,
-        steps_to_reproduce, tags, created_at, updated_at, resolved_at
+        steps_to_reproduce, tags, created_at, updated_at, resolved_at, project_id
       ) values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
       ) returning *`,
       [
         randomUUID(),
@@ -366,21 +475,38 @@ export async function createDefect(payload: any) {
         now,
         now,
         ["Resolved", "Closed"].includes(payload.status) ? new Date() : null,
+        projectId,
       ],
     );
   });
   return mapDefect(result.rows[0]);
 }
 
-export async function getDefect(displayId: string) {
-  const result = await query("select * from defects where display_id = $1 and deleted_at is null limit 1", [displayId]);
+export async function getDefect(displayId: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const result = await query(
+    `select * from defects
+     where display_id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [displayId] : [displayId, projectIds],
+  );
   if (!result.rows[0]) return null;
   const comments = await query("select * from defect_comments where defect_id = $1 order by created_at asc", [result.rows[0].id]);
   return mapDefect(result.rows[0], comments.rows);
 }
 
-export async function updateDefect(displayId: string, payload: any) {
-  const current = await query("select * from defects where display_id = $1 and deleted_at is null limit 1", [displayId]);
+export async function updateDefect(displayId: string, payload: any, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const current = await query(
+    `select * from defects
+     where display_id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [displayId] : [displayId, projectIds],
+  );
   if (!current.rows[0]) return null;
   const fields: Record<string, unknown> = {};
   if (payload.title !== undefined) fields.title = payload.title;
@@ -402,24 +528,43 @@ export async function updateDefect(displayId: string, payload: any) {
   if (payload.tags !== undefined) fields.tags = stringArray(payload.tags);
 
   const entries = Object.entries(fields);
-  if (entries.length === 0) return getDefect(displayId);
+  if (entries.length === 0) return getDefect(displayId, ctx);
   const values = entries.map(([, value]) => value);
   const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
   const updated = await query(
-    `update defects set ${assignments}, updated_at = now() where display_id = $${entries.length + 1} and deleted_at is null returning *`,
-    [...values, displayId],
+    `update defects set ${assignments}, updated_at = now()
+     where display_id = $${entries.length + 1} and deleted_at is null
+       ${projectIds === null ? "" : `and project_id = any($${entries.length + 2}::uuid[])`}
+     returning *`,
+    projectIds === null ? [...values, displayId] : [...values, displayId, projectIds],
   );
   return mapDefect(updated.rows[0]);
 }
 
-export async function deleteDefect(displayId: string) {
-  const result = await query("update defects set deleted_at = now(), updated_at = now() where display_id = $1 and deleted_at is null", [displayId]);
+export async function deleteDefect(displayId: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+  const result = await query(
+    `update defects
+     set deleted_at = now(), updated_at = now()
+     where display_id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [displayId] : [displayId, projectIds],
+  );
   return (result.rowCount || 0) > 0;
 }
 
-export async function createDefectComment(displayId: string, payload: any) {
+export async function createDefectComment(displayId: string, payload: any, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
   const result = await transaction(async (client) => {
-    const defect = await client.query("select * from defects where display_id = $1 and deleted_at is null limit 1", [displayId]);
+    const defect = await client.query(
+      `select * from defects
+       where display_id = $1 and deleted_at is null
+         ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+       limit 1`,
+      projectIds === null ? [displayId] : [displayId, projectIds],
+    );
     if (!defect.rows[0]) return null;
     const comment = await client.query(
       "insert into defect_comments (id, defect_id, author, initials, text, created_at) values ($1,$2,$3,$4,$5,$6) returning *",
@@ -446,24 +591,28 @@ export function mapEnvironment(row: any) {
   };
 }
 
-export async function listEnvironments(searchParams: URLSearchParams) {
+export async function listEnvironments(searchParams: URLSearchParams, ctx?: ProjectAccessContext) {
   const values: unknown[] = [];
-  let whereSql = "deleted_at is null";
+  const filters = ["deleted_at is null"];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "project_id");
   const status = searchParams.get("status");
   if (status && status.toLowerCase() !== "all") {
     values.push(status);
-    whereSql += " and status ilike $1";
+    filters.push(`status ilike $${values.length}`);
   }
+  const whereSql = filters.join(" and ");
   const count = await query<{ total: string }>(`select count(*) as total from environments where ${whereSql}`, values);
   values.push(toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100));
   const result = await query(`select * from environments where ${whereSql} order by name asc offset $${values.length - 1} limit $${values.length}`, values);
   return { items: result.rows.map(mapEnvironment), total: Number(count.rows[0]?.total || 0) };
 }
 
-export async function createEnvironment(payload: any) {
+export async function createEnvironment(payload: any, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
   const result = await query(
-    `insert into environments (id, name, url, type, status, last_deployed, version, description, created_at, updated_at)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning *`,
+    `insert into environments (id, name, url, type, status, last_deployed, version, description, created_at, updated_at, project_id)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
     [
       randomUUID(),
       payload.name,
@@ -475,17 +624,28 @@ export async function createEnvironment(payload: any) {
       emptyToNull(payload.description),
       new Date(),
       new Date(),
+      projectId,
     ],
   );
   return mapEnvironment(result.rows[0]);
 }
 
-export async function getEnvironment(id: string) {
-  const result = await query("select * from environments where id = $1 and deleted_at is null limit 1", [id]);
+export async function getEnvironment(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const result = await query(
+    `select * from environments
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [id] : [id, projectIds],
+  );
   return result.rows[0] ? mapEnvironment(result.rows[0]) : null;
 }
 
-export async function updateEnvironment(id: string, payload: any) {
+export async function updateEnvironment(id: string, payload: any, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
   const fields: Record<string, unknown> = {};
   if (payload.name !== undefined) fields.name = payload.name;
   if (payload.url !== undefined) fields.url = payload.url;
@@ -495,15 +655,29 @@ export async function updateEnvironment(id: string, payload: any) {
   if (payload.version !== undefined) fields.version = emptyToNull(payload.version);
   if (payload.description !== undefined) fields.description = emptyToNull(payload.description);
   const entries = Object.entries(fields);
-  if (entries.length === 0) return getEnvironment(id);
+  if (entries.length === 0) return getEnvironment(id, ctx);
   const values = entries.map(([, value]) => value);
   const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
-  const result = await query(`update environments set ${assignments}, updated_at = now() where id = $${entries.length + 1} and deleted_at is null returning *`, [...values, id]);
+  const result = await query(
+    `update environments set ${assignments}, updated_at = now()
+     where id = $${entries.length + 1} and deleted_at is null
+       ${projectIds === null ? "" : `and project_id = any($${entries.length + 2}::uuid[])`}
+     returning *`,
+    projectIds === null ? [...values, id] : [...values, id, projectIds],
+  );
   return result.rows[0] ? mapEnvironment(result.rows[0]) : null;
 }
 
-export async function deleteEnvironment(id: string) {
-  const result = await query("update environments set deleted_at = now(), updated_at = now() where id = $1 and deleted_at is null", [id]);
+export async function deleteEnvironment(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+  const result = await query(
+    `update environments
+     set deleted_at = now(), updated_at = now()
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [id] : [id, projectIds],
+  );
   return (result.rowCount || 0) > 0;
 }
 
@@ -520,22 +694,47 @@ function mapProject(row: any) {
 }
 
 async function ensureProjectMembershipSchema() {
-  await query("alter table projects add column if not exists owner_id uuid references users(id)");
-  await query("drop index if exists ix_projects_prefix");
-  await query(
-    `create unique index if not exists ix_projects_owner_prefix
-     on projects (owner_id, prefix)
-     where owner_id is not null and deleted_at is null`,
-  );
-  await query(
-    `create table if not exists project_members (
-      project_id uuid not null references projects(id) on delete cascade,
-      user_id uuid not null references users(id) on delete cascade,
-      role varchar(20) not null default 'Contributor',
-      created_at timestamptz not null default now(),
-      primary key (project_id, user_id)
-    )`,
-  );
+  if (!membershipSchemaReady) {
+    membershipSchemaReady = (async () => {
+      await query("alter table projects add column if not exists owner_id uuid references users(id)");
+      await query("drop index if exists ix_projects_prefix");
+      await query(
+        `create unique index if not exists ix_projects_owner_prefix
+         on projects (owner_id, prefix)
+         where owner_id is not null and deleted_at is null`,
+      );
+      await query(
+        `create table if not exists project_members (
+          project_id uuid not null references projects(id) on delete cascade,
+          user_id uuid not null references users(id) on delete cascade,
+          role varchar(20) not null default 'Contributor',
+          created_at timestamptz not null default now(),
+          primary key (project_id, user_id)
+        )`,
+      );
+      await query(
+        `with owner_candidate as (
+           select id from users
+           where lower(email) <> 'guest@clarity.local'
+           order by created_at asc
+           limit 1
+         )
+         update projects
+         set owner_id = (select id from owner_candidate),
+             updated_at = now()
+         where owner_id is null
+           and exists (select 1 from owner_candidate)`,
+      );
+      await query(
+        `insert into project_members (project_id, user_id, role, created_at)
+         select id, owner_id, 'Contributor', now()
+         from projects
+         where owner_id is not null
+         on conflict (project_id, user_id) do nothing`,
+      );
+    })();
+  }
+  return membershipSchemaReady;
 }
 
 async function addProjectMember(projectId: string, userId: string, role = "Contributor") {
@@ -558,14 +757,18 @@ async function claimProjectForUser(projectId: string, userId: string) {
 }
 
 async function claimFirstUnownedProject(userId: string) {
-  const unowned = await query(
-    "select id from projects where deleted_at is null and owner_id is null order by updated_at desc limit 1",
+  await query(
+    `insert into project_members (project_id, user_id, role, created_at)
+     select id, owner_id, 'Contributor', now()
+     from projects
+     where owner_id = $1 and deleted_at is null
+     on conflict (project_id, user_id) do nothing`,
+    [userId],
   );
-  if (unowned.rows[0]) await claimProjectForUser(unowned.rows[0].id, userId);
 }
 
 async function canAccessProject(projectId: string, userId?: string | null, isGuest = false) {
-  if (isGuest || !userId || userId === "guest-user") return true;
+  if (isGuest || !userId || userId === "guest-user") return false;
   await ensureProjectMembershipSchema();
   const result = await query<{ exists: boolean }>(
     `select exists (
@@ -574,7 +777,7 @@ async function canAccessProject(projectId: string, userId?: string | null, isGue
       left join project_members pm on pm.project_id = p.id
       where p.id = $1
         and p.deleted_at is null
-        and (p.owner_id = $2 or pm.user_id = $2 or p.owner_id is null)
+        and (p.owner_id = $2 or pm.user_id = $2)
     ) as exists`,
     [projectId, userId],
   );
@@ -587,12 +790,7 @@ async function canAccessProject(projectId: string, userId?: string | null, isGue
 
 export async function listProjects(searchParams: URLSearchParams, userId?: string | null, isGuest = false) {
   if (!userId || isGuest || userId === "guest-user") {
-    const count = await query<{ total: string }>("select count(*) as total from projects where deleted_at is null");
-    const result = await query(
-      "select * from projects where deleted_at is null order by updated_at desc offset $1 limit $2",
-      [toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100)],
-    );
-    return { items: result.rows.map(mapProject), total: Number(count.rows[0]?.total || 0) };
+    return { items: [], total: 0 };
   }
 
   await ensureProjectMembershipSchema();
@@ -662,7 +860,7 @@ export async function updateProject(id: string, payload: any, userId?: string | 
     fields.default_priority = payload.priority ?? payload.default_priority ?? payload.defaultPriority;
   }
   const entries = Object.entries(fields);
-  if (entries.length === 0) return getProject(id);
+  if (entries.length === 0) return getProject(id, userId, isGuest);
   const values = entries.map(([, value]) => value);
   const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
   const result = await query(`update projects set ${assignments}, updated_at = now() where id = $${entries.length + 1} and deleted_at is null returning *`, [...values, id]);
@@ -676,7 +874,7 @@ export async function deleteProject(id: string, userId?: string | null, isGuest 
 }
 
 export async function listProjectMembers(projectId: string, userId?: string | null, isGuest = false) {
-  if (isGuest || !userId || userId === "guest-user") return listUsers();
+  if (isGuest || !userId || userId === "guest-user") return [];
   if (!(await canAccessProject(projectId, userId, isGuest))) return [];
   const result = await query(
     `select distinct u.id, u.name, u.email, coalesce(pm.role, u.role) as role, u.avatar, u.initials
@@ -709,16 +907,32 @@ export async function inviteProjectMember(projectId: string, email: string, user
   return { ...member.rows[0], role: "Contributor" };
 }
 
-export async function listReleases() {
+export async function listReleases(ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return { items: [], total: 0 };
   const modules = await query<{ module: string }>(
-    "select distinct module from test_cases where deleted_at is null order by module asc",
+    `select distinct module from test_cases
+     where deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}
+     order by module asc`,
+    projectIds === null ? [] : [projectIds],
   );
   const items = [];
   for (const [index, row] of modules.rows.entries()) {
-    const tests = await query("select display_id, status from test_cases where module = $1 and deleted_at is null", [row.module]);
+    const tests = await query(
+      `select display_id, status from test_cases
+       where module = $1 and deleted_at is null
+         ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+      projectIds === null ? [row.module] : [row.module, projectIds],
+    );
     const testIds = tests.rows.map((item: any) => item.display_id);
     const defects = testIds.length
-      ? await query("select severity, status from defects where deleted_at is null and linked_test_case = any($1::text[])", [testIds])
+      ? await query(
+          `select severity, status from defects
+           where deleted_at is null and linked_test_case = any($1::text[])
+             ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+          projectIds === null ? [testIds] : [testIds, projectIds],
+        )
       : { rows: [] };
     const passed = tests.rows.filter((item: any) => ["Approved", "Ready"].includes(item.status)).length;
     const openDefects = defects.rows.filter((item: any) => ["Open", "In Progress", "Blocked", "Reopened"].includes(item.status)).length;
@@ -758,9 +972,11 @@ function mapWorkItem(row: any) {
   };
 }
 
-export async function listWorkItems(searchParams: URLSearchParams) {
+export async function listWorkItems(searchParams: URLSearchParams, ctx?: ProjectAccessContext) {
   const filters = ["deleted_at is null"];
   const values: unknown[] = [];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "project_id");
   const status = searchParams.get("status");
   if (status && status.toLowerCase() !== "all") {
     values.push(status);
@@ -820,16 +1036,18 @@ function workItemFields(payload: any, relationColumns: Set<string>, partial = fa
   return fields;
 }
 
-export async function createWorkItem(payload: any) {
+export async function createWorkItem(payload: any, ctx?: ProjectAccessContext) {
   if (!payload.title || String(payload.title).trim().length < 2) {
     throw new Error("Work item title is required.");
   }
 
+  const projectId = await primaryProjectId(ctx);
   const relationColumns = await getWorkItemColumns();
   const now = new Date();
   const fields = {
     id: randomUUID(),
     ...workItemFields(payload, relationColumns),
+    project_id: projectId,
     created_at: now,
     updated_at: now,
   };
@@ -844,16 +1062,26 @@ export async function createWorkItem(payload: any) {
   return mapWorkItem(result.rows[0]);
 }
 
-export async function getWorkItem(id: string) {
-  const result = await query("select * from work_items where id = $1 and deleted_at is null limit 1", [id]);
+export async function getWorkItem(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const result = await query(
+    `select * from work_items
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [id] : [id, projectIds],
+  );
   return result.rows[0] ? mapWorkItem(result.rows[0]) : null;
 }
 
-export async function updateWorkItem(id: string, payload: any) {
+export async function updateWorkItem(id: string, payload: any, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
   const relationColumns = await getWorkItemColumns();
   const fields = workItemFields(payload, relationColumns, true);
   const entries = Object.entries(fields);
-  if (entries.length === 0) return getWorkItem(id);
+  if (entries.length === 0) return getWorkItem(id, ctx);
 
   const values = entries.map(([, value]) => value);
   const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
@@ -861,14 +1089,23 @@ export async function updateWorkItem(id: string, payload: any) {
     `update work_items
      set ${assignments}, updated_at = now()
      where id = $${entries.length + 1} and deleted_at is null
+       ${projectIds === null ? "" : `and project_id = any($${entries.length + 2}::uuid[])`}
      returning *`,
-    [...values, id],
+    projectIds === null ? [...values, id] : [...values, id, projectIds],
   );
   return result.rows[0] ? mapWorkItem(result.rows[0]) : null;
 }
 
-export async function deleteWorkItem(id: string) {
-  const result = await query("update work_items set deleted_at = now(), updated_at = now() where id = $1 and deleted_at is null", [id]);
+export async function deleteWorkItem(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+  const result = await query(
+    `update work_items
+     set deleted_at = now(), updated_at = now()
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [id] : [id, projectIds],
+  );
   return (result.rowCount || 0) > 0;
 }
 
@@ -886,19 +1123,28 @@ function mapActivity(row: any) {
   };
 }
 
-export async function listActivity(searchParams: URLSearchParams) {
-  const count = await query<{ total: string }>("select count(*) as total from activity_items");
+export async function listActivity(searchParams: URLSearchParams, ctx?: ProjectAccessContext) {
+  const filters = ["1 = 1"];
+  const values: unknown[] = [];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "project_id");
+  const whereSql = filters.join(" and ");
+  const count = await query<{ total: string }>(`select count(*) as total from activity_items where ${whereSql}`, values);
+  values.push(toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100));
   const result = await query(
-    "select * from activity_items order by created_at desc offset $1 limit $2",
-    [toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100)],
+    `select * from activity_items
+     where ${whereSql}
+     order by created_at desc offset $${values.length - 1} limit $${values.length}`,
+    values,
   );
   return { items: result.rows.map(mapActivity), total: Number(count.rows[0]?.total || 0) };
 }
 
-export async function createActivity(payload: any) {
+export async function createActivity(payload: any, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
   const result = await query(
-    `insert into activity_items (id, "user", user_initials, action, target_type, target_id, target_title, detail, created_at)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`,
+    `insert into activity_items (id, "user", user_initials, action, target_type, target_id, target_title, detail, created_at, project_id)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning *`,
     [
       randomUUID(),
       payload.user,
@@ -909,6 +1155,7 @@ export async function createActivity(payload: any) {
       emptyToNull(payload.targetTitle || payload.target_title),
       emptyToNull(payload.detail),
       new Date(),
+      projectId,
     ],
   );
   return mapActivity(result.rows[0]);
@@ -935,14 +1182,17 @@ function mapTestRun(row: any) {
   };
 }
 
-export async function listTestRuns(searchParams: URLSearchParams) {
+export async function listTestRuns(searchParams: URLSearchParams, ctx?: ProjectAccessContext) {
   const values: unknown[] = [];
-  let whereSql = "deleted_at is null";
+  const filters = ["deleted_at is null"];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "project_id");
   const status = searchParams.get("status");
   if (status && status.toLowerCase() !== "all") {
     values.push(status);
-    whereSql += ` and status ilike $${values.length}`;
+    filters.push(`status ilike $${values.length}`);
   }
+  const whereSql = filters.join(" and ");
   const count = await query<{ total: string }>(`select count(*) as total from test_runs where ${whereSql}`, values);
   values.push(toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100));
   const result = await query(`select * from test_runs where ${whereSql} order by updated_at desc offset $${values.length - 1} limit $${values.length}`, values);
@@ -1037,48 +1287,9 @@ export async function syncGoogleUser(payload: {
 }
 
 export async function ensureGuestSeedData() {
-  return transaction(async (client) => {
-    // Check if defect linked to 'CLR-TC-001' already exists
-    const existing = await client.query(
-      "select id from defects where linked_test_case = $1 and deleted_at is null limit 1",
-      ["CLR-TC-001"]
-    );
-    if (existing.rows.length > 0) {
-      return { seeded: false, message: "Guest seed defect already exists" };
-    }
-
-    const displayId = await nextDisplayId(client, "defects", "CLR-DEF");
-    const now = new Date();
-    await client.query(
-      `insert into defects (
-        id, display_id, title, description, severity, status, type, priority, assigned_to,
-        reported_by, linked_test_case, linked_test_run, environment, browser,
-        steps_to_reproduce, tags, created_at, updated_at
-      ) values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
-      )`,
-      [
-        randomUUID(),
-        displayId,
-        "Failed to load user profile image on navbar",
-        "The navbar displays a broken image placeholder instead of the user's avatar when logged in via Google OAuth. Inspecting the network request shows a 403 Forbidden on the Google avatar URL.",
-        "High",
-        "Open",
-        "Bug",
-        "High",
-        "QA Engineer",
-        "Guest User",
-        "CLR-TC-001",
-        null,
-        "Staging",
-        "Chrome 125.0",
-        "1. Login to the application.\n2. Observe the profile picture on the top right corner.",
-        ["UI", "OAuth", "Guest-Demo"],
-        now,
-        now,
-      ]
-    );
-    return { seeded: true, message: "Successfully seeded guest dummy defect linked to CLR-TC-001" };
-  });
+  return {
+    seeded: false,
+    message: "Guest data is served from isolated fixtures and is never written to NeonDB.",
+  };
 }
 
