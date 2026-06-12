@@ -140,7 +140,7 @@ export interface Project {
   updatedAt?: string;
 }
 
-export type UserRole = "Admin" | "QA Lead" | "QA Engineer" | "Developer" | "Viewer";
+export type UserRole = "Admin" | "QA Lead" | "QA Engineer" | "Developer" | "Contributor" | "Viewer";
 
 export interface TeamMember {
   id: string;

@@ -113,11 +113,21 @@ const statements = [
     prefix varchar(12) not null,
     description text,
     default_priority varchar(10) not null,
+    owner_id uuid references users(id),
     created_at timestamptz not null,
     updated_at timestamptz not null,
     deleted_at timestamptz
   )`,
-  `create unique index if not exists ix_projects_prefix on projects (prefix)`,
+  `alter table projects add column if not exists owner_id uuid references users(id)`,
+  `drop index if exists ix_projects_prefix`,
+  `create unique index if not exists ix_projects_owner_prefix on projects (owner_id, prefix) where owner_id is not null and deleted_at is null`,
+  `create table if not exists project_members (
+    project_id uuid not null references projects(id) on delete cascade,
+    user_id uuid not null references users(id) on delete cascade,
+    role varchar(20) not null default 'Contributor',
+    created_at timestamptz not null default now(),
+    primary key (project_id, user_id)
+  )`,
   `create table if not exists releases (
     id uuid primary key,
     version varchar(50) not null,

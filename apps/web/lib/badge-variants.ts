@@ -61,6 +61,7 @@ export const roleBadgeVariants = {
   "QA Lead": "info",
   "QA Engineer": "functional",
   Developer: "outline",
+  Contributor: "ready",
   Viewer: "draft",
 } as const satisfies Record<string, BadgeVariant>;
 

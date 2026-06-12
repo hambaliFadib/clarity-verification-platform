@@ -3,11 +3,11 @@
 import { useSession, signOut } from "next-auth/react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { LogOut, User as UserIcon } from "lucide-react";
-import Image from "next/image";
+import { LogOut } from "lucide-react";
 
 export default function AccountPage() {
   const { data: session } = useSession();
+  const initials = (session?.user as any)?.initials || "GU";
 
   const handleLogout = () => {
     signOut({ callbackUrl: "/login" });
@@ -19,19 +19,9 @@ export default function AccountPage() {
 
       <div className="bg-white border border-outline-variant rounded-xl p-6 space-y-6">
         <div className="flex items-center gap-6">
-          {session?.user?.image ? (
-            <Image
-              src={session.user.image}
-              alt="Avatar"
-              width={80}
-              height={80}
-              className="rounded-full shadow-subtle"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-surface-container flex items-center justify-center text-display-sm text-primary">
-              <UserIcon className="h-10 w-10" />
-            </div>
-          )}
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-display-sm text-on-primary-fixed font-bold border-2 border-white shadow-subtle">
+            {initials}
+          </div>
           
           <div>
             <h2 className="text-headline-md font-bold text-on-surface">{session?.user?.name || "Guest User"}</h2>

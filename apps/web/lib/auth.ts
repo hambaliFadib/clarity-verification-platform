@@ -68,11 +68,12 @@ export const authOptions: NextAuthOptions = {
             googleId: profile.sub,
             email: user.email,
             name: user.name,
-            avatar: user.image,
+            avatar: null,
           });
           user.id = dbUser.id;
           (user as any).role = dbUser.role;
           (user as any).initials = dbUser.initials;
+          user.image = null;
           return true;
         } catch (e) {
           console.error("Error linking Google account", e);
@@ -84,10 +85,11 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role || "Viewer";
+        token.role = user.id === "guest-user" ? "Viewer" : ((user as any).role || "Contributor");
         token.initials = (user as any).initials || "GU";
         token.isGuest = user.id === "guest-user";
       }
+      if (!token.isGuest && token.role === "Viewer") token.role = "Contributor";
       return token;
     },
     async session({ session, token }) {
@@ -96,6 +98,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token.role;
         (session.user as any).initials = token.initials;
         (session.user as any).isGuest = token.isGuest;
+        if (!token.isGuest) session.user.image = null;
       }
       return session;
     },

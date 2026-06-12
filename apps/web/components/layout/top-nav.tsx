@@ -3,7 +3,7 @@ import { HelpCircle, Menu } from "lucide-react";
 import { NotificationPopover } from "./notification-popover";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import Image from "next/image";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface TopNavProps {
   onMenuClick?: () => void;
@@ -18,7 +18,6 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
     name: session?.user?.name || "Project User",
     role: session?.user?.role || "Viewer",
     initials: session?.user?.initials || "PU",
-    avatar: session?.user?.image,
   };
 
   return (
@@ -47,12 +46,16 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
 
       <div className="flex items-center gap-2">
         <NotificationPopover />
-        <button
-          className="p-2 hover:bg-surface-container-high transition-colors rounded-full hidden sm:block"
-          aria-label="Help"
-        >
-          <HelpCircle className="h-[18px] w-[18px] text-on-surface-variant" />
-        </button>
+        <Tooltip content="Coming soon" side="bottom">
+          <button
+            className="p-2 rounded-full hidden sm:block cursor-not-allowed opacity-55"
+            aria-label="Help"
+            aria-disabled="true"
+            onClick={(event) => event.preventDefault()}
+          >
+            <HelpCircle className="h-[18px] w-[18px] text-on-surface-variant" />
+          </button>
+        </Tooltip>
 
         <Link href="/account" className="flex items-center gap-3 pl-3 ml-1 border-l border-outline-variant hover:opacity-80 transition-opacity">
           <div className="text-right hidden sm:block">
@@ -63,13 +66,9 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
               {currentUser.role}
             </span>
           </div>
-          {currentUser.avatar ? (
-            <Image src={currentUser.avatar} alt={currentUser.name} width={36} height={36} className="rounded-full border-2 border-white shadow-subtle" />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-bold text-xs border-2 border-white shadow-subtle">
-              {currentUser.initials}
-            </div>
-          )}
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-bold text-xs border-2 border-white shadow-subtle">
+            {currentUser.initials}
+          </div>
         </Link>
       </div>
     </header>

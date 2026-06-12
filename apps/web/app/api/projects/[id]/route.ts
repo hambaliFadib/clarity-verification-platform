@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { deleteProject, getProject, updateProject } from "@/lib/server/qa-repository";
 
 export const runtime = "nodejs";
@@ -9,7 +11,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const project = await getProject(id);
+    const session = await getServerSession(authOptions);
+    const project = await getProject(
+      id,
+      (session?.user as any)?.id,
+      Boolean((session?.user as any)?.isGuest),
+    );
     if (!project) {
       return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
     }
@@ -25,8 +32,14 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+    const session = await getServerSession(authOptions);
     const payload = await request.json();
-    const project = await updateProject(id, payload);
+    const project = await updateProject(
+      id,
+      payload,
+      (session?.user as any)?.id,
+      Boolean((session?.user as any)?.isGuest),
+    );
     if (!project) {
       return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
     }
@@ -42,7 +55,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const deleted = await deleteProject(id);
+    const session = await getServerSession(authOptions);
+    const deleted = await deleteProject(
+      id,
+      (session?.user as any)?.id,
+      Boolean((session?.user as any)?.isGuest),
+    );
     if (!deleted) {
       return NextResponse.json({ success: false, error: "Project not found" }, { status: 404 });
     }

@@ -519,29 +519,141 @@ function mapProject(row: any) {
   };
 }
 
-export async function listProjects(searchParams: URLSearchParams) {
-  const count = await query<{ total: string }>("select count(*) as total from projects where deleted_at is null");
+async function ensureProjectMembershipSchema() {
+  await query("alter table projects add column if not exists owner_id uuid references users(id)");
+  await query("drop index if exists ix_projects_prefix");
+  await query(
+    `create unique index if not exists ix_projects_owner_prefix
+     on projects (owner_id, prefix)
+     where owner_id is not null and deleted_at is null`,
+  );
+  await query(
+    `create table if not exists project_members (
+      project_id uuid not null references projects(id) on delete cascade,
+      user_id uuid not null references users(id) on delete cascade,
+      role varchar(20) not null default 'Contributor',
+      created_at timestamptz not null default now(),
+      primary key (project_id, user_id)
+    )`,
+  );
+}
+
+async function addProjectMember(projectId: string, userId: string, role = "Contributor") {
+  await query(
+    `insert into project_members (project_id, user_id, role, created_at)
+     values ($1, $2, $3, now())
+     on conflict (project_id, user_id) do update set role = excluded.role`,
+    [projectId, userId, role],
+  );
+}
+
+async function claimProjectForUser(projectId: string, userId: string) {
+  const current = await query("select owner_id from projects where id = $1 and deleted_at is null limit 1", [projectId]);
+  if (!current.rows[0]) return false;
+  if (!current.rows[0].owner_id) {
+    await query("update projects set owner_id = $1, updated_at = now() where id = $2 and owner_id is null", [userId, projectId]);
+  }
+  await addProjectMember(projectId, userId);
+  return true;
+}
+
+async function claimFirstUnownedProject(userId: string) {
+  const unowned = await query(
+    "select id from projects where deleted_at is null and owner_id is null order by updated_at desc limit 1",
+  );
+  if (unowned.rows[0]) await claimProjectForUser(unowned.rows[0].id, userId);
+}
+
+async function canAccessProject(projectId: string, userId?: string | null, isGuest = false) {
+  if (isGuest || !userId || userId === "guest-user") return true;
+  await ensureProjectMembershipSchema();
+  const result = await query<{ exists: boolean }>(
+    `select exists (
+      select 1
+      from projects p
+      left join project_members pm on pm.project_id = p.id
+      where p.id = $1
+        and p.deleted_at is null
+        and (p.owner_id = $2 or pm.user_id = $2 or p.owner_id is null)
+    ) as exists`,
+    [projectId, userId],
+  );
+  if (result.rows[0]?.exists) {
+    await claimProjectForUser(projectId, userId);
+    return true;
+  }
+  return false;
+}
+
+export async function listProjects(searchParams: URLSearchParams, userId?: string | null, isGuest = false) {
+  if (!userId || isGuest || userId === "guest-user") {
+    const count = await query<{ total: string }>("select count(*) as total from projects where deleted_at is null");
+    const result = await query(
+      "select * from projects where deleted_at is null order by updated_at desc offset $1 limit $2",
+      [toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100)],
+    );
+    return { items: result.rows.map(mapProject), total: Number(count.rows[0]?.total || 0) };
+  }
+
+  await ensureProjectMembershipSchema();
+  await claimFirstUnownedProject(userId);
+
+  const count = await query<{ total: string }>(
+    `select count(distinct p.id) as total
+     from projects p
+     left join project_members pm on pm.project_id = p.id
+     where p.deleted_at is null
+       and (p.owner_id = $1 or pm.user_id = $1)`,
+    [userId],
+  );
   const result = await query(
-    "select * from projects where deleted_at is null order by updated_at desc offset $1 limit $2",
-    [toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100)],
+    `select distinct p.*
+     from projects p
+     left join project_members pm on pm.project_id = p.id
+     where p.deleted_at is null
+       and (p.owner_id = $1 or pm.user_id = $1)
+     order by p.updated_at desc
+     offset $2 limit $3`,
+    [userId, toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100)],
   );
   return { items: result.rows.map(mapProject), total: Number(count.rows[0]?.total || 0) };
 }
 
-export async function createProject(payload: any) {
+export async function createProject(payload: any, userId?: string | null, isGuest = false) {
+  const now = new Date();
+  const shouldOwn = Boolean(userId && !isGuest && userId !== "guest-user");
+  if (shouldOwn) await ensureProjectMembershipSchema();
+
+  const fields: Record<string, unknown> = {
+    id: randomUUID(),
+    name: payload.name,
+    prefix: payload.prefix,
+    description: emptyToNull(payload.description),
+    default_priority: payload.priority || payload.defaultPriority || "Medium",
+    created_at: now,
+    updated_at: now,
+  };
+  if (shouldOwn) fields.owner_id = userId;
+
+  const entries = Object.entries(fields);
   const result = await query(
-    "insert into projects (id, name, prefix, description, default_priority, created_at, updated_at) values ($1,$2,$3,$4,$5,$6,$7) returning *",
-    [randomUUID(), payload.name, payload.prefix, emptyToNull(payload.description), payload.priority || payload.defaultPriority || "Medium", new Date(), new Date()],
+    `insert into projects (${entries.map(([key]) => key).join(", ")})
+     values (${entries.map((_, index) => `$${index + 1}`).join(", ")})
+     returning *`,
+    entries.map(([, value]) => value),
   );
+  if (shouldOwn) await addProjectMember(result.rows[0].id, userId!);
   return mapProject(result.rows[0]);
 }
 
-export async function getProject(id: string) {
+export async function getProject(id: string, userId?: string | null, isGuest = false) {
+  if (!(await canAccessProject(id, userId, isGuest))) return null;
   const result = await query("select * from projects where id = $1 and deleted_at is null limit 1", [id]);
   return result.rows[0] ? mapProject(result.rows[0]) : null;
 }
 
-export async function updateProject(id: string, payload: any) {
+export async function updateProject(id: string, payload: any, userId?: string | null, isGuest = false) {
+  if (!(await canAccessProject(id, userId, isGuest))) return null;
   const fields: Record<string, unknown> = {};
   if (payload.name !== undefined) fields.name = payload.name;
   if (payload.prefix !== undefined) fields.prefix = payload.prefix;
@@ -557,9 +669,44 @@ export async function updateProject(id: string, payload: any) {
   return result.rows[0] ? mapProject(result.rows[0]) : null;
 }
 
-export async function deleteProject(id: string) {
+export async function deleteProject(id: string, userId?: string | null, isGuest = false) {
+  if (!(await canAccessProject(id, userId, isGuest))) return false;
   const result = await query("update projects set deleted_at = now(), updated_at = now() where id = $1 and deleted_at is null", [id]);
   return (result.rowCount || 0) > 0;
+}
+
+export async function listProjectMembers(projectId: string, userId?: string | null, isGuest = false) {
+  if (isGuest || !userId || userId === "guest-user") return listUsers();
+  if (!(await canAccessProject(projectId, userId, isGuest))) return [];
+  const result = await query(
+    `select distinct u.id, u.name, u.email, coalesce(pm.role, u.role) as role, u.avatar, u.initials
+     from users u
+     join (
+       select owner_id as user_id, 'Contributor'::varchar as role
+       from projects
+       where id = $1 and owner_id is not null
+       union
+       select user_id, role from project_members where project_id = $1
+     ) pm on pm.user_id = u.id
+     order by u.name asc`,
+    [projectId],
+  );
+  return result.rows;
+}
+
+export async function inviteProjectMember(projectId: string, email: string, userId?: string | null) {
+  if (!userId || userId === "guest-user" || !(await canAccessProject(projectId, userId, false))) {
+    throw new Error("Project not found");
+  }
+  const member = await query(
+    "select id, name, email, role, avatar, initials from users where lower(email) = lower($1) limit 1",
+    [email.trim()],
+  );
+  if (!member.rows[0]) {
+    throw new Error("User must sign in to this platform before they can be invited.");
+  }
+  await addProjectMember(projectId, member.rows[0].id);
+  return { ...member.rows[0], role: "Contributor" };
 }
 
 export async function listReleases() {
@@ -845,8 +992,9 @@ export async function syncGoogleUser(payload: {
   if (existing.rows[0]) {
     const fields: Record<string, unknown> = {
       name: payload.name,
-      avatar: emptyToNull(payload.avatar),
-      initials: existing.rows[0].initials || initialsFromIdentity(payload.name, payload.email),
+      role: "Contributor",
+      avatar: null,
+      initials: initialsFromIdentity(payload.name, payload.email),
     };
     if (columns.has("google_id")) fields.google_id = payload.googleId;
     if (columns.has("email_verified")) fields.email_verified = true;
@@ -867,8 +1015,8 @@ export async function syncGoogleUser(payload: {
     id: randomUUID(),
     name: payload.name,
     email: payload.email,
-    role: "Viewer",
-    avatar: emptyToNull(payload.avatar),
+    role: "Contributor",
+    avatar: null,
     initials: initialsFromIdentity(payload.name, payload.email),
     created_at: now,
   };

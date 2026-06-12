@@ -12,10 +12,14 @@ interface SideNavProps {
   isDesktopOpen?: boolean;
   onCloseMobile?: () => void;
   onToggleDesktop?: () => void;
+  projectName?: string;
+  projectSuffix?: string;
 }
 
-export function SideNav({ isMobileOpen, isDesktopOpen, onCloseMobile, onToggleDesktop }: SideNavProps) {
+export function SideNav({ isMobileOpen, isDesktopOpen, onCloseMobile, onToggleDesktop, projectName, projectSuffix }: SideNavProps) {
   const pathname = usePathname();
+  const workspaceTitle = projectName?.trim() || "Clarity Platform";
+  const workspaceSubtitle = projectSuffix?.trim() || "QA Workspace";
 
   const isActive = (href: string) => {
     if (href === "/my-work") return pathname === "/my-work";
@@ -81,8 +85,8 @@ export function SideNav({ isMobileOpen, isDesktopOpen, onCloseMobile, onToggleDe
           <div className="flex items-center gap-3 min-w-0">
             <Hexagon className="h-7 w-7 text-primary flex-shrink-0 group-hover:scale-110 transition-transform" />
             <div className="flex-1 min-w-0 whitespace-nowrap">
-              <p className="text-label-bold font-label-bold text-on-surface truncate">Clarity Platform</p>
-              <p className="text-[11px] text-outline truncate">QA Workspace</p>
+              <p className="text-label-bold font-label-bold text-on-surface truncate">{workspaceTitle}</p>
+              <p className="text-[11px] text-outline truncate">{workspaceSubtitle}</p>
             </div>
           </div>
           {onCloseMobile && (

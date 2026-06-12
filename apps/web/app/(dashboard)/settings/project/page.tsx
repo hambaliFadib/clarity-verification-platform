@@ -3,8 +3,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
-import { Save, Trash2, Users, Mail, Plus, Folder, Check, Lock } from "lucide-react";
+import { Save, Users, Mail, Plus, Folder, Check } from "lucide-react";
 import { roleBadgeVariants } from "@/lib/badge-variants";
 import type { Project, TeamMember } from "@/lib/types";
 
@@ -28,15 +27,24 @@ export default function ProjectSettingsPage() {
   const [isProjectDropdownOpen, setIsProjectDropdownOpen] = useState(false);
   const [formData, setFormData] = useState<Project>(emptyProject);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [isInviting, setIsInviting] = useState(false);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+
+  const loadProjectMembers = async (projectId: string) => {
+    const response = await fetch(`/api/projects/${projectId}/members`, { cache: "no-store" });
+    if (response.ok) setTeamMembers(await response.json());
+  };
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadSettings() {
-      const [projectResponse, userResponse] = await Promise.all([
-        fetch("/api/projects", { cache: "no-store" }),
-        fetch("/api/users", { cache: "no-store" }),
-      ]);
+      const projectResponse = await fetch("/api/projects", { cache: "no-store" });
 
       if (!isMounted) return;
       if (projectResponse.ok) {
@@ -45,9 +53,9 @@ export default function ProjectSettingsPage() {
         if (projectData[0]) {
           setActiveProjectId(projectData[0].id);
           setFormData(projectData[0]);
+          await loadProjectMembers(projectData[0].id);
         }
       }
-      if (userResponse.ok) setTeamMembers(await userResponse.json());
     }
 
     loadSettings().catch(() => undefined);
@@ -64,21 +72,91 @@ export default function ProjectSettingsPage() {
     setFormData(selectedProject);
     setIsProjectDropdownOpen(false);
     setIsSaved(false);
+    setSaveError("");
+    setInviteMessage("");
+    loadProjectMembers(id).catch(() => undefined);
   };
 
   const handleSave = async () => {
     if (!formData.id) return;
-    const response = await fetch(`/api/projects/${formData.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(formData),
-    });
-    if (!response.ok) return;
-    const updatedProject: Project = await response.json();
-    setProjects(projects.map(project => project.id === updatedProject.id ? updatedProject : project));
-    setFormData(updatedProject);
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+    setIsSaving(true);
+    setSaveError("");
+    try {
+      const response = await fetch(`/api/projects/${formData.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to save project.");
+      const updatedProject: Project = payload;
+      setProjects(projects.map(project => project.id === updatedProject.id ? updatedProject : project));
+      setFormData(updatedProject);
+      window.dispatchEvent(new CustomEvent("clarity:project-updated", { detail: updatedProject }));
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+    } catch (error: any) {
+      setSaveError(error.message || "Unable to save project.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (projects.length > 0) return;
+    setIsCreatingProject(true);
+    setSaveError("");
+    const suffix = `QA${Date.now().toString(36).slice(-4).toUpperCase()}`;
+    try {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "New Project",
+          prefix: suffix,
+          description: "",
+          priority: "Medium",
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to create project.");
+      const project: Project = payload.project || payload;
+      setProjects([project]);
+      setActiveProjectId(project.id);
+      setFormData(project);
+      await loadProjectMembers(project.id);
+      window.dispatchEvent(new CustomEvent("clarity:project-updated", { detail: project }));
+    } catch (error: any) {
+      setSaveError(error.message || "Unable to create project.");
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    if (!activeProjectId || !inviteEmail.trim()) return;
+    setIsInviting(true);
+    setInviteMessage("");
+    try {
+      const response = await fetch(`/api/projects/${activeProjectId}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: inviteEmail.trim() }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Unable to invite member.");
+      setTeamMembers((members) => {
+        const next = members.filter((member) => member.id !== payload.id);
+        return [...next, payload].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setInviteEmail("");
+      setIsInviteOpen(false);
+      setInviteMessage("Member added");
+    } catch (error: any) {
+      setInviteMessage(error.message || "Unable to invite member.");
+    } finally {
+      setIsInviting(false);
+    }
   };
 
   return (
@@ -121,8 +199,14 @@ export default function ProjectSettingsPage() {
               </div>
             )}
           </div>
-          <Button variant="outline" className="w-full sm:w-auto">
-            <Plus className="h-4 w-4" /> New Project
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={handleCreateProject}
+            disabled={projects.length > 0 || isCreatingProject}
+            title={projects.length > 0 ? "Only one project for now" : undefined}
+          >
+            <Plus className="h-4 w-4" /> {isCreatingProject ? "Creating..." : "New Project"}
           </Button>
         </div>
       </div>
@@ -141,7 +225,7 @@ export default function ProjectSettingsPage() {
         </div>
 
         <div>
-          <label className={labelClass}>Project Key / Prefix</label>
+          <label className={labelClass}>Suffix</label>
           <input
             className={inputClass}
             value={formData.prefix}
@@ -173,9 +257,10 @@ export default function ProjectSettingsPage() {
         </div>
 
         <div className="flex justify-end items-center gap-3">
+          {saveError && <span className="text-body-sm text-error font-medium animate-fade-in">{saveError}</span>}
           {isSaved && <span className="text-body-sm text-emerald-600 font-medium animate-fade-in flex items-center gap-1"><Check className="h-4 w-4" /> Saved successfully</span>}
-          <Button onClick={handleSave} disabled={!formData.id}>
-            <Save className="h-4 w-4" /> Save Changes
+          <Button onClick={handleSave} disabled={!formData.id || isSaving}>
+            <Save className="h-4 w-4" /> {isSaving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>
@@ -186,10 +271,37 @@ export default function ProjectSettingsPage() {
           <h2 className="text-headline-sm font-headline font-semibold text-on-surface flex items-center gap-2">
             <Users className="h-5 w-5" /> Team Members
           </h2>
-          <Button variant="secondary" size="sm">
+          <Button variant="secondary" size="sm" onClick={() => setIsInviteOpen(true)} disabled={!activeProjectId}>
             <Mail className="h-3.5 w-3.5" /> Invite Member
           </Button>
         </div>
+
+        {isInviteOpen && (
+          <div className="rounded-lg border border-outline-variant bg-surface-container-low p-4 space-y-3 animate-fade-in">
+            <label className={labelClass}>Member Email</label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="email"
+                className={inputClass}
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="name@company.com"
+              />
+              <Button onClick={handleInvite} disabled={isInviting || !inviteEmail.trim()} className="sm:w-auto">
+                <Mail className="h-4 w-4" /> {isInviting ? "Adding..." : "Add"}
+              </Button>
+              <Button variant="outline" onClick={() => setIsInviteOpen(false)} className="sm:w-auto">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {inviteMessage && (
+          <p className={inviteMessage === "Member added" ? "text-body-sm text-emerald-600 font-medium" : "text-body-sm text-error font-medium"}>
+            {inviteMessage}
+          </p>
+        )}
 
         <div className="divide-y divide-outline-variant/50">
           {teamMembers.length === 0 ? (
