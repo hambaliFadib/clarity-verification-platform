@@ -807,6 +807,87 @@ export async function listUsers() {
   return result.rows;
 }
 
+function initialsFromIdentity(name: string, email: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const initials = (parts[0]?.[0] || email[0] || "U") + (parts.length > 1 ? parts[parts.length - 1][0] : "");
+  return initials.replace(/[^a-z]/gi, "").toUpperCase().slice(0, 2) || "U";
+}
+
+async function getUserColumns() {
+  const result = await query<{ column_name: string }>(
+    `select column_name
+     from information_schema.columns
+     where table_name = 'users'`,
+  );
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
+export async function syncGoogleUser(payload: {
+  googleId: string;
+  email: string;
+  name: string;
+  avatar?: string | null;
+}) {
+  if (!payload.googleId || !payload.email || !payload.name) {
+    throw new Error("Google profile is incomplete.");
+  }
+
+  const columns = await getUserColumns();
+  const now = new Date();
+  const existingSql = columns.has("google_id")
+    ? "select * from users where email = $1 or google_id = $2 limit 1"
+    : "select * from users where email = $1 limit 1";
+  const existingValues = columns.has("google_id")
+    ? [payload.email, payload.googleId]
+    : [payload.email];
+  const existing = await query(existingSql, existingValues);
+
+  if (existing.rows[0]) {
+    const fields: Record<string, unknown> = {
+      name: payload.name,
+      avatar: emptyToNull(payload.avatar),
+      initials: existing.rows[0].initials || initialsFromIdentity(payload.name, payload.email),
+    };
+    if (columns.has("google_id")) fields.google_id = payload.googleId;
+    if (columns.has("email_verified")) fields.email_verified = true;
+    if (columns.has("is_active")) fields.is_active = true;
+    if (columns.has("last_login")) fields.last_login = now;
+    if (columns.has("updated_at")) fields.updated_at = now;
+
+    const entries = Object.entries(fields);
+    const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
+    const updated = await query(
+      `update users set ${assignments} where id = $${entries.length + 1} returning id, name, email, role, avatar, initials`,
+      [...entries.map(([, value]) => value), existing.rows[0].id],
+    );
+    return updated.rows[0];
+  }
+
+  const fields: Record<string, unknown> = {
+    id: randomUUID(),
+    name: payload.name,
+    email: payload.email,
+    role: "Viewer",
+    avatar: emptyToNull(payload.avatar),
+    initials: initialsFromIdentity(payload.name, payload.email),
+    created_at: now,
+  };
+  if (columns.has("google_id")) fields.google_id = payload.googleId;
+  if (columns.has("email_verified")) fields.email_verified = true;
+  if (columns.has("is_active")) fields.is_active = true;
+  if (columns.has("last_login")) fields.last_login = now;
+  if (columns.has("updated_at")) fields.updated_at = now;
+
+  const entries = Object.entries(fields);
+  const insertColumns = entries.map(([key]) => key).join(", ");
+  const placeholders = entries.map((_, index) => `$${index + 1}`).join(", ");
+  const inserted = await query(
+    `insert into users (${insertColumns}) values (${placeholders}) returning id, name, email, role, avatar, initials`,
+    entries.map(([, value]) => value),
+  );
+  return inserted.rows[0];
+}
+
 export async function ensureGuestSeedData() {
   return transaction(async (client) => {
     // Check if defect linked to 'CLR-TC-001' already exists

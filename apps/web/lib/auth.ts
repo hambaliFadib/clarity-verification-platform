@@ -63,28 +63,17 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-          const res = await fetch(`${API_BASE}/api/v1/users/oauth/google`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              google_id: profile?.sub,
-              email: user.email,
-              name: user.name,
-              avatar: user.image,
-            }),
+          const { syncGoogleUser } = await import("@/lib/server/qa-repository");
+          const dbUser = await syncGoogleUser({
+            googleId: profile.sub,
+            email: user.email,
+            name: user.name,
+            avatar: user.image,
           });
-          
-          if (res.ok) {
-            const dbUser = await res.json();
-            user.id = dbUser.id;
-            (user as any).role = dbUser.role;
-            (user as any).initials = dbUser.initials;
-            return true;
-          }
-          return false;
+          user.id = dbUser.id;
+          (user as any).role = dbUser.role;
+          (user as any).initials = dbUser.initials;
+          return true;
         } catch (e) {
           console.error("Error linking Google account", e);
           return false;
