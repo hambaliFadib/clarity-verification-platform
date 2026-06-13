@@ -1,50 +1,164 @@
 # Phase Roadmap
 
-This document tracks the current release line and the next planned scope for Clarity Platform.
+This document tracks the production baseline and the next planned product phases for NexQA - Clarity Platform.
 
-## Phase 1 Release
+## Current Production Baseline
 
-Phase 1 is the production foundation release. It focuses on stable QA workflows and production-backed CRUD before deeper workflow automation.
+### Phase 1 - QA Workflow MVP
 
-Included scope:
+Phase 1 established the first stable QA workflow surface:
 
-- Test case management with NeonDB-backed CRUD.
+- Test case management.
 - Defect and defect comment management.
-- Environment, project, release, activity, work item, and test run MVP APIs.
-- XLSX import/export flow for test cases.
-- Modal layering and backdrop bug fixes for import/export, filters, defect actions, and environment creation.
-- UI consistency fixes for Test Cases, Defects, My Work, Project Settings, and navbar branding.
-- Authentication scaffolding through NextAuth, Google provider wiring, guest login, account entry page, and backend OAuth sync endpoint.
+- XLSX import/export for test case operations.
+- Environment, project, release, activity, test run, and work item MVP APIs.
+- UI consistency fixes across Test Cases, Defects, My Work, Project Settings, navbar, modals, filters, and import/export flows.
 
-Phase 1 does not claim full authentication, full team workflow, or advanced automation readiness.
+### Phase 2 - Authentication, Project Ownership, And Guest Isolation
 
-## Phase 2 Next Scope
+Phase 2 moved the product into production-oriented identity and data isolation:
 
-Phase 2 activates product workflows that depend on identity and project ownership.
+- Google OAuth production setup.
+- Account entry point and session handling.
+- Project ownership and project member scoping.
+- Invite-by-email flow for users already registered in the platform.
+- Contributor role default for Google users while detailed hierarchy is not yet active.
+- Guest mode as an isolated demo sandbox.
+- Guest data is served from resettable dummy fixtures and never reads from or writes to NeonDB.
+- Core API routes are scoped by project membership to prevent cross-project data exposure.
 
-Planned scope:
+## Next Implementation Roadmap
 
-- Google OAuth production rollout.
-- First registration verification link.
-- Account settings for profile updates, password reset support, and account deletion.
-- Guest mode hardening and cleanup behavior.
-- Create-project-first flow and one-project restriction.
-- Team member sync from Google users and invitation verification by email.
-- My Work drag-to-move activation with DB persistence.
-- Project Settings unlock after authentication and ownership rules are ready.
+Priority principle: **Quality Before Speed, Clarity Before Release**.
 
-## Decisions Required
+Because Phase 1 and Phase 2 are already part of the production baseline, the next product roadmap starts at Phase 3.
 
-- Google Cloud OAuth project and redirect/callback domains.
-- Email provider for verification and invitation links.
-- Guest data strategy: client memory only or server session with TTL.
-- Production domain and Vercel environment variable parity.
+## Phase 3 - Foundation: Requirements & RBAC
 
-## Out Of Scope For Phase 2
+Highest priority. This phase replaces the Requirements placeholder with a real requirements foundation and introduces role-based collaboration rules.
 
-- Full external automation runtime beyond local database-backed workflows.
-- Complex RBAC beyond basic owner/member restrictions.
-- Advanced analytics and release readiness forecasting.
+### 3.1 Requirements Management
+
+```text
+Requirements
+|-- Functional Requirements
+|   |-- User stories
+|   `-- Acceptance criteria
+|-- Non-Functional Requirements
+|   |-- Performance
+|   `-- Security
+|-- Business Rules
+|   |-- Validation rules
+|   `-- Constraints
+|-- Traceability Matrix
+|   `-- Requirement -> Test Case -> Defect
+`-- AI-Assisted
+    `-- Auto-generate test cases from requirements
+```
+
+### 3.2 Role-Based Access Control
+
+```text
+Roles
+|-- BA:        Create/Edit Requirements, View Business Process
+|-- SA:        Design Documents, Architecture, Technical Specs
+|-- QA:        Test Cases, Test Runs, Defects
+|-- Developer: Code Review, Technical Notes, Defect Resolution
+|-- PO:        Acceptance, Priority Setting, Release Approval
+|-- PM:        Dashboard, Reports, Cross-Module Visibility
+`-- UAT User:  UAT Test Cases, Acceptance Testing
+```
+
+## Phase 4 - Business Process & Design
+
+### 4.1 Business Process Module
+
+```text
+Business Process
+|-- Process Designer (visual BPMN-style editor)
+|-- Process Stages: Identify -> Analyze -> Design -> Implement -> Test -> Release
+|-- Each Stage -> Evidence Artifact
+|-- AI Analysis per Stage
+|   |-- Completeness Check
+|   |-- Risk Assessment
+|   `-- Quality Score
+`-- Approval Gate per Stage Transition
+```
+
+### 4.2 Design Module
+
+```text
+Design
+|-- System Architecture Documentation
+|-- Data Flow Diagrams
+|-- API Specifications
+|-- Database Schema
+`-- Link to Requirements & Business Process
+```
+
+## Phase 5 - AI Intelligence Layer
+
+### 5.1 AI Analysis Engine
+
+```text
+AI Analysis
+|-- Requirement Analysis
+|   |-- Completeness scoring
+|   |-- Ambiguity detection
+|   `-- Auto-suggest missing requirements
+|-- Test Coverage Analysis
+|   |-- Requirement <-> Test Case mapping
+|   |-- Coverage percentage
+|   `-- Gap identification
+|-- Defect Pattern Analysis
+|   |-- Root cause clustering
+|   |-- Regression risk scoring
+|   `-- Module health score
+`-- Release Readiness Assessment
+    |-- Quality gate checks
+    |-- Risk-based go/no-go recommendation
+    `-- Historical trend analysis
+```
+
+### 5.2 Evidence System
+
+```text
+Evidence
+|-- Auto-generated from actions
+|-- Immutable audit log
+|-- Linked to specific stage in business process
+|-- Types
+|   |-- Document artifacts (requirements, designs)
+|   |-- Test execution results
+|   |-- Defect reports
+|   |-- Approval decisions
+|   `-- AI analysis reports
+`-- Each evidence -> decision point
+```
+
+## Phase 6 - Approval Gates & Workflow
+
+### 6.1 State Machine Per Entity
+
+```text
+Approval Gates
+|-- Requirements:      Draft -> Review -> Approved -> Baseline
+|-- Test Cases:        Draft -> Ready -> In Review -> Approved
+|-- Defects:           Open -> In Progress -> Resolved -> Verified -> Closed
+|-- Releases:          Planning -> Testing -> UAT -> Approved -> Released
+`-- Business Process:  Draft -> Validated -> Implemented -> Verified
+```
+
+### 6.2 Decision Points
+
+```text
+Decision Intelligence
+|-- Each stage transition requires approval
+|-- AI provides recommendation (Go/No-Go/Risk)
+|-- Approval evidence is immutable
+|-- Escalation rules (auto-escalate if overdue)
+`-- Full audit trail of who approved what and when
+```
 
 ## Promotion Rule
 
@@ -53,4 +167,4 @@ Promote `dev` to `main` only when:
 - `npm run typecheck:web` passes.
 - `npm run build:web` passes.
 - `python -m compileall apps/api/app` passes.
-- Known blocking UI or CRUD bugs are either fixed or explicitly tracked.
+- Known blocking UI, CRUD, security, or data isolation bugs are either fixed or explicitly tracked.

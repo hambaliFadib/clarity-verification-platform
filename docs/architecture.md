@@ -1,6 +1,6 @@
 # Architecture
 
-NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and documentation evolve together while each runtime remains cleanly separated.
+NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and documentation evolve together while each runtime remains cleanly separated. The product direction is quality intelligence: requirements, traceability, QA execution, defects, evidence, and approval decisions should connect into one auditable workflow.
 
 ## Components
 
@@ -12,7 +12,7 @@ NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and docum
 
 ## Frontend
 
-The frontend uses the Next.js App Router. Phase 1 now covers the MVP product surfaces:
+The frontend uses the Next.js App Router. The current production baseline covers:
 
 - Test Cases
 - Test Runs
@@ -21,8 +21,10 @@ The frontend uses the Next.js App Router. Phase 1 now covers the MVP product sur
 - Settings
 - Release Readiness
 - Authentication entry points
+- Project-scoped API behavior
+- Guest-only isolated demo fixtures
 
-The app keeps Phase 1 focused on stable QA CRUD, import/export, modal interactions, and production-readiness. Authentication and account flows exist as Phase 2 groundwork; full Google OAuth rollout, invite verification, guest-data lifecycle, and team/project rules remain Phase 2.
+Phase 1 delivered the QA workflow MVP. Phase 2 added Google OAuth, account entry points, project ownership, project member scoping, and guest isolation. Guest mode must remain a resettable sandbox that never reads from or writes to NeonDB.
 
 ## Backend
 
@@ -39,9 +41,12 @@ Database connections are initialized lazily so simple imports and `/health` chec
 
 ## Phase Continuation
 
-- Phase 1 release promotes the stable foundation from `dev` to `main`.
-- Phase 2 continues from the authentication scaffolding already present in the app.
-- OAuth credentials, email delivery, guest data behavior, and production callback domains must be confirmed before Phase 2 is treated as complete.
+- Phase 3: Requirements Management and RBAC foundation.
+- Phase 4: Business Process and Design modules.
+- Phase 5: AI Intelligence Layer and Evidence System.
+- Phase 6: Approval Gates, workflow state machines, and decision intelligence.
+
+Priority principle: **Quality Before Speed, Clarity Before Release**.
 
 ## Database
 
