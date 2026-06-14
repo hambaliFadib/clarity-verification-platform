@@ -1,93 +1,30 @@
 # NexQA - Clarity Platform
 
-NexQA is a quality intelligence workspace for managing requirements, test coverage, defects, release evidence, and approval decisions with clear traceability from business intent to production readiness.
+NexQA is a QA project management platform focused on clarity across requirements, test cases, defects, test execution, and the evidence that connects quality work to release readiness.
 
-This repository is the production baseline for the Clarity Platform product area. It uses a Next.js frontend, a FastAPI backend, PostgreSQL on NeonDB, Vercel production deployment, GitHub Actions CI, and documentation for a small delivery team.
+This repository contains the production line for the Clarity Platform product area. It uses a Next.js frontend, a FastAPI backend, PostgreSQL on NeonDB, Vercel deployment from `main`, GitHub Actions CI, and documentation for a small team of 3 contributors.
 
-## Current Production Baseline
+Production URL:
 
-The current `main` branch has completed the first two delivery phases:
+- Primary: `https://nexqa.hambalifadib.my.id`
+- Vercel alias: `https://clarity-verification-platform-web.vercel.app`
 
-### Phase 1 - QA Workflow MVP
+## Current Release Scope
 
-- Test case management.
-- Defect and defect comment management.
-- XLSX import/export for test case operations.
-- Environment, project, release, activity, test run, and work item MVP surfaces.
-- Stable UI fixes for Test Cases, Defects, My Work, Project Settings, navbar, modals, filters, and import/export flows.
+The current release promotes the stable `dev` integration branch to `main` for production access. It includes:
 
-### Phase 2 - Authentication, Project Ownership, And Guest Isolation
+- Project-scoped QA CRUD for test cases, defects, environments, releases, work items, and test runs.
+- XLSX import/export and template support for test case operations.
+- Google OAuth and guest access scaffolding with production callback/domain support.
+- Guest data isolation and reset behavior for simulation mode.
+- Project Settings updates for project name/suffix and workspace label sync.
+- Requirements foundation: functional/non-functional requirements, business rules, comments, traceability, and AI-assisted analysis surfaces.
+- RBAC foundation: role/permission data model and guarded APIs for the next enforcement pass.
+- Analytics foundation and quality score MVP.
+- Approval gate and audit trail foundation, with write mutations locked until workflow enforcement is complete.
+- Production hardening for modal layering, table navigation, Excel alignment, route type generation, and local/prod build stability.
 
-- Google OAuth production setup.
-- Account entry page and session handling.
-- Project ownership and project member scoping.
-- Invite-by-email flow for users already registered in the platform.
-- Guest mode as a fully isolated demo sandbox.
-- Guest data is served from resettable dummy fixtures and never reads from or writes to NeonDB.
-- Core API routes are scoped by project membership to prevent cross-project data exposure.
-
-## Next Implementation Roadmap
-
-Priority principle: **Quality Before Speed, Clarity Before Release**.
-
-Because Phase 1 and Phase 2 are already part of the production baseline, the next roadmap is numbered from Phase 3 onward.
-
-### Phase 3 - Foundation: Requirements & RBAC
-
-Highest priority. This phase turns the current Requirements placeholder into the foundation module for traceability and role-based collaboration.
-
-Requirements Management:
-
-- Functional Requirements: user stories and acceptance criteria.
-- Non-Functional Requirements: performance, security, reliability, and operational constraints.
-- Business Rules: validations, constraints, and policy logic.
-- Traceability Matrix: requirement -> test case -> defect linkage.
-- AI-assisted generation: auto-generate test cases from approved requirements.
-
-Role-Based Access Control:
-
-- BA: Create/Edit Requirements, View Business Process.
-- SA: Design Documents, Architecture, Technical Specs.
-- QA: Test Cases, Test Runs, Defects.
-- Developer: Code Review, Technical Notes, Defect Resolution.
-- PO: Acceptance, Priority Setting, Release Approval.
-- PM: Dashboard, Reports, Cross-Module Visibility.
-- UAT User: UAT Test Cases, Acceptance Testing.
-
-### Phase 4 - Business Process & Design
-
-Business Process Module:
-
-- Visual BPMN-style process designer.
-- Process stages: Identify -> Analyze -> Design -> Implement -> Test -> Release.
-- Evidence artifact generated per stage.
-- AI analysis per stage: completeness check, risk assessment, and quality score.
-- Approval gate per stage transition.
-
-Design Module:
-
-- System architecture documentation.
-- Data flow diagrams.
-- API specifications.
-- Database schema.
-- Links to Requirements and Business Process artifacts.
-
-### Phase 5 - AI Intelligence Layer
-
-- Requirement analysis: completeness scoring, ambiguity detection, and missing requirement suggestions.
-- Test coverage analysis: requirement-to-test-case mapping, coverage percentage, and gap identification.
-- Defect pattern analysis: root cause clustering, regression risk scoring, and module health score.
-- Release readiness assessment: quality gate checks, risk-based go/no-go recommendation, and historical trend analysis.
-- Evidence system: immutable audit log linked to actions, artifacts, approvals, test execution results, defect reports, and AI analysis reports.
-
-### Phase 6 - Approval Gates & Workflow
-
-- Requirements: Draft -> Review -> Approved -> Baseline.
-- Test Cases: Draft -> Ready -> In Review -> Approved.
-- Defects: Open -> In Progress -> Resolved -> Verified -> Closed.
-- Releases: Planning -> Testing -> UAT -> Approved -> Released.
-- Business Process: Draft -> Validated -> Implemented -> Verified.
-- Decision intelligence: AI recommendation, immutable approval evidence, escalation rules, and a full audit trail.
+Known follow-up work remains tracked in GitHub issues. Features that are only foundation-level are kept guarded rather than exposed as complete production workflows.
 
 ## Tech Stack
 
@@ -188,8 +125,8 @@ GOOGLE_CLIENT_SECRET=
 - `ENVIRONMENT`: local, dev, preview, production, or ci.
 - `ALLOWED_ORIGINS`: comma-separated web origins allowed by the FastAPI CORS middleware.
 - `NEXTAUTH_SECRET`: server-side secret for NextAuth JWT/session signing.
-- `NEXTAUTH_URL`: canonical local or deployed web URL used by NextAuth callbacks.
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials for Phase 2 authentication rollout.
+- `NEXTAUTH_URL`: canonical local or deployed web URL used by NextAuth callbacks. Production should use `https://nexqa.hambalifadib.my.id`.
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials with the production callback URL registered.
 
 Never commit `.env.local` or real secrets.
 
@@ -252,9 +189,11 @@ GitHub is the source of truth. Pull requests and pushes to `dev-alpha`, `dev-bet
 - `dev`: integration branch for completed sandbox work; CI only.
 - `main`: Vercel Production Deployment and NeonDB production branch for real usage.
 
-Current Vercel projects:
+Current Vercel project:
 
-- `clarity-verification-platform-prod`: production deployment path for `main` (`https://nexqa.hambalifadib.my.id`).
+- `clarity-verification-platform-prod`: production deployment path for `main`.
+- Primary domain: `https://nexqa.hambalifadib.my.id`.
+- Vercel alias: `https://clarity-verification-platform-web.vercel.app`.
 
 Vercel receives `DATABASE_URL` from the Neon Vercel Integration for the production `main` deployment. Sandbox branches should use local database settings or manually created Neon branches when isolation is needed.
 
@@ -262,9 +201,13 @@ See [docs/ci-cd.md](docs/ci-cd.md) for the full GitHub -> Vercel -> NeonDB flow.
 
 ## Phase Roadmap
 
-- Phase 1: QA Workflow MVP.
-- Phase 2: Authentication, project ownership, and isolated guest mode.
-- Phase 3: Requirements Management and RBAC foundation.
-- Phase 4: Business Process and Design modules.
-- Phase 5: AI Intelligence Layer and Evidence System.
-- Phase 6: Approval Gates, workflow state machines, and decision intelligence.
+The earlier Phase 1 and Phase 2 work established the QA CRUD foundation, production deployment path, authentication scaffolding, guest mode isolation, project scoping, and team/account surfaces.
+
+Current and next focus:
+
+- Phase 3 - Foundation: Requirements Management and RBAC.
+- Phase 4 - Business Process and Design modules.
+- Phase 5 - AI Intelligence Layer and evidence system.
+- Phase 6 - Approval Gates and Workflow enforcement.
+
+Some Phase 6 foundations, such as `approval_gates`, `audit_trail`, and analytics MVP, already exist behind guarded APIs so they can be connected safely in later work.

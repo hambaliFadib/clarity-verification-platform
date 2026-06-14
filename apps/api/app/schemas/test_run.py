@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class TestRunCreate(BaseModel):
     name: str = Field(..., min_length=2)
     description: str | None = None
+    type: str = "Manual"  # Manual, Automated, Hybrid
+    trigger_type: str = "Manual"  # Manual, Scheduled, CI/CD, API, Webhook
+    automation_config: dict | None = None
     status: str = "Not Started"
     environment: str
     release: str | None = None
@@ -23,6 +26,9 @@ class TestRunCreate(BaseModel):
 class TestRunUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
+    type: str | None = None
+    trigger_type: str | None = None
+    automation_config: dict | None = None
     status: str | None = None
     environment: str | None = None
     release: str | None = None
@@ -41,6 +47,9 @@ class TestRunResponse(BaseModel):
     display_id: str
     name: str
     description: str | None = None
+    type: str
+    trigger_type: str
+    automation_config: dict | None = None
     status: str
     environment: str
     release: str | None = None
@@ -54,5 +63,51 @@ class TestRunResponse(BaseModel):
     completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestRunExecutionBase(BaseModel):
+    action: str
+    expected: str
+    actual: str | None = None
+    status: str = "Not Started"
+    evidence_id: uuid.UUID | None = None
+    executed_at: datetime | None = None
+
+
+class TestRunExecutionCreate(TestRunExecutionBase):
+    test_run_test_case_id: uuid.UUID
+    test_step_id: uuid.UUID
+
+
+class TestRunExecutionResponse(TestRunExecutionBase):
+    id: uuid.UUID
+    test_run_test_case_id: uuid.UUID
+    test_step_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestRunTestCaseBase(BaseModel):
+    execution_order: int = 1
+    status: str = "Not Started"
+    actual_result: str | None = None
+    defect_id: uuid.UUID | None = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    duration_ms: int | None = None
+
+
+class TestRunTestCaseCreate(TestRunTestCaseBase):
+    test_run_id: uuid.UUID
+    test_case_id: uuid.UUID
+
+
+class TestRunTestCaseResponse(TestRunTestCaseBase):
+    id: uuid.UUID
+    test_run_id: uuid.UUID
+    test_case_id: uuid.UUID
+    executions: list[TestRunExecutionResponse] = []
 
     model_config = ConfigDict(from_attributes=True)

@@ -1,6 +1,6 @@
 # Architecture
 
-NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and documentation evolve together while each runtime remains cleanly separated. The product direction is quality intelligence: requirements, traceability, QA execution, defects, evidence, and approval decisions should connect into one auditable workflow.
+NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and documentation evolve together while each runtime remains cleanly separated.
 
 ## Components
 
@@ -12,19 +12,19 @@ NexQA - Clarity Platform uses a monorepo so the frontend, backend, CI, and docum
 
 ## Frontend
 
-The frontend uses the Next.js App Router. The current production baseline covers:
+The frontend uses the Next.js App Router. The current production surface covers:
 
 - Test Cases
 - Test Runs
 - Defects
 - My Work
 - Settings
-- Release Readiness
+- Requirements
+- Traceability
+- Analytics
 - Authentication entry points
-- Project-scoped API behavior
-- Guest-only isolated demo fixtures
 
-Phase 1 delivered the QA workflow MVP. Phase 2 added Google OAuth, account entry points, project ownership, project member scoping, and guest isolation. Guest mode must remain a resettable sandbox that never reads from or writes to NeonDB.
+The app keeps production behavior focused on stable project-scoped QA workflows. Requirements, RBAC, analytics, and approval gates are being added incrementally. Foundation-level features are guarded until access control and workflow enforcement are complete.
 
 ## Backend
 
@@ -41,12 +41,12 @@ Database connections are initialized lazily so simple imports and `/health` chec
 
 ## Phase Continuation
 
-- Phase 3: Requirements Management and RBAC foundation.
-- Phase 4: Business Process and Design modules.
-- Phase 5: AI Intelligence Layer and Evidence System.
-- Phase 6: Approval Gates, workflow state machines, and decision intelligence.
+- Phase 3 focuses on Requirements Management and RBAC.
+- Phase 4 adds Business Process and Design modules.
+- Phase 5 expands AI analysis and evidence intelligence.
+- Phase 6 wires approval gates, audit trail, and workflow enforcement end to end.
 
-Priority principle: **Quality Before Speed, Clarity Before Release**.
+Early approval gate and analytics foundations already exist, but approval mutations remain locked until authenticated approval workflow enforcement is implemented.
 
 ## Database
 
@@ -57,6 +57,11 @@ Recommended branch mapping:
 - `main`: Neon production/default branch for real usage
 - `dev`: integration branch validated by CI before promotion
 - `dev-alpha`, `dev-beta`, `dev-charlie`: sandbox branches that use local database settings or manually created Neon branches when isolation is needed
+
+Production web entry points:
+
+- Primary domain: `https://nexqa.hambalifadib.my.id`
+- Vercel alias: `https://clarity-verification-platform-web.vercel.app`
 
 ## Scaling Rationale
 

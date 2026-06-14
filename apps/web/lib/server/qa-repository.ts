@@ -1161,12 +1161,326 @@ export async function createActivity(payload: any, ctx?: ProjectAccessContext) {
   return mapActivity(result.rows[0]);
 }
 
+let requirementsSchemaReady: Promise<void> | null = null;
+
+async function ensureRequirementsSchema() {
+  if (!requirementsSchemaReady) {
+    requirementsSchemaReady = (async () => {
+      await ensureProjectMembershipSchema();
+      await query(
+        `create table if not exists requirements (
+          id uuid primary key,
+          display_id varchar(20) not null unique,
+          title varchar(200) not null,
+          description text,
+          acceptance_criteria text,
+          business_rules text,
+          module varchar(100) not null,
+          type varchar(50) not null,
+          priority varchar(20) not null,
+          status varchar(20) not null default 'Draft',
+          created_by_id uuid references users(id),
+          project_id uuid references projects(id) on delete cascade,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )`,
+      );
+      await query("alter table requirements add column if not exists acceptance_criteria text");
+      await query("alter table requirements add column if not exists business_rules text");
+      await query("alter table requirements add column if not exists created_by_id uuid references users(id)");
+      await query("alter table requirements add column if not exists project_id uuid references projects(id) on delete cascade");
+      await query("create index if not exists ix_requirements_project_id on requirements (project_id)");
+      await query("create index if not exists ix_requirements_status on requirements (status)");
+      await query(
+        `create table if not exists requirement_test_cases (
+          requirement_id uuid not null references requirements(id) on delete cascade,
+          test_case_id uuid not null references test_cases(id) on delete cascade,
+          created_at timestamptz not null default now(),
+          primary key (requirement_id, test_case_id)
+        )`,
+      );
+      await query(
+        `create table if not exists requirement_comments (
+          id uuid primary key,
+          requirement_id uuid not null references requirements(id) on delete cascade,
+          user_id uuid not null references users(id),
+          content text not null,
+          created_at timestamptz not null default now()
+        )`,
+      );
+    })();
+  }
+  return requirementsSchemaReady;
+}
+
+async function tableExists(tableName: string) {
+  const result = await query<{ exists: boolean }>(
+    `select exists (
+       select 1 from information_schema.tables
+       where table_schema = 'public' and table_name = $1
+     ) as exists`,
+    [tableName],
+  );
+  return Boolean(result.rows[0]?.exists);
+}
+
+function mapRequirement(row: any) {
+  return {
+    id: row.display_id,
+    realId: row.id,
+    displayId: row.display_id,
+    title: row.title,
+    description: row.description || undefined,
+    acceptanceCriteria: row.acceptance_criteria || undefined,
+    businessRules: row.business_rules || undefined,
+    module: row.module,
+    type: row.type,
+    priority: row.priority,
+    status: row.status,
+    createdById: row.created_by_id || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function requirementFields(payload: any, partial = false) {
+  const fields: Record<string, unknown> = {};
+  const has = (...keys: string[]) => keys.some((key) => Object.prototype.hasOwnProperty.call(payload, key));
+  const add = (key: string, value: unknown, fallback?: unknown) => {
+    if (value !== undefined) fields[key] = value;
+    else if (!partial && fallback !== undefined) fields[key] = fallback;
+  };
+
+  add("title", payload.title);
+  if (has("description") || !partial) fields.description = emptyToNull(payload.description);
+  if (has("acceptanceCriteria", "acceptance_criteria") || !partial) fields.acceptance_criteria = emptyToNull(payload.acceptanceCriteria ?? payload.acceptance_criteria);
+  if (has("businessRules", "business_rules") || !partial) fields.business_rules = emptyToNull(payload.businessRules ?? payload.business_rules);
+  add("module", payload.module);
+  add("type", payload.type, "Functional");
+  add("priority", payload.priority, "Medium");
+  add("status", payload.status, "Draft");
+  return fields;
+}
+
+export async function listRequirements(searchParams: URLSearchParams, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return { items: [], total: 0 };
+
+  const filters = ["1 = 1"];
+  const values: unknown[] = [];
+  applyProjectScope(filters, values, projectIds, "project_id");
+  const addValue = (value: unknown) => {
+    values.push(value);
+    return `$${values.length}`;
+  };
+
+  const search = searchParams.get("search");
+  if (search) {
+    const placeholder = addValue(`%${search}%`);
+    filters.push(`(title ilike ${placeholder} or module ilike ${placeholder} or display_id ilike ${placeholder})`);
+  }
+  const status = searchParams.get("status");
+  if (status && status.toLowerCase() !== "all") filters.push(`status ilike ${addValue(status)}`);
+
+  const whereSql = filters.join(" and ");
+  const count = await query<{ total: string }>(`select count(*) as total from requirements where ${whereSql}`, values);
+  const offset = addValue(toInt(searchParams.get("skip"), 0));
+  const limit = addValue(toInt(searchParams.get("limit"), 100));
+  const result = await query(
+    `select * from requirements
+     where ${whereSql}
+     order by updated_at desc
+     offset ${offset} limit ${limit}`,
+    values,
+  );
+  return { items: result.rows.map(mapRequirement), total: Number(count.rows[0]?.total || 0) };
+}
+
+export async function createRequirement(payload: any, ctx?: ProjectAccessContext) {
+  if (!payload.title || String(payload.title).trim().length < 2) {
+    throw new Error("Requirement title is required.");
+  }
+  await ensureRequirementsSchema();
+  const projectId = await primaryProjectId(ctx);
+  const now = new Date();
+  const displayId = await nextDisplayId({ query } as DbClient, "requirements", "REQ");
+  const fields = {
+    id: randomUUID(),
+    display_id: displayId,
+    ...requirementFields(payload),
+    created_by_id: ctx?.userId && ctx.userId !== "guest-user" ? ctx.userId : null,
+    project_id: projectId,
+    created_at: now,
+    updated_at: now,
+  };
+  const entries = Object.entries(fields);
+  const result = await query(
+    `insert into requirements (${entries.map(([key]) => key).join(", ")})
+     values (${entries.map((_, index) => `$${index + 1}`).join(", ")})
+     returning *`,
+    entries.map(([, value]) => value),
+  );
+  return mapRequirement(result.rows[0]);
+}
+
+export async function getRequirement(id: string, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const result = await query(
+    `select * from requirements
+     where (display_id = $1 or id::text = $1)
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [id] : [id, projectIds],
+  );
+  return result.rows[0] ? mapRequirement(result.rows[0]) : null;
+}
+
+export async function updateRequirement(id: string, payload: any, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const fields = requirementFields(payload, true);
+  const entries = Object.entries(fields);
+  if (entries.length === 0) return getRequirement(id, ctx);
+
+  const values = entries.map(([, value]) => value);
+  const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
+  const result = await query(
+    `update requirements
+     set ${assignments}, updated_at = now()
+     where (display_id = $${entries.length + 1} or id::text = $${entries.length + 1})
+       ${projectIds === null ? "" : `and project_id = any($${entries.length + 2}::uuid[])`}
+     returning *`,
+    projectIds === null ? [...values, id] : [...values, id, projectIds],
+  );
+  return result.rows[0] ? mapRequirement(result.rows[0]) : null;
+}
+
+export async function listRequirementTestCases(id: string, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  const requirement = await getRequirement(id, ctx);
+  if (!requirement?.realId) return null;
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return [];
+  const result = await query(
+    `select tc.id, tc.display_id, tc.title, tc.module, tc.severity, tc.status, tc.type
+     from test_cases tc
+     join requirement_test_cases rtc on rtc.test_case_id = tc.id
+     where rtc.requirement_id = $1
+       and tc.deleted_at is null
+       ${projectIds === null ? "" : "and tc.project_id = any($2::uuid[])"}
+     order by tc.display_id asc`,
+    projectIds === null ? [requirement.realId] : [requirement.realId, projectIds],
+  );
+  return result.rows.map((row: any) => ({
+    id: row.display_id,
+    realId: row.id,
+    displayId: row.display_id,
+    title: row.title,
+    module: row.module,
+    severity: row.severity,
+    status: row.status,
+    type: row.type,
+  }));
+}
+
+export async function linkRequirementTestCase(requirementId: string, testCaseId: string, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  const requirement = await getRequirement(requirementId, ctx);
+  if (!requirement?.realId) return null;
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const testCase = await query(
+    `select id from test_cases
+     where (display_id = $1 or id::text = $1)
+       and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [testCaseId] : [testCaseId, projectIds],
+  );
+  if (!testCase.rows[0]) return null;
+  await query(
+    `insert into requirement_test_cases (requirement_id, test_case_id, created_at)
+     values ($1, $2, now())
+     on conflict (requirement_id, test_case_id) do nothing`,
+    [requirement.realId, testCase.rows[0].id],
+  );
+  return { requirementId: requirement.displayId, testCaseId };
+}
+
+export async function unlinkRequirementTestCase(requirementId: string, testCaseId: string, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  const requirement = await getRequirement(requirementId, ctx);
+  if (!requirement?.realId) return false;
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+  const testCase = await query(
+    `select id from test_cases
+     where (display_id = $1 or id::text = $1)
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [testCaseId] : [testCaseId, projectIds],
+  );
+  if (!testCase.rows[0]) return false;
+  const result = await query(
+    "delete from requirement_test_cases where requirement_id = $1 and test_case_id = $2",
+    [requirement.realId, testCase.rows[0].id],
+  );
+  return (result.rowCount || 0) > 0;
+}
+
+export async function listRequirementComments(id: string, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  const requirement = await getRequirement(id, ctx);
+  if (!requirement?.realId) return null;
+  const result = await query(
+    `select rc.id, rc.user_id, rc.content, rc.created_at, u.name as user_name
+     from requirement_comments rc
+     left join users u on u.id = rc.user_id
+     where rc.requirement_id = $1
+     order by rc.created_at desc`,
+    [requirement.realId],
+  );
+  return result.rows.map((row: any) => ({
+    id: row.id,
+    userId: row.user_id,
+    userName: row.user_name || undefined,
+    content: row.content,
+    createdAt: row.created_at,
+  }));
+}
+
+export async function createRequirementComment(id: string, content: string, ctx?: ProjectAccessContext) {
+  await ensureRequirementsSchema();
+  if (!ctx?.userId || ctx.isGuest || ctx.userId === "guest-user") return null;
+  const requirement = await getRequirement(id, ctx);
+  if (!requirement?.realId) return null;
+  const result = await query(
+    `insert into requirement_comments (id, requirement_id, user_id, content, created_at)
+     values ($1, $2, $3, $4, now())
+     returning id, user_id, content, created_at`,
+    [randomUUID(), requirement.realId, ctx.userId, content],
+  );
+  return {
+    id: result.rows[0].id,
+    userId: result.rows[0].user_id,
+    content: result.rows[0].content,
+    createdAt: result.rows[0].created_at,
+  };
+}
+
 function mapTestRun(row: any) {
   return {
     id: row.display_id,
     realId: row.id,
+    displayId: row.display_id,
     name: row.name,
     description: row.description || undefined,
+    type: row.type || "Manual",
+    triggerType: row.trigger_type || "Manual",
     status: row.status,
     environment: row.environment,
     release: row.release || undefined,
@@ -1179,6 +1493,7 @@ function mapTestRun(row: any) {
     startedAt: row.started_at || undefined,
     completedAt: row.completed_at || undefined,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
@@ -1197,6 +1512,60 @@ export async function listTestRuns(searchParams: URLSearchParams, ctx?: ProjectA
   values.push(toInt(searchParams.get("skip"), 0), toInt(searchParams.get("limit"), 100));
   const result = await query(`select * from test_runs where ${whereSql} order by updated_at desc offset $${values.length - 1} limit $${values.length}`, values);
   return { items: result.rows.map(mapTestRun), total: Number(count.rows[0]?.total || 0) };
+}
+
+export async function getTestRun(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+  const result = await query(
+    `select * from test_runs
+     where (display_id = $1 or id::text = $1)
+       and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}
+     limit 1`,
+    projectIds === null ? [id] : [id, projectIds],
+  );
+  return result.rows[0] ? mapTestRun(result.rows[0]) : null;
+}
+
+export async function updateTestRunStatus(id: string, status: "Running" | "Aborted" | "Completed", ctx?: ProjectAccessContext) {
+  const testRun = await getTestRun(id, ctx);
+  if (!testRun?.realId) return null;
+  const fields: Record<string, unknown> = { status };
+  if (status === "Running") {
+    fields.started_at = testRun.startedAt || new Date();
+    fields.completed_at = null;
+  }
+  if (status === "Aborted" || status === "Completed") fields.completed_at = new Date();
+  const entries = Object.entries(fields);
+  const result = await query(
+    `update test_runs
+     set ${entries.map(([key], index) => `${key} = $${index + 1}`).join(", ")}, updated_at = now()
+     where id = $${entries.length + 1}
+     returning *`,
+    [...entries.map(([, value]) => value), testRun.realId],
+  );
+  return result.rows[0] ? mapTestRun(result.rows[0]) : null;
+}
+
+export async function listTestRunEvidence(id: string, ctx?: ProjectAccessContext) {
+  const testRun = await getTestRun(id, ctx);
+  if (!testRun?.realId) return null;
+  if (!(await tableExists("test_run_evidence"))) return [];
+  const result = await query(
+    `select id, type, file_url, details, created_at
+     from test_run_evidence
+     where test_run_id = $1
+     order by created_at desc`,
+    [testRun.realId],
+  );
+  return result.rows.map((row: any) => ({
+    id: row.id,
+    type: row.type,
+    fileUrl: row.file_url,
+    details: row.details || undefined,
+    createdAt: row.created_at,
+  }));
 }
 
 export async function listUsers() {

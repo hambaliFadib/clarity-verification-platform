@@ -197,7 +197,7 @@ export function ImportExportModal({
               if (!isParsing) setActiveTab("import");
             }}
             disabled={isParsing}
-            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 text-body-sm transition-all focus:outline-none ${
+            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 transition-all focus:outline-none ${
               activeTab === "import"
                 ? "border-primary-container text-primary-container"
                 : "border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant"
@@ -210,7 +210,7 @@ export function ImportExportModal({
               if (!isParsing) setActiveTab("export");
             }}
             disabled={isParsing}
-            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 text-body-sm transition-all focus:outline-none ${
+            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 transition-all focus:outline-none ${
               activeTab === "export"
                 ? "border-primary-container text-primary-container"
                 : "border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant"
@@ -281,7 +281,10 @@ export function ImportExportModal({
               <div className="text-[11px] text-on-surface-variant space-y-1 bg-surface-container-low/40 p-3 rounded-lg border border-outline-variant/50">
                 <span className="font-semibold text-on-surface block mb-0.5">Required Columns & Format:</span>
                 <p>
-                  • Columns: <code className="font-mono text-primary-container">ID, Title, Module, Severity, Status, Type, Preconditions, Steps, Expected Result</code>.
+                  • Columns: <code className="font-mono text-primary-container">ID, Title, Severity, Status, Type, Preconditions, Steps, Expected Result</code>.
+                </p>
+                <p>
+                  • Sheet Name: <span className="text-on-surface font-medium">Each sheet corresponds to a Module</span> (e.g. sheet name "Authentication" will group cases into that module).
                 </p>
                 <p>
                   • Severities: <code className="font-mono text-primary-container">Minor, Major, Critical, Blocker</code>.
