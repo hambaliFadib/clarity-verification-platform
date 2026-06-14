@@ -37,15 +37,57 @@ const scopedTables = [
 
 let membershipSchemaReady: Promise<void> | null = null;
 let scopedDataSchemaReady: Promise<void> | null = null;
+let columnMigrationsReady: Promise<void> | null = null;
 
 function hasSignedInUser(ctx?: ProjectAccessContext) {
   return Boolean(ctx?.userId && !ctx.isGuest && ctx.userId !== "guest-user");
+}
+
+/**
+ * Idempotent column migrations — safe to run on any DB state.
+ * Handles three cases for `severity` on test_cases:
+ *   1. Column already named `severity`  → no-op (IF NOT EXISTS guard)
+ *   2. Column named `priority`          → rename to severity
+ *   3. Neither column exists            → add severity with default
+ * Also ensures test_steps has `expected_result` and `test_data`.
+ */
+async function ensureColumnMigrations() {
+  if (!columnMigrationsReady) {
+    columnMigrationsReady = (async () => {
+      // Rename priority → severity if still on old schema
+      await query(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'test_cases' AND column_name = 'priority'
+          ) AND NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'test_cases' AND column_name = 'severity'
+          ) THEN
+            ALTER TABLE test_cases RENAME COLUMN priority TO severity;
+          END IF;
+        END $$
+      `);
+      // Add severity fresh if neither priority nor severity exist
+      await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS severity varchar(10) NOT NULL DEFAULT 'Medium'`);
+      // Remove DEFAULT after adding so new inserts must supply a value
+      await query(`ALTER TABLE test_cases ALTER COLUMN severity DROP DEFAULT`);
+      // Drop complexity if still present
+      await query(`ALTER TABLE test_cases DROP COLUMN IF EXISTS complexity`);
+      // Ensure test_steps has step detail columns
+      await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS expected_result text`);
+      await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS test_data text`);
+    })();
+  }
+  return columnMigrationsReady;
 }
 
 async function ensureScopedDataSchema() {
   if (!scopedDataSchemaReady) {
     scopedDataSchemaReady = (async () => {
       await ensureProjectMembershipSchema();
+      await ensureColumnMigrations();
       for (const table of scopedTables) {
         await query(`alter table ${table} add column if not exists project_id uuid references projects(id)`);
         await query(`create index if not exists ix_${table}_project_id on ${table} (project_id)`);
