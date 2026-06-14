@@ -783,7 +783,7 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
       const displayId = valueAt(row, headers, [COL.displayId, "ID", "Display ID"]);
       const title = valueAt(row, headers, [COL.title]);
       
-      const hasModuleHeader = normalizedHeaders.includes("module");
+      const hasModuleHeader = headerIndex(headers, ["Module"]) >= 0;
       const moduleVal = hasModuleHeader ? valueAt(row, headers, ["Module"]) : "";
       const module = moduleVal || sheetInfo.name;
 
