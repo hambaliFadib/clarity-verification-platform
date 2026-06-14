@@ -1,7 +1,5 @@
-from sqlalchemy import text
 from app.db.session import get_engine
+from sqlalchemy import text
 
-engine = get_engine()
-with engine.connect() as conn:
-    result = conn.execute(text('SELECT * FROM alembic_version')).fetchall()
-    print("Alembic Versions in DB:", result)
+with get_engine().connect() as conn:
+    print(conn.execute(text("SELECT * FROM alembic_version")).fetchall())
