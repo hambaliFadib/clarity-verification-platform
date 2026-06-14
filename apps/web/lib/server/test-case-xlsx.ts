@@ -69,18 +69,30 @@ function inlineStringCell(ref: string, value: unknown, style = 0) {
   return `<c r="${ref}" t="inlineStr"${styleAttr}><is><t>${escapeXml(value)}</t></is></c>`;
 }
 
+function getDataCellStyle(col: number): number {
+  // col is 1-based index
+  // Type (3), Severity (4), Status (5), Automation Status (11), Environment (12), Estimated Time (13)
+  const centerCols = [3, 4, 5, 11, 12, 13];
+  return centerCols.includes(col) ? 3 : 2;
+}
+
 function rowXml(
   rowIndex: number,
   values: unknown[],
   options: { height?: number; style?: number; wrapColumns?: number[]; omitEmpty?: boolean } = {},
 ) {
   const height = options.height ? ` ht="${options.height}" customHeight="1"` : "";
-  const style = options.style ?? 2;
   const cells = values
     .map((value, index) => {
       if (options.omitEmpty && (value === null || value === undefined || value === "")) return "";
       const col = index + 1;
-      const cellStyle = options.wrapColumns?.includes(col) ? 2 : style;
+      let cellStyle = options.style ?? 2;
+      if (options.style === 1) {
+        cellStyle = 1; // Header style
+      } else if (rowIndex > 1) {
+        // It's a data row, style dynamically based on column index
+        cellStyle = getDataCellStyle(col);
+      }
       return inlineStringCell(`${columnLetter(col)}${rowIndex}`, value ?? "", cellStyle);
     })
     .join("");
@@ -229,10 +241,11 @@ function stylesXml() {
   </fills>
   <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="3">
+  <cellXfs count="4">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
-    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`);

@@ -145,6 +145,18 @@ def _sanitize_sheet_name(name: str, existing_names: set[str]) -> str:
         counter += 1
 
 
+ALIGN_LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
+ALIGN_CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+
+def _get_alignment(col_idx: int) -> Alignment:
+    # 1-based col_idx
+    # Type (3), Severity (4), Status (5), Automation Status (11), Environment (12), Estimated Time (13)
+    if col_idx in {3, 4, 5, 11, 12, 13}:
+        return ALIGN_CENTER
+    return ALIGN_LEFT
+
+
 def export_test_cases_xlsx(db: Session) -> bytes:
     cases = db.query(TestCase).filter(TestCase.deleted_at.is_(None)).order_by(TestCase.updated_at.desc()).all()
 
@@ -221,7 +233,7 @@ def export_test_cases_xlsx(db: Session) -> bytes:
 
             for col_idx, value in enumerate(row_data, start=1):
                 cell = ws.cell(row=row_idx, column=col_idx, value=value)
-                cell.alignment = Alignment(vertical="top", wrap_text=True)
+                cell.alignment = _get_alignment(col_idx)
 
         for col_idx, header in enumerate(EXPORT_HEADER, start=1):
             from openpyxl.utils import get_column_letter
@@ -261,7 +273,6 @@ def generate_template_xlsx() -> bytes:
     hdr_font     = Font(bold=True, color="FFFFFF")
     hdr_fill     = PatternFill(fill_type="solid", fgColor="595959")
     hdr_align    = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    body_align   = Alignment(vertical="top", wrap_text=True)
 
     # ---- write headers -------------------------------------------------
     col_letter_map: dict[str, str] = {}
@@ -299,7 +310,7 @@ def generate_template_xlsx() -> bytes:
     ]
     for col_idx, value in enumerate(example, start=1):
         cell = ws.cell(row=2, column=col_idx, value=value)
-        cell.alignment = body_align
+        cell.alignment = _get_alignment(col_idx)
 
     ws.row_dimensions[2].height = 60
 
