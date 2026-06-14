@@ -20,7 +20,8 @@ Set these values for the API runtime:
 DATABASE_URL=postgresql://<role>:<password>@<host>/<database>?sslmode=require&channel_binding=require
 NEXT_PUBLIC_API_BASE_URL=https://<api-host>
 ENVIRONMENT=production
-ALLOWED_ORIGINS=https://<web-host>
+ALLOWED_ORIGINS=https://nexqa.hambalifadib.my.id,https://clarity-verification-platform-web.vercel.app
+NEXTAUTH_URL=https://nexqa.hambalifadib.my.id
 ```
 
 For Alembic migrations, prefer the direct or unpooled Neon connection string when available.
@@ -44,14 +45,30 @@ Use this only after confirming the database is not shared:
 ```sql
 truncate table
   activity_items,
+  approval_gates,
+  audit_trail,
   defect_comments,
   defects,
   environments,
+  permissions,
   projects,
   releases,
+  requirement_comments,
+  requirement_tags,
+  requirement_test_cases,
+  requirement_versions,
+  requirements,
+  role_permissions,
+  roles,
+  test_run_comments,
+  test_run_evidence,
+  test_run_executions,
+  test_run_schedules,
+  test_run_test_cases,
   test_runs,
   test_steps,
   test_cases,
+  user_roles,
   users,
   work_items
 restart identity cascade;

@@ -1,22 +1,30 @@
 # NexQA - Clarity Platform
 
-NexQA is a QA project management platform focused on clarity across test case management, defect management, and the evidence that connects quality work to release readiness.
+NexQA is a QA project management platform focused on clarity across requirements, test cases, defects, test execution, and the evidence that connects quality work to release readiness.
 
-This repository is the Phase 1 foundation for the Clarity Platform product area. It sets up a clean monorepo with a Next.js frontend, a FastAPI backend, PostgreSQL on NeonDB, Vercel deployment preparation, GitHub Actions CI, and developer documentation for a small team of 3 contributors.
+This repository contains the production line for the Clarity Platform product area. It uses a Next.js frontend, a FastAPI backend, PostgreSQL on NeonDB, Vercel deployment from `main`, GitHub Actions CI, and documentation for a small team of 3 contributors.
 
-## Phase 1 Scope
+Production URL:
 
-Phase 1 focuses first on stable QA workflow anchors:
+- Primary: `https://nexqa.hambalifadib.my.id`
+- Vercel alias: `https://clarity-verification-platform-web.vercel.app`
 
-- Test case management
-- Defect / bug management
-- The relationship between test cases, execution history, and reported defects
-- XLSX import/export for test case operations
-- Environment, project, release, and work item MVP surfaces backed by NeonDB
+## Current Release Scope
 
-Supporting surfaces such as My Work, Test Runs, Settings, account entry points, and Release Readiness are included as MVP context. They remain intentionally lightweight until Phase 2 turns authentication, team workflow, and project-scoped behavior into complete product flows.
+The current release promotes the stable `dev` integration branch to `main` for production access. It includes:
 
-Phase 1 includes authentication scaffolding so the app can move into Phase 2 cleanly, but full Google OAuth rollout, invite verification, guest-data lifecycle, account management, and team/project restrictions remain Phase 2 work.
+- Project-scoped QA CRUD for test cases, defects, environments, releases, work items, and test runs.
+- XLSX import/export and template support for test case operations.
+- Google OAuth and guest access scaffolding with production callback/domain support.
+- Guest data isolation and reset behavior for simulation mode.
+- Project Settings updates for project name/suffix and workspace label sync.
+- Requirements foundation: functional/non-functional requirements, business rules, comments, traceability, and AI-assisted analysis surfaces.
+- RBAC foundation: role/permission data model and guarded APIs for the next enforcement pass.
+- Analytics foundation and quality score MVP.
+- Approval gate and audit trail foundation, with write mutations locked until workflow enforcement is complete.
+- Production hardening for modal layering, table navigation, Excel alignment, route type generation, and local/prod build stability.
+
+Known follow-up work remains tracked in GitHub issues. Features that are only foundation-level are kept guarded rather than exposed as complete production workflows.
 
 ## Tech Stack
 
@@ -117,8 +125,8 @@ GOOGLE_CLIENT_SECRET=
 - `ENVIRONMENT`: local, dev, preview, production, or ci.
 - `ALLOWED_ORIGINS`: comma-separated web origins allowed by the FastAPI CORS middleware.
 - `NEXTAUTH_SECRET`: server-side secret for NextAuth JWT/session signing.
-- `NEXTAUTH_URL`: canonical local or deployed web URL used by NextAuth callbacks.
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials for Phase 2 authentication rollout.
+- `NEXTAUTH_URL`: canonical local or deployed web URL used by NextAuth callbacks. Production should use `https://nexqa.hambalifadib.my.id`.
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials with the production callback URL registered.
 
 Never commit `.env.local` or real secrets.
 
@@ -181,9 +189,11 @@ GitHub is the source of truth. Pull requests and pushes to `dev-alpha`, `dev-bet
 - `dev`: integration branch for completed sandbox work; CI only.
 - `main`: Vercel Production Deployment and NeonDB production branch for real usage.
 
-Current Vercel projects:
+Current Vercel project:
 
-- `clarity-verification-platform-prod`: production deployment path for `main` (`https://clarity-verification-platform-web.vercel.app`).
+- `clarity-verification-platform-prod`: production deployment path for `main`.
+- Primary domain: `https://nexqa.hambalifadib.my.id`.
+- Vercel alias: `https://clarity-verification-platform-web.vercel.app`.
 
 Vercel receives `DATABASE_URL` from the Neon Vercel Integration for the production `main` deployment. Sandbox branches should use local database settings or manually created Neon branches when isolation is needed.
 
@@ -191,7 +201,13 @@ See [docs/ci-cd.md](docs/ci-cd.md) for the full GitHub -> Vercel -> NeonDB flow.
 
 ## Phase Roadmap
 
-- Phase 1: TCMS, defect workflow, import/export, Neon-backed CRUD, MVP settings, and UI bugfix release.
-- Phase 2: Google OAuth, guest mode hardening, account settings, one-project initialization, team invites, and My Work drag-to-move.
-- Phase 3: Test execution workflow and release readiness analytics.
-- Phase 4: External integrations, automation runtime, and advanced governance.
+The earlier Phase 1 and Phase 2 work established the QA CRUD foundation, production deployment path, authentication scaffolding, guest mode isolation, project scoping, and team/account surfaces.
+
+Current and next focus:
+
+- Phase 3 - Foundation: Requirements Management and RBAC.
+- Phase 4 - Business Process and Design modules.
+- Phase 5 - AI Intelligence Layer and evidence system.
+- Phase 6 - Approval Gates and Workflow enforcement.
+
+Some Phase 6 foundations, such as `approval_gates`, `audit_trail`, and analytics MVP, already exist behind guarded APIs so they can be connected safely in later work.

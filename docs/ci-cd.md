@@ -12,7 +12,7 @@ GitHub Actions runs on pull requests and pushes targeting these branches:
 - `dev`
 - `main`
 
-The Phase 1 pipeline checks:
+The pipeline checks:
 
 - frontend dependency installation
 - frontend type checking
@@ -51,9 +51,11 @@ The active deployment path uses one Vercel project:
 | Framework | Next.js |
 | Build Command | `npm run build:web` |
 | Install Command | `npm install` |
-| Production URL | `https://clarity-verification-platform-web.vercel.app` |
+| Production URL | `https://nexqa.hambalifadib.my.id` |
+| Vercel Alias | `https://clarity-verification-platform-web.vercel.app` |
 
 - Push to `main` creates the production deployment.
+- Production should be verified through `https://nexqa.hambalifadib.my.id` after the Vercel deployment is ready.
 - Pushes to `dev`, `dev-alpha`, `dev-beta`, `dev-charlie`, and retired `demo` are disabled for Vercel Git deployments by `apps/web/vercel.json`.
 - Sandbox and integration branches are validated by GitHub Actions only.
 
@@ -81,8 +83,8 @@ Required values:
 - `NEXT_PUBLIC_API_BASE_URL`: browser-visible API base URL
 - `ENVIRONMENT`: local, ci, or production
 - `NEXTAUTH_SECRET`: NextAuth JWT/session signing secret
-- `NEXTAUTH_URL`: canonical web URL for auth callbacks
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials for Phase 2 auth
+- `NEXTAUTH_URL`: canonical web URL for auth callbacks, production value `https://nexqa.hambalifadib.my.id`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Google OAuth credentials for production sign-in
 
 Do not commit real values. Use `.env.example` for documentation, `.env.local` for local secrets, GitHub secrets for CI, and Vercel environment variables for production deployments.
 
@@ -101,9 +103,9 @@ Do not commit real values. Use `.env.example` for documentation, `.env.local` fo
 
 ## Phase Release Notes
 
-Phase 1 releases are promoted from `dev` to `main` only after the frontend build, frontend typecheck, and backend compile validation pass locally or in CI.
+Production releases are promoted from `dev` to `main` only after the frontend build, frontend typecheck, backend compile validation, and backend import smoke pass locally or in CI.
 
-Phase 2 work can land behind MVP-safe behavior, but production sign-in should not be treated as complete until Google OAuth credentials, email verification delivery, guest data lifecycle, and production callback URLs are confirmed.
+Foundation work for Requirements, RBAC, analytics, and approval gates can land behind guarded APIs. Production sign-in should not be treated as complete unless Google OAuth credentials, callback URLs, guest data isolation, and project-scoped access are verified.
 
 ### Vercel `.next` Output Error
 
