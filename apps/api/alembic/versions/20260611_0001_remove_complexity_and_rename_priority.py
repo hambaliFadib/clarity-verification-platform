@@ -19,10 +19,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # 1. Drop the complexity column
-    op.drop_column('test_cases', 'complexity')
-    # 2. Rename priority to severity
-    op.alter_column('test_cases', 'priority', new_column_name='severity')
+    # 1. Drop the complexity column safely
+    op.execute("ALTER TABLE test_cases DROP COLUMN IF EXISTS complexity")
+    # 2. Rename priority to severity safely
+    op.execute("""
+    DO $$
+    BEGIN
+        IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='test_cases' AND column_name='priority') THEN
+            ALTER TABLE test_cases RENAME COLUMN priority TO severity;
+        END IF;
+    END $$;
+    """)
 
 
 def downgrade() -> None:
