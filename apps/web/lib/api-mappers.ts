@@ -9,7 +9,7 @@ import type {
   WorkItem,
 } from "@/lib/types";
 
-export const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+export const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "";
 
 export function mapDefectFromBackend(defect: any): Defect {
   return {
@@ -195,8 +195,11 @@ export function mapTestRunFromBackend(run: any): TestRun {
   return {
     id: run.display_id,
     realId: run.id,
+    displayId: run.display_id,
     name: run.name,
     description: run.description || undefined,
+    type: run.type || "Manual",
+    triggerType: run.trigger_type || "Manual",
     status: run.status,
     environment: run.environment,
     release: run.release || undefined,
@@ -209,5 +212,6 @@ export function mapTestRunFromBackend(run: any): TestRun {
     startedAt: run.started_at || undefined,
     completedAt: run.completed_at || undefined,
     createdAt: run.created_at,
+    updatedAt: run.updated_at,
   };
 }
