@@ -718,13 +718,14 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
     }
   }
 
-  const REQUIRED_COLUMNS_SET = new Set([
-    COL.title,
-    COL.type,
-    COL.severity,
-    COL.expectedResult,
-    COL.stepActions,
-  ].map(s => s.toLowerCase()));
+  // Required columns with their accepted aliases (same aliases used when parsing values)
+  const REQUIRED_COLUMNS: Array<{ label: string; aliases: string[] }> = [
+    { label: COL.title, aliases: [COL.title] },
+    { label: COL.type, aliases: [COL.type] },
+    { label: COL.severity, aliases: [COL.severity] },
+    { label: COL.expectedResult, aliases: [COL.expectedResult] },
+    { label: COL.stepActions, aliases: [COL.stepActions, "Steps"] },
+  ];
 
   const errors: ImportError[] = [];
   const validRows: any[] = [];
@@ -745,14 +746,16 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
     const headers = rows[0] || [];
     const dataRows = rows.slice(1).filter((row) => row.some((value) => String(value || "").trim()));
 
-    const normalizedHeaders = headers.map(normalizeHeader);
-    const hasMatch = normalizedHeaders.some(h => REQUIRED_COLUMNS_SET.has(h));
+    // Check if at least one required column (by any alias) is present — skip non-test-case sheets
+    const hasMatch = REQUIRED_COLUMNS.some(col => headerIndex(headers, col.aliases) >= 0);
     if (!hasMatch) {
       continue;
     }
 
-    const missing = [COL.title, COL.type, COL.severity, COL.expectedResult, COL.stepActions]
-      .filter(col => !normalizedHeaders.includes(col.toLowerCase()));
+    // Find which required columns are completely missing (no alias found)
+    const missing = REQUIRED_COLUMNS
+      .filter(col => headerIndex(headers, col.aliases) < 0)
+      .map(col => col.label);
 
     if (missing.length > 0) {
       errors.push({
@@ -780,7 +783,7 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
       const displayId = valueAt(row, headers, [COL.displayId, "ID", "Display ID"]);
       const title = valueAt(row, headers, [COL.title]);
       
-      const hasModuleHeader = normalizedHeaders.includes("module");
+      const hasModuleHeader = headerIndex(headers, ["Module"]) >= 0;
       const moduleVal = hasModuleHeader ? valueAt(row, headers, ["Module"]) : "";
       const module = moduleVal || sheetInfo.name;
 
