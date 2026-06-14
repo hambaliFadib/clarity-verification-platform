@@ -11,6 +11,10 @@ from app.models.test_step import TestStep
 from app.models.user import User
 from app.models.work_item import WorkItem
 
+from app.models.rbac import Role, Permission, RolePermission, UserRole
+from app.models.requirement import Requirement, RequirementVersion, RequirementTestCase, RequirementComment, RequirementTag
+from app.models.test_run_execution import TestRunTestCase, TestRunExecution, TestRunEvidence, TestRunComment, TestRunSchedule
+
 __all__ = [
     "Base",
     "ActivityItem",
@@ -24,4 +28,18 @@ __all__ = [
     "TestStep",
     "User",
     "WorkItem",
+    "Role",
+    "Permission",
+    "RolePermission",
+    "UserRole",
+    "Requirement",
+    "RequirementVersion",
+    "RequirementTestCase",
+    "RequirementComment",
+    "RequirementTag",
+    "TestRunTestCase",
+    "TestRunExecution",
+    "TestRunEvidence",
+    "TestRunComment",
+    "TestRunSchedule",
 ]
