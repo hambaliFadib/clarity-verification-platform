@@ -49,15 +49,9 @@ async function ensureScopedDataSchema() {
       for (const table of scopedTables) {
         await query(`alter table ${table} add column if not exists project_id uuid references projects(id)`);
         await query(`create index if not exists ix_${table}_project_id on ${table} (project_id)`);
-        await query(
-          `with default_project as (
-             select id from projects where deleted_at is null order by created_at asc limit 1
-           )
-           update ${table}
-           set project_id = (select id from default_project)
-           where project_id is null
-             and exists (select 1 from default_project)`,
-        );
+        // NOTE: Do NOT auto-assign NULL project_id rows to the first project.
+        // Orphan rows (project_id IS NULL) must stay invisible to all real users.
+        // Auto-assignment caused guest-created or seeded data to leak into real user projects.
       }
     })();
   }
