@@ -122,12 +122,12 @@ export default function TestRunsPage() {
           <table className="w-full text-left text-body-sm">
             <thead className="bg-surface-container-low text-on-surface-variant font-medium border-b border-outline-variant">
               <tr>
-                <th className="p-4 py-3">ID</th>
-                <th className="p-4 py-3">Name</th>
-                <th className="p-4 py-3">Type</th>
-                <th className="p-4 py-3">Status</th>
-                <th className="p-4 py-3">Environment</th>
-                <th className="p-4 py-3">Created</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Name</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Environment</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Created</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50">
@@ -145,18 +145,20 @@ export default function TestRunsPage() {
                   }}
                   className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
                 >
-                  <td className="p-4 font-medium text-primary group-hover:underline">
+                  <td className="px-4 py-3 font-mono text-code text-primary-container font-medium">
                     {run.displayId || run.id.substring(0,8)}
                   </td>
-                  <td className="p-4 font-medium text-on-surface group-hover:text-primary transition-colors">{run.name}</td>
-                  <td className="p-4 text-on-surface-variant">
+                  <td className="px-4 py-3 text-body-sm font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
+                    {run.name}
+                  </td>
+                  <td className="px-4 py-3">
                     <Badge variant="outline">{run.type}</Badge>
                   </td>
-                  <td className="p-4">
+                  <td className="px-4 py-3">
                     <Badge variant={testRunStatusVariant(run.status)}>{run.status}</Badge>
                   </td>
-                  <td className="p-4 text-on-surface-variant">{run.environment}</td>
-                  <td className="p-4 text-on-surface-variant text-xs">{timeAgo(run.createdAt)}</td>
+                  <td className="px-4 py-3 text-body-sm text-on-surface-variant">{run.environment}</td>
+                  <td className="px-4 py-3 text-body-sm text-outline">{timeAgo(run.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -34,12 +34,12 @@ export function RequirementTable({ requirements }: RequirementTableProps) {
       <table className="w-full text-left text-body-sm">
         <thead className="bg-surface-container-low text-on-surface-variant font-medium border-b border-outline-variant">
           <tr>
-            <th className="p-4 py-3">ID</th>
-            <th className="p-4 py-3">Title</th>
-            <th className="p-4 py-3">Module</th>
-            <th className="p-4 py-3">Priority</th>
-            <th className="p-4 py-3">Status</th>
-            <th className="p-4 py-3">Type</th>
+            <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
+            <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Title</th>
+            <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Module</th>
+            <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Priority</th>
+            <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
+            <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-outline-variant/50">
@@ -57,18 +57,20 @@ export function RequirementTable({ requirements }: RequirementTableProps) {
               }}
               className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
             >
-              <td className="p-4 font-medium text-primary group-hover:underline">
+              <td className="px-4 py-3 font-mono text-code text-primary-container font-medium">
                 {req.displayId}
               </td>
-              <td className="p-4 font-medium text-on-surface group-hover:text-primary transition-colors">{req.title}</td>
-              <td className="p-4 text-on-surface-variant">{req.module}</td>
-              <td className="p-4">
+              <td className="px-4 py-3 text-body-sm font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
+                {req.title}
+              </td>
+              <td className="px-4 py-3 text-body-sm text-on-surface-variant">{req.module}</td>
+              <td className="px-4 py-3">
                 <Badge variant={req.priority.toLowerCase() as BadgeVariant}>{req.priority}</Badge>
               </td>
-              <td className="p-4">
+              <td className="px-4 py-3">
                 <Badge variant={requirementStatusVariant(req.status)}>{req.status}</Badge>
               </td>
-              <td className="p-4 text-on-surface-variant">{req.type}</td>
+              <td className="px-4 py-3 text-body-sm text-on-surface-variant">{req.type}</td>
             </tr>
           ))}
         </tbody>
