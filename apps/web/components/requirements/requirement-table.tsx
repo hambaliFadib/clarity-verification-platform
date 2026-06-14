@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import type { Requirement } from "@/lib/types";
@@ -17,6 +18,8 @@ function requirementStatusVariant(status: Requirement["status"]): BadgeVariant {
 }
 
 export function RequirementTable({ requirements }: RequirementTableProps) {
+  const router = useRouter();
+
   if (requirements.length === 0) {
     return (
       <div className="bg-white border border-outline-variant rounded-xl overflow-hidden shadow-subtle p-12 text-center">
@@ -41,13 +44,23 @@ export function RequirementTable({ requirements }: RequirementTableProps) {
         </thead>
         <tbody className="divide-y divide-outline-variant/50">
           {requirements.map((req) => (
-            <tr key={req.id} className="hover:bg-surface-container-low transition-colors">
-              <td className="p-4">
-                <Link href={`/requirements/${req.id}`} className="font-medium text-primary hover:underline">
-                  {req.displayId}
-                </Link>
+            <tr
+              key={req.id}
+              role="link"
+              tabIndex={0}
+              onClick={() => router.push(`/requirements/${req.id}`)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  router.push(`/requirements/${req.id}`);
+                }
+              }}
+              className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
+            >
+              <td className="p-4 font-medium text-primary group-hover:underline">
+                {req.displayId}
               </td>
-              <td className="p-4 font-medium text-on-surface">{req.title}</td>
+              <td className="p-4 font-medium text-on-surface group-hover:text-primary transition-colors">{req.title}</td>
               <td className="p-4 text-on-surface-variant">{req.module}</td>
               <td className="p-4">
                 <Badge variant={req.priority.toLowerCase() as BadgeVariant}>{req.priority}</Badge>

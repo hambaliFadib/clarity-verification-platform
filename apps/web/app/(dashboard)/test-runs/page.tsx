@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -22,6 +23,7 @@ function testRunStatusVariant(status: TestRun["status"]): BadgeVariant {
 }
 
 export default function TestRunsPage() {
+  const router = useRouter();
   const [testRuns, setTestRuns] = useState<TestRun[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -130,13 +132,23 @@ export default function TestRunsPage() {
             </thead>
             <tbody className="divide-y divide-outline-variant/50">
               {filteredRuns.map((run) => (
-                <tr key={run.id} className="hover:bg-surface-container-low transition-colors">
-                  <td className="p-4">
-                    <Link href={`/test-runs/${run.id}`} className="font-medium text-primary hover:underline">
-                      {run.displayId || run.id.substring(0,8)}
-                    </Link>
+                <tr
+                  key={run.id}
+                  role="link"
+                  tabIndex={0}
+                  onClick={() => router.push(`/test-runs/${run.id}`)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      router.push(`/test-runs/${run.id}`);
+                    }
+                  }}
+                  className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
+                >
+                  <td className="p-4 font-medium text-primary group-hover:underline">
+                    {run.displayId || run.id.substring(0,8)}
                   </td>
-                  <td className="p-4 font-medium text-on-surface">{run.name}</td>
+                  <td className="p-4 font-medium text-on-surface group-hover:text-primary transition-colors">{run.name}</td>
                   <td className="p-4 text-on-surface-variant">
                     <Badge variant="outline">{run.type}</Badge>
                   </td>
