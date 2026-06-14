@@ -197,7 +197,7 @@ export function ImportExportModal({
               if (!isParsing) setActiveTab("import");
             }}
             disabled={isParsing}
-            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 text-body-sm transition-all focus:outline-none ${
+            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 transition-all focus:outline-none ${
               activeTab === "import"
                 ? "border-primary-container text-primary-container"
                 : "border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant"
@@ -210,7 +210,7 @@ export function ImportExportModal({
               if (!isParsing) setActiveTab("export");
             }}
             disabled={isParsing}
-            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 text-body-sm transition-all focus:outline-none ${
+            className={`px-3 py-2 text-label-bold font-label-bold border-b-2 transition-all focus:outline-none ${
               activeTab === "export"
                 ? "border-primary-container text-primary-container"
                 : "border-transparent text-on-surface-variant hover:text-on-surface hover:border-outline-variant"
