@@ -30,7 +30,6 @@ MAX_IMPORT_ROWS = 500
 COL = {
     "display_id":        "TC ID",
     "title":             "Title",
-    "module":            "Module",
     "type":              "Type",
     "severity":          "Severity",
     "status":            "Status",
@@ -51,7 +50,6 @@ EXPORT_HEADER = list(COL.values())
 
 REQUIRED_COLUMNS = {
     COL["title"],
-    COL["module"],
     COL["type"],
     COL["severity"],
     COL["expected_result"],
@@ -124,69 +122,111 @@ def _parse_steps_with_details(text: str | None) -> list[dict]:
     return steps
 
 
+def _sanitize_sheet_name(name: str, existing_names: set[str]) -> str:
+    cleaned = re.sub(r"[\\/\?\*:\[\]]", "", name).strip(" '\"")
+    if not cleaned:
+        cleaned = "Module"
+    base = cleaned[:31]
+    
+    # Check collision (case-insensitive)
+    if base.lower() not in existing_names:
+        existing_names.add(base.lower())
+        return base
+        
+    # Resolve collision
+    counter = 1
+    while True:
+        suffix = f"_{counter}"
+        max_base_len = 31 - len(suffix)
+        candidate = f"{cleaned[:max_base_len]}{suffix}"
+        if candidate.lower() not in existing_names:
+            existing_names.add(candidate.lower())
+            return candidate
+        counter += 1
+
+
 def export_test_cases_xlsx(db: Session) -> bytes:
     cases = db.query(TestCase).filter(TestCase.deleted_at.is_(None)).order_by(TestCase.updated_at.desc()).all()
 
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Test Cases"
+    
+    # Group test cases by module name
+    from collections import defaultdict
+    module_groups = defaultdict(list)
+    for tc in cases:
+        mod_name = tc.module.strip() if tc.module else "General"
+        module_groups[mod_name].append(tc)
+
+    sorted_modules = sorted(module_groups.keys())
+    if not sorted_modules:
+        sorted_modules = ["General"]
+        module_groups["General"] = []
 
     header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(fill_type="solid", fgColor="595959")
     header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    for col_idx, header in enumerate(EXPORT_HEADER, start=1):
-        cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_alignment
+    existing_sheets = set()
+    first_sheet = True
 
-    ws.row_dimensions[1].height = 30
-    ws.freeze_panes = "A2"
+    for mod in sorted_modules:
+        sheet_title = _sanitize_sheet_name(mod, existing_sheets)
+        if first_sheet:
+            ws = wb.active
+            ws.title = sheet_title
+            first_sheet = False
+        else:
+            ws = wb.create_sheet(title=sheet_title)
 
-    step_cell_alignment = Alignment(vertical="top", wrap_text=True)
+        for col_idx, header in enumerate(EXPORT_HEADER, start=1):
+            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
 
-    for row_idx, tc in enumerate(cases, start=2):
-        sorted_steps = sorted(tc.steps, key=lambda s: s.step_number)
+        ws.row_dimensions[1].height = 30
+        ws.freeze_panes = "A2"
 
-        step_lines = []
-        for s in sorted_steps:
-            line = f"{s.step_number}. {s.action or ''}"
-            if s.test_data:
-                line += f"\n   Test Data: {s.test_data}"
-            if s.expected_result:
-                line += f"\n   Expected: {s.expected_result}"
-            step_lines.append(line)
-        step_actions = "\n".join(step_lines) if step_lines else None
+        for row_idx, tc in enumerate(module_groups[mod], start=2):
+            sorted_steps = sorted(tc.steps, key=lambda s: s.step_number)
 
-        row_data = [
-            tc.display_id,          # A  TC ID
-            tc.title,               # B  Title
-            tc.module,              # C  Module
-            tc.type,                # D  Type
-            tc.severity,            # E  Severity
-            tc.status,              # F  Status
-            tc.description,         # G  Description
-            tc.preconditions,       # H  Preconditions
-            step_actions,           # I  Step Actions
-            tc.expected_result,     # J  Expected Result
-            tc.notes,               # K  Notes
-            tc.automation_status,   # L  Automation Status
-            tc.environment,         # M  Environment
-            tc.estimated_time,      # N  Estimated Time
-            ";".join(tc.tags) if tc.tags else None,  # O  Tags
-            tc.requirement_id,      # P  Requirement ID
-            tc.assigned_to_name,    # Q  Assigned To
-        ]
+            step_lines = []
+            for s in sorted_steps:
+                line = f"{s.step_number}. {s.action or ''}"
+                if s.test_data:
+                    line += f"\n   Test Data: {s.test_data}"
+                if s.expected_result:
+                    line += f"\n   Expected: {s.expected_result}"
+                step_lines.append(line)
+            step_actions = "\n".join(step_lines) if step_lines else None
 
-        for col_idx, value in enumerate(row_data, start=1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
-            cell.alignment = Alignment(vertical="top", wrap_text=True)
+            row_data = [
+                tc.display_id,          # A  TC ID
+                tc.title,               # B  Title
+                tc.type,                # C  Type
+                tc.severity,            # D  Severity
+                tc.status,              # E  Status
+                tc.description,         # F  Description
+                tc.preconditions,       # G  Preconditions
+                step_actions,           # H  Step Actions
+                tc.expected_result,     # I  Expected Result
+                tc.notes,               # J  Notes
+                tc.automation_status,   # K  Automation Status
+                tc.environment,         # L  Environment
+                tc.estimated_time,      # M  Estimated Time
+                ";".join(tc.tags) if tc.tags else None,  # N  Tags
+                tc.requirement_id,      # O  Requirement ID
+                tc.assigned_to_name,    # P  Assigned To
+            ]
 
-    for col_idx, header in enumerate(EXPORT_HEADER, start=1):
-        from openpyxl.utils import get_column_letter
-        col_letter = get_column_letter(col_idx)
-        ws.column_dimensions[col_letter].width = max(len(header) + 4, 10)
+            for col_idx, value in enumerate(row_data, start=1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+        for col_idx, header in enumerate(EXPORT_HEADER, start=1):
+            from openpyxl.utils import get_column_letter
+            col_letter = get_column_letter(col_idx)
+            ws.column_dimensions[col_letter].width = max(len(header) + 4, 10)
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -215,7 +255,7 @@ def generate_template_xlsx() -> bytes:
     """Return an XLSX template with coloured headers, dropdowns, and one example row."""
     wb = Workbook()
     ws = wb.active
-    ws.title = "Test Cases"
+    ws.title = "Authentication"
 
     # ---- fonts & fills -------------------------------------------------
     hdr_font     = Font(bold=True, color="FFFFFF")
@@ -242,21 +282,20 @@ def generate_template_xlsx() -> bytes:
     example = [
         "",                                          # A  TC ID  (blank = auto-assign)
         "Verify login with valid credentials",        # B  Title
-        "Authentication",                             # C  Module
-        "Functional",                                 # D  Type
-        "Major",                                      # E  Severity
-        "Draft",                                      # F  Status
-        "Test that a registered user can log in using correct credentials",  # G  Description
-        "User must be registered in the system",      # H  Preconditions
-        "1. Open the login page\n2. Enter valid username and password\n3. Click the Login button",  # I  Step Actions
-        "User is redirected to dashboard after successful login",  # J  Expected Result
-        "",                                           # K  Notes
-        "Manual",                                     # L  Automation Status
-        "Staging",                                    # M  Environment
-        "5 min",                                      # N  Estimated Time
-        "auth;login",                                 # O  Tags  (semicolon-separated)
-        "REQ-AUTH-001",                               # P  Requirement ID
-        "",                                           # Q  Assigned To
+        "Functional",                                 # C  Type
+        "Major",                                      # D  Severity
+        "Draft",                                      # E  Status
+        "Test that a registered user can log in using correct credentials",  # F  Description
+        "User must be registered in the system",      # G  Preconditions
+        "1. Open the login page\n2. Enter valid username and password\n3. Click the Login button",  # H  Step Actions
+        "User is redirected to dashboard after successful login",  # I  Expected Result
+        "",                                           # J  Notes
+        "Manual",                                     # K  Automation Status
+        "Staging",                                    # L  Environment
+        "5 min",                                      # M  Estimated Time
+        "auth;login",                                 # N  Tags  (semicolon-separated)
+        "REQ-AUTH-001",                               # O  Requirement ID
+        "",                                           # P  Assigned To
     ]
     for col_idx, value in enumerate(example, start=1):
         cell = ws.cell(row=2, column=col_idx, value=value)
@@ -313,158 +352,210 @@ def parse_xlsx_import(file_bytes: bytes, db: Session) -> ParseResult:
             errors=[ImportError(row=0, field="file", message="Invalid or unreadable XLSX file")],
         )
 
-    ws = wb.active
-    rows = list(ws.iter_rows())
-    if not rows:
-        return ParseResult(
-            total_parsed=0,
-            valid_rows=[],
-            duplicates=[],
-            errors=[ImportError(row=0, field="file", message="Spreadsheet is empty")],
-        )
-
-    headers = [_cell_str(cell) for cell in rows[0]]
-
-    missing = REQUIRED_COLUMNS - {h for h in headers if h}
-    if missing:
-        return ParseResult(
-            total_parsed=0,
-            valid_rows=[],
-            duplicates=[],
-            errors=[ImportError(row=0, field="header", message=f"Missing required columns: {', '.join(sorted(missing))}")],
-        )
-
-    header_map = {name: idx for idx, name in enumerate(headers) if name}
-
-    data_rows = rows[1:]
-    if len(data_rows) > MAX_IMPORT_ROWS:
-        return ParseResult(
-            total_parsed=len(data_rows),
-            valid_rows=[],
-            duplicates=[],
-            errors=[ImportError(row=0, field="file", message=f"Too many rows: {len(data_rows)}. Maximum allowed is {MAX_IMPORT_ROWS}")],
-        )
-
-    existing_ids: set[str] = set()
-    existing_map: dict[str, TestCase] = {}
-    if COL["display_id"] in header_map:
-        candidate_ids = [
-            _cell_str(data_rows[i][header_map[COL["display_id"]]])
-            for i in range(len(data_rows))
-            if _cell_str(data_rows[i][header_map[COL["display_id"]]])
-        ]
-        if candidate_ids:
-            db_results = db.query(TestCase).filter(
-                TestCase.display_id.in_(candidate_ids),
-                TestCase.deleted_at.is_(None),
-            ).all()
-            existing_map = {tc.display_id: tc for tc in db_results}
-            existing_ids = set(existing_map.keys())
-
-    def get_cell(row, col_name: str) -> str | None:
-        idx = header_map.get(col_name)
-        if idx is None:
-            return None
-        return _cell_str(row[idx]) if idx < len(row) else None
-
     valid_rows: list[TestCaseImportRow] = []
     duplicates: list[DuplicateRow] = []
     errors: list[ImportError] = []
+    total_parsed_rows = 0
 
-    for row_num, row in enumerate(data_rows, start=2):
-        row_errors: list[ImportError] = []
+    # Group sheet information for multi-sheet parsing
+    sheet_data = []
 
-        title = get_cell(row, COL["title"])
-        if not title:
-            row_errors.append(ImportError(row=row_num, field="Title", message="Required"))
+    # Required columns (excluding Module)
+    REQUIRED_COLUMNS = {
+        COL["title"],
+        COL["type"],
+        COL["severity"],
+        COL["expected_result"],
+        COL["step_actions"],
+    }
 
-        module = get_cell(row, COL["module"])
-        if not module:
-            row_errors.append(ImportError(row=row_num, field="Module", message="Required"))
+    for ws in wb.worksheets:
+        sheet_name = ws.title
+        rows = list(ws.iter_rows())
+        if not rows:
+            continue
+        headers = [_cell_str(cell) for cell in rows[0]]
+        headers_set = {h for h in headers if h}
 
-        tc_type = get_cell(row, COL["type"])
-        if not tc_type:
-            row_errors.append(ImportError(row=row_num, field="Type", message="Required"))
-        elif tc_type not in VALID_TYPES:
-            row_errors.append(ImportError(row=row_num, field="Type", message=f"Must be one of: {', '.join(sorted(VALID_TYPES))}"))
-
-        severity = get_cell(row, COL["severity"])
-        if not severity:
-            row_errors.append(ImportError(row=row_num, field="Severity", message="Required"))
-        elif severity not in VALID_SEVERITIES:
-            row_errors.append(ImportError(row=row_num, field="Severity", message=f"Must be one of: {', '.join(sorted(VALID_SEVERITIES))}"))
-
-        expected_result = get_cell(row, COL["expected_result"])
-        if not expected_result:
-            row_errors.append(ImportError(row=row_num, field="Expected Result", message="Required"))
-
-        step_actions_raw = get_cell(row, COL["step_actions"])
-        if not step_actions_raw:
-            row_errors.append(ImportError(row=row_num, field="Step Actions", message="At least one step action is required"))
-
-        if row_errors:
-            errors.extend(row_errors)
+        # Check if this sheet is a test-case sheet by seeing if it has any overlapping columns.
+        # Otherwise it could be a guidelines sheet, notes sheet, etc.
+        if not headers_set.intersection(REQUIRED_COLUMNS):
             continue
 
-        parsed_steps = _parse_steps_with_details(step_actions_raw)
-
-        steps: list[ImportStepRow] = []
-        for ps in parsed_steps:
-            if not ps["action"]:
-                continue
-            steps.append(ImportStepRow(
-                action=ps["action"],
-                expected_result=ps["expected_result"],
-                test_data=ps["test_data"],
+        missing = REQUIRED_COLUMNS - headers_set
+        if missing:
+            errors.append(ImportError(
+                row=0,
+                field=f"Sheet '{sheet_name}' Header",
+                message=f"Missing required columns: {', '.join(sorted(missing))}"
             ))
+            continue
 
-        status = get_cell(row, COL["status"]) or "Draft"
-        if status not in VALID_STATUSES:
-            status = "Draft"
+        header_map = {name: idx for idx, name in enumerate(headers) if name}
+        data_rows = rows[1:]
+        
+        sheet_data.append({
+            "sheet_name": sheet_name,
+            "header_map": header_map,
+            "data_rows": data_rows,
+        })
+        
+        total_parsed_rows += len(data_rows)
 
-        tags_raw = get_cell(row, COL["tags"])
-        tags = [t.strip() for t in tags_raw.split(";") if t.strip()] if tags_raw else None
-
-        display_id = get_cell(row, COL["display_id"])
-
-        import_row = TestCaseImportRow(
-            row_index=row_num,
-            display_id=display_id,
-            title=title,
-            description=get_cell(row, COL["description"]),
-            module=module,
-            type=tc_type,
-            severity=severity,
-            status=status,
-            assigned_to_name=get_cell(row, COL["assigned_to_name"]),
-            requirement_id=get_cell(row, COL["requirement_id"]),
-            estimated_time=get_cell(row, COL["estimated_time"]),
-            tags=tags,
-            environment=get_cell(row, COL["environment"]),
-            automation_status=get_cell(row, COL["automation_status"]),
-            preconditions=get_cell(row, COL["preconditions"]),
-            expected_result=expected_result,
-            notes=get_cell(row, COL["notes"]),
-            steps=steps,
+    if errors:
+        wb.close()
+        return ParseResult(
+            total_parsed=total_parsed_rows,
+            valid_rows=[],
+            duplicates=[],
+            errors=errors,
         )
 
-        if display_id and display_id in existing_ids:
-            existing_tc = existing_map[display_id]
-            duplicates.append(DuplicateRow(
+    if total_parsed_rows > MAX_IMPORT_ROWS:
+        wb.close()
+        return ParseResult(
+            total_parsed=total_parsed_rows,
+            valid_rows=[],
+            duplicates=[],
+            errors=[ImportError(row=0, field="file", message=f"Too many rows across all sheets: {total_parsed_rows}. Maximum allowed is {MAX_IMPORT_ROWS}")],
+        )
+
+    # Gather candidate display IDs for duplicate check across all sheets
+    candidate_ids = []
+    for s_info in sheet_data:
+        h_map = s_info["header_map"]
+        display_id_col = COL["display_id"]
+        if display_id_col in h_map:
+            idx = h_map[display_id_col]
+            for row in s_info["data_rows"]:
+                if idx < len(row):
+                    val = _cell_str(row[idx])
+                    if val:
+                        candidate_ids.append(val)
+
+    existing_ids: set[str] = set()
+    existing_map: dict[str, TestCase] = {}
+    if candidate_ids:
+        db_results = db.query(TestCase).filter(
+            TestCase.display_id.in_(candidate_ids),
+            TestCase.deleted_at.is_(None),
+        ).all()
+        existing_map = {tc.display_id: tc for tc in db_results}
+        existing_ids = set(existing_map.keys())
+
+    for s_info in sheet_data:
+        sheet_name = s_info["sheet_name"]
+        header_map = s_info["header_map"]
+        data_rows = s_info["data_rows"]
+
+        def get_cell(row, col_name: str) -> str | None:
+            idx = header_map.get(col_name)
+            if idx is None:
+                return None
+            return _cell_str(row[idx]) if idx < len(row) else None
+
+        for row_num, row in enumerate(data_rows, start=2):
+            # Skip empty rows (where all cells are empty)
+            if not any(_cell_str(cell) for cell in row):
+                continue
+
+            row_errors: list[ImportError] = []
+
+            title = get_cell(row, COL["title"])
+            if not title:
+                row_errors.append(ImportError(row=row_num, field="Title", message=f"Required (in sheet '{sheet_name}')"))
+
+            tc_type = get_cell(row, COL["type"])
+            if not tc_type:
+                row_errors.append(ImportError(row=row_num, field="Type", message=f"Required (in sheet '{sheet_name}')"))
+            elif tc_type not in VALID_TYPES:
+                row_errors.append(ImportError(row=row_num, field="Type", message=f"Must be one of: {', '.join(sorted(VALID_TYPES))} (in sheet '{sheet_name}')"))
+
+            severity = get_cell(row, COL["severity"])
+            if not severity:
+                row_errors.append(ImportError(row=row_num, field="Severity", message=f"Required (in sheet '{sheet_name}')"))
+            elif severity not in VALID_SEVERITIES:
+                row_errors.append(ImportError(row=row_num, field="Severity", message=f"Must be one of: {', '.join(sorted(VALID_SEVERITIES))} (in sheet '{sheet_name}')"))
+
+            expected_result = get_cell(row, COL["expected_result"])
+            if not expected_result:
+                row_errors.append(ImportError(row=row_num, field="Expected Result", message=f"Required (in sheet '{sheet_name}')"))
+
+            step_actions_raw = get_cell(row, COL["step_actions"])
+            if not step_actions_raw:
+                row_errors.append(ImportError(row=row_num, field="Step Actions", message=f"At least one step action is required (in sheet '{sheet_name}')"))
+
+            if row_errors:
+                errors.extend(row_errors)
+                continue
+
+            parsed_steps = _parse_steps_with_details(step_actions_raw)
+
+            steps: list[ImportStepRow] = []
+            for ps in parsed_steps:
+                if not ps["action"]:
+                    continue
+                steps.append(ImportStepRow(
+                    action=ps["action"],
+                    expected_result=ps["expected_result"],
+                    test_data=ps["test_data"],
+                ))
+
+            status = get_cell(row, COL["status"]) or "Draft"
+            if status not in VALID_STATUSES:
+                status = "Draft"
+
+            tags_raw = get_cell(row, COL["tags"])
+            tags = [t.strip() for t in tags_raw.split(";") if t.strip()] if tags_raw else None
+
+            display_id = get_cell(row, COL["display_id"])
+
+            # Backward compatibility check: if "Module" column exists in this sheet, use it.
+            # Otherwise use the sheet name.
+            module_col_val = get_cell(row, "Module")
+            module = module_col_val if module_col_val else sheet_name
+
+            import_row = TestCaseImportRow(
                 row_index=row_num,
                 display_id=display_id,
-                import_title=title,
-                existing_title=existing_tc.title,
-                existing_status=existing_tc.status,
-            ))
-            valid_rows.append(import_row)
-        else:
-            valid_rows.append(import_row)
+                title=title,
+                description=get_cell(row, COL["description"]),
+                module=module,
+                type=tc_type,
+                severity=severity,
+                status=status,
+                assigned_to_name=get_cell(row, COL["assigned_to_name"]),
+                requirement_id=get_cell(row, COL["requirement_id"]),
+                estimated_time=get_cell(row, COL["estimated_time"]),
+                tags=tags,
+                environment=get_cell(row, COL["environment"]),
+                automation_status=get_cell(row, COL["automation_status"]),
+                preconditions=get_cell(row, COL["preconditions"]),
+                expected_result=expected_result,
+                notes=get_cell(row, COL["notes"]),
+                steps=steps,
+            )
+
+            if display_id and display_id in existing_ids:
+                existing_tc = existing_map[display_id]
+                duplicates.append(DuplicateRow(
+                    row_index=row_num,
+                    display_id=display_id,
+                    import_title=title,
+                    existing_title=existing_tc.title,
+                    existing_status=existing_tc.status,
+                ))
+                valid_rows.append(import_row)
+            else:
+                valid_rows.append(import_row)
 
     wb.close()
 
+    if not valid_rows and not duplicates and not errors:
+        errors.append(ImportError(row=0, field="file", message="No valid sheets containing test cases were found in the uploaded file."))
+
     return ParseResult(
-        total_parsed=len(data_rows),
+        total_parsed=total_parsed_rows,
         valid_rows=valid_rows,
         duplicates=duplicates,
         errors=errors,
