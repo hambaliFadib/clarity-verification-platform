@@ -30,6 +30,7 @@ import {
 import type { Defect, TestCase } from "@/lib/types";
 import { DeleteConfirmModal } from "@/components/test-cases/delete-confirm-modal";
 import { AlertModal } from "@/components/ui/alert-modal";
+import { ExecutionRunner } from "@/components/test-runs/execution-runner";
 
 const tabs = ["Details", "Steps", "Defects"];
 
@@ -54,6 +55,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState<Record<number, boolean>>({});
+  const [isRunnerOpen, setIsRunnerOpen] = useState(false);
 
   const toggleStepExpand = (stepNumber: number) => {
     setExpandedSteps((prev) => ({
@@ -260,7 +262,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           >
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
-          <Button size="sm" disabled>
+          <Button size="sm" onClick={() => setIsRunnerOpen(true)} disabled={!tc}>
             <Play className="h-3.5 w-3.5" /> Run Test
           </Button>
         </div>
@@ -444,6 +446,28 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
         onConfirm={handleDelete}
         testCaseId={id}
         isDeleting={deleting}
+      />
+
+      <ExecutionRunner
+        isOpen={isRunnerOpen}
+        onClose={() => setIsRunnerOpen(false)}
+        testCases={tc ? [{
+          id: tc.id,
+          title: tc.title,
+          description: tc.description || undefined,
+          steps: tc.steps?.map(step => ({
+            action: step.action,
+            expectedResult: step.expectedResult || undefined,
+          })),
+        }] : []}
+        onComplete={() => {
+          setAlertState({
+            isOpen: true,
+            title: "Execution Completed",
+            message: `Execution for test case ${tc?.id} completed successfully.`,
+            type: "success",
+          });
+        }}
       />
     </div>
   );
