@@ -383,13 +383,15 @@ function sanitizeSheetName(name: string, existingNames: Set<string>): string {
 
 function parseWorkbookSheets(workbookXml: string, relsXml: string) {
   const rels = new Map<string, string>();
-  const relRegex = /<Relationship\b([^>]*)\/>/g;
+  // Match both self-closing (<Relationship .../>) and non-self-closing (<Relationship ...></Relationship>)
+  const relRegex = /<Relationship\b([^>]*)\/?>/g;
   for (const match of relsXml.matchAll(relRegex)) {
     const attrs = match[1];
     const id = attrValue(attrs, "Id");
     const target = attrValue(attrs, "Target");
     if (id && target) {
-      rels.set(id, target);
+      // Strip leading slash if present (some tools emit absolute-style targets)
+      rels.set(id, target.replace(/^\//, ""));
     }
   }
 
@@ -402,7 +404,9 @@ function parseWorkbookSheets(workbookXml: string, relsXml: string) {
     if (name && rId) {
       const target = rels.get(rId);
       if (target) {
-        sheets.push({ name, path: `xl/${target}` });
+        // target is relative to xl/ directory
+        const path = target.startsWith("xl/") ? target : `xl/${target}`;
+        sheets.push({ name, path });
       }
     }
   }
@@ -703,18 +707,43 @@ function validateChoiceInSheet(
 
 export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAccessContext) {
   const files = readZipFiles(buffer);
-  
-  const workbookXmlStr = files.get("xl/workbook.xml")?.toString("utf8");
-  const relsXmlStr = files.get("xl/_rels/workbook.xml.rels")?.toString("utf8");
+
+  // Build a case-insensitive lookup map for file paths
+  const filesByLowerPath = new Map<string, Buffer>();
+  for (const [key, value] of files.entries()) {
+    filesByLowerPath.set(key.toLowerCase(), value);
+  }
+  const getFile = (path: string) => files.get(path) ?? filesByLowerPath.get(path.toLowerCase());
+
+  const workbookXmlStr = getFile("xl/workbook.xml")?.toString("utf8");
+  const relsXmlStr = getFile("xl/_rels/workbook.xml.rels")?.toString("utf8");
   if (!workbookXmlStr || !relsXmlStr) {
     throw new Error("Invalid XLSX file structure.");
   }
 
-  const sheets = parseWorkbookSheets(workbookXmlStr, relsXmlStr);
+  const sheetsFromWorkbook = parseWorkbookSheets(workbookXmlStr, relsXmlStr);
+
+  // Resolve each sheet to a path that actually exists in the zip (case-insensitive)
+  const sheets = sheetsFromWorkbook
+    .map(s => {
+      if (getFile(s.path)) return s;
+      // Try stripping "xl/" prefix in case target was already absolute
+      const alt = s.path.replace(/^\//, "");
+      if (getFile(alt)) return { ...s, path: alt };
+      return null;
+    })
+    .filter((s): s is { name: string; path: string } => s !== null);
+
+  // Final fallback: scan all xl/worksheets/*.xml entries in the zip
   if (sheets.length === 0) {
-    const defaultSheet = files.get("xl/worksheets/sheet1.xml");
-    if (defaultSheet) {
-      sheets.push({ name: "Test Cases", path: "xl/worksheets/sheet1.xml" });
+    const worksheetPattern = /^xl[\/\\]worksheets[\/\\].+\.xml$/i;
+    for (const key of files.keys()) {
+      if (worksheetPattern.test(key)) {
+        // Derive a sheet name from the file name (e.g. sheet1.xml → Sheet 1)
+        const base = key.split(/[\/\\]/).pop()?.replace(/\.xml$/i, "") ?? "Sheet";
+        const name = base.replace(/^sheet(\d+)$/i, (_, n) => `Sheet ${n}`);
+        sheets.push({ name, path: key });
+      }
     }
   }
 
@@ -738,10 +767,10 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
   const existingByDisplayId = new Map(existingItems.map((item) => [item.id.toLowerCase(), item]));
 
   for (const sheetInfo of sheets) {
-    const sheetContent = files.get(sheetInfo.path);
+    const sheetContent = getFile(sheetInfo.path);
     if (!sheetContent) continue;
 
-    const sharedStrings = parseSharedStrings(files.get("xl/sharedStrings.xml")?.toString("utf8"));
+    const sharedStrings = parseSharedStrings(getFile("xl/sharedStrings.xml")?.toString("utf8"));
     const rows = parseWorksheetRows(sheetContent.toString("utf8"), sharedStrings);
     const headers = rows[0] || [];
     const dataRows = rows.slice(1).filter((row) => row.some((value) => String(value || "").trim()));
