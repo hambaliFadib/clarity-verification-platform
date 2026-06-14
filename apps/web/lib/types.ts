@@ -75,13 +75,18 @@ export interface DefectComment {
   text: string;
 }
 
-export type TestRunStatus = "Not Started" | "In Progress" | "Completed" | "Aborted";
+export type TestRunStatus = "Not Started" | "Planning" | "Running" | "Completed" | "Aborted";
+export type TestRunType = "Manual" | "Automated" | "Hybrid";
+export type TestRunTriggerType = "Manual" | "Scheduled" | "CI/CD" | "API" | "Webhook";
 
 export interface TestRun {
   id: string;
   realId?: string;
+  displayId?: string;
   name: string;
   description?: string;
+  type: TestRunType;
+  triggerType: TestRunTriggerType;
   status: TestRunStatus;
   environment: string;
   release?: string;
@@ -94,6 +99,27 @@ export interface TestRun {
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export type RequirementStatus = "Draft" | "Ready" | "In Review" | "Approved" | "Baseline" | "Archived";
+export type RequirementPriority = "Critical" | "High" | "Medium" | "Low";
+
+export interface Requirement {
+  id: string;
+  realId?: string;
+  displayId: string;
+  title: string;
+  description?: string;
+  acceptanceCriteria?: string;
+  businessRules?: string;
+  module: string;
+  type: string;
+  priority: RequirementPriority;
+  status: RequirementStatus;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type EnvironmentType = "Development" | "Staging" | "Production" | "QA" | "UAT";

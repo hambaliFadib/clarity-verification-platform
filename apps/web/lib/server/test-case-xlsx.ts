@@ -2,6 +2,7 @@ import { listTestCases } from "@/lib/server/qa-repository";
 import { guestTestCases } from "@/lib/server/guest-fixtures";
 import type { ProjectAccessContext } from "@/lib/server/qa-repository";
 import type { TestCase } from "@/lib/types";
+import { inflateRawSync } from "zlib";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -368,4 +369,292 @@ export async function generateTestCasesExportXlsx(ctx?: ProjectAccessContext) {
 
 export function generateTestCasesTemplateXlsx() {
   return buildWorkbook(worksheetXml(templateRows(), { includeDataValidations: true, secondRowHeight: 60 }));
+}
+
+type ImportError = {
+  row: number;
+  field: string;
+  message: string;
+};
+
+type ParsedCellRow = string[];
+
+function findEndOfCentralDirectory(buffer: Buffer) {
+  const signature = 0x06054b50;
+  for (let offset = buffer.length - 22; offset >= Math.max(0, buffer.length - 65557); offset -= 1) {
+    if (buffer.readUInt32LE(offset) === signature) return offset;
+  }
+  throw new Error("Invalid XLSX archive.");
+}
+
+function readZipFiles(buffer: Buffer) {
+  const files = new Map<string, Buffer>();
+  const endOffset = findEndOfCentralDirectory(buffer);
+  const entryCount = buffer.readUInt16LE(endOffset + 10);
+  let centralOffset = buffer.readUInt32LE(endOffset + 16);
+
+  for (let index = 0; index < entryCount; index += 1) {
+    if (buffer.readUInt32LE(centralOffset) !== 0x02014b50) break;
+
+    const compressionMethod = buffer.readUInt16LE(centralOffset + 10);
+    const compressedSize = buffer.readUInt32LE(centralOffset + 20);
+    const fileNameLength = buffer.readUInt16LE(centralOffset + 28);
+    const extraLength = buffer.readUInt16LE(centralOffset + 30);
+    const commentLength = buffer.readUInt16LE(centralOffset + 32);
+    const localHeaderOffset = buffer.readUInt32LE(centralOffset + 42);
+    const fileName = buffer
+      .subarray(centralOffset + 46, centralOffset + 46 + fileNameLength)
+      .toString("utf8");
+
+    if (buffer.readUInt32LE(localHeaderOffset) !== 0x04034b50) {
+      throw new Error(`Invalid local header for ${fileName}.`);
+    }
+
+    const localNameLength = buffer.readUInt16LE(localHeaderOffset + 26);
+    const localExtraLength = buffer.readUInt16LE(localHeaderOffset + 28);
+    const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength;
+    const compressed = buffer.subarray(dataStart, dataStart + compressedSize);
+
+    if (compressionMethod === 0) {
+      files.set(fileName, compressed);
+    } else if (compressionMethod === 8) {
+      files.set(fileName, inflateRawSync(compressed));
+    } else {
+      throw new Error(`Unsupported XLSX compression method: ${compressionMethod}.`);
+    }
+
+    centralOffset += 46 + fileNameLength + extraLength + commentLength;
+  }
+
+  return files;
+}
+
+function decodeXml(value: string) {
+  return value
+    .replace(/&quot;/g, "\"")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function attrValue(attrs: string, name: string) {
+  const match = attrs.match(new RegExp(`${name}="([^"]*)"`, "i"));
+  return match ? decodeXml(match[1]) : "";
+}
+
+function textNodes(xmlValue: string) {
+  const values: string[] = [];
+  const textRegex = /<t\b[^>]*>([\s\S]*?)<\/t>/g;
+  for (const match of xmlValue.matchAll(textRegex)) values.push(decodeXml(match[1]));
+  return values.join("");
+}
+
+function tagValue(xmlValue: string, tag: string) {
+  const match = xmlValue.match(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+  return match ? decodeXml(match[1]) : "";
+}
+
+function columnIndexFromRef(ref: string) {
+  const letters = (ref.match(/^[A-Z]+/i)?.[0] || "").toUpperCase();
+  let value = 0;
+  for (const letter of letters) value = value * 26 + letter.charCodeAt(0) - 64;
+  return Math.max(value - 1, 0);
+}
+
+function parseSharedStrings(xmlValue?: string) {
+  if (!xmlValue) return [];
+  const values: string[] = [];
+  const sharedRegex = /<si\b[^>]*>([\s\S]*?)<\/si>/g;
+  for (const match of xmlValue.matchAll(sharedRegex)) values.push(textNodes(match[1]));
+  return values;
+}
+
+function parseWorksheetRows(sheetXml: string, sharedStrings: string[]): ParsedCellRow[] {
+  const rows: ParsedCellRow[] = [];
+  const rowRegex = /<row\b[^>]*>([\s\S]*?)<\/row>/g;
+
+  for (const rowMatch of sheetXml.matchAll(rowRegex)) {
+    const row: string[] = [];
+    const cellRegex = /<c\b([^>]*)>([\s\S]*?)<\/c>/g;
+    for (const cellMatch of rowMatch[1].matchAll(cellRegex)) {
+      const attrs = cellMatch[1];
+      const body = cellMatch[2];
+      const index = columnIndexFromRef(attrValue(attrs, "r"));
+      const type = attrValue(attrs, "t");
+      let value = "";
+
+      if (type === "s") {
+        value = sharedStrings[Number.parseInt(tagValue(body, "v") || "0", 10)] || "";
+      } else if (type === "inlineStr") {
+        value = textNodes(body);
+      } else {
+        value = tagValue(body, "v") || textNodes(body);
+      }
+
+      row[index] = value.trim();
+    }
+    rows.push(row);
+  }
+
+  return rows;
+}
+
+function normalizeHeader(value: string) {
+  return value
+    .replace(/^\uFEFF/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function headerIndex(headers: string[], aliases: string[]) {
+  const normalized = headers.map(normalizeHeader);
+  return aliases
+    .map(normalizeHeader)
+    .map((alias) => normalized.indexOf(alias))
+    .find((index) => index >= 0) ?? -1;
+}
+
+function valueAt(row: ParsedCellRow, headers: ParsedCellRow, aliases: string[]) {
+  const index = headerIndex(headers, aliases);
+  return index >= 0 ? (row[index] || "").trim() : "";
+}
+
+function parseTags(value: string) {
+  return value
+    ? value.split(/[;,]/).map((tag) => tag.trim()).filter(Boolean)
+    : undefined;
+}
+
+function parseSteps(value: string) {
+  const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const steps: Array<{ action: string; expectedResult?: string; testData?: string }> = [];
+
+  for (const line of lines) {
+    const stepMatch = line.match(/^\d+[.)]\s*(.+)$/);
+    const expectedMatch = line.match(/^expected\s*:\s*(.+)$/i);
+    const dataMatch = line.match(/^test data\s*:\s*(.+)$/i);
+
+    if (stepMatch) {
+      steps.push({ action: stepMatch[1].trim() });
+    } else if (expectedMatch && steps.length > 0) {
+      steps[steps.length - 1].expectedResult = expectedMatch[1].trim();
+    } else if (dataMatch && steps.length > 0) {
+      steps[steps.length - 1].testData = dataMatch[1].trim();
+    } else if (steps.length > 0) {
+      steps[steps.length - 1].action = `${steps[steps.length - 1].action}\n${line}`;
+    } else {
+      steps.push({ action: line });
+    }
+  }
+
+  return steps.length > 0 ? steps : undefined;
+}
+
+function validateChoice(errors: ImportError[], rowNumber: number, field: string, value: string, choices: string[]) {
+  if (value && !choices.some((choice) => choice.toLowerCase() === value.toLowerCase())) {
+    errors.push({
+      row: rowNumber,
+      field,
+      message: `Use one of: ${choices.join(", ")}.`,
+    });
+  }
+}
+
+export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAccessContext) {
+  const files = readZipFiles(buffer);
+  const sheet = files.get("xl/worksheets/sheet1.xml");
+  if (!sheet) throw new Error("Worksheet 'Test Cases' was not found.");
+
+  const sharedStrings = parseSharedStrings(files.get("xl/sharedStrings.xml")?.toString("utf8"));
+  const rows = parseWorksheetRows(sheet.toString("utf8"), sharedStrings);
+  const headers = rows[0] || [];
+  const dataRows = rows.slice(1).filter((row) => row.some((value) => String(value || "").trim()));
+  const errors: ImportError[] = [];
+
+  if (dataRows.length > 500) {
+    errors.push({
+      row: 0,
+      field: "file",
+      message: "Only the first 500 rows can be imported at once.",
+    });
+  }
+
+  const existingItems = ctx?.isGuest || ctx?.userId === "guest-user"
+    ? guestTestCases()
+    : (await listTestCases(new URLSearchParams({ limit: "10000" }), ctx)).items;
+  const existingByDisplayId = new Map(existingItems.map((item) => [item.id.toLowerCase(), item]));
+
+  const validRows: any[] = [];
+  const duplicates: any[] = [];
+
+  dataRows.slice(0, 500).forEach((row, index) => {
+    const rowNumber = index + 2;
+    const rowErrors: ImportError[] = [];
+    const displayId = valueAt(row, headers, [COL.displayId, "ID", "Display ID"]);
+    const title = valueAt(row, headers, [COL.title]);
+    const module = valueAt(row, headers, [COL.module]);
+    const type = valueAt(row, headers, [COL.type]) || "Functional";
+    const severity = valueAt(row, headers, [COL.severity]) || "Major";
+    const status = valueAt(row, headers, [COL.status]) || "Draft";
+    const automationStatus = valueAt(row, headers, [COL.automationStatus]) || "Manual";
+    const environment = valueAt(row, headers, [COL.environment]);
+
+    if (!title) rowErrors.push({ row: rowNumber, field: "Title", message: "Title is required." });
+    if (!module) rowErrors.push({ row: rowNumber, field: "Module", message: "Module is required." });
+    validateChoice(rowErrors, rowNumber, "Type", type, VALID_TYPES);
+    validateChoice(rowErrors, rowNumber, "Severity", severity, VALID_SEVERITIES);
+    validateChoice(rowErrors, rowNumber, "Status", status, VALID_STATUSES);
+    validateChoice(rowErrors, rowNumber, "Automation Status", automationStatus, VALID_AUTOMATION_STATUSES);
+
+    if (rowErrors.length > 0) {
+      errors.push(...rowErrors);
+      return;
+    }
+
+    const parsedRow = {
+      rowIndex: rowNumber,
+      displayId: displayId || undefined,
+      display_id: displayId || undefined,
+      title,
+      module,
+      type,
+      severity,
+      status,
+      description: valueAt(row, headers, [COL.description]) || undefined,
+      preconditions: valueAt(row, headers, [COL.preconditions]) || undefined,
+      testSteps: parseSteps(valueAt(row, headers, [COL.stepActions, "Steps"])),
+      expectedResult: valueAt(row, headers, [COL.expectedResult]) || undefined,
+      notes: valueAt(row, headers, [COL.notes]) || undefined,
+      automationStatus,
+      environment: environment || undefined,
+      estimatedTime: valueAt(row, headers, [COL.estimatedTime]) || undefined,
+      tags: parseTags(valueAt(row, headers, [COL.tags])),
+      requirementId: valueAt(row, headers, [COL.requirementId]) || undefined,
+      assignedTo: valueAt(row, headers, [COL.assignedTo]) || undefined,
+    };
+
+    validRows.push(parsedRow);
+
+    if (displayId) {
+      const duplicate = existingByDisplayId.get(displayId.toLowerCase());
+      if (duplicate) {
+        duplicates.push({
+          row_index: rowNumber,
+          display_id: displayId,
+          import_title: title,
+          existing_title: duplicate.title,
+          existing_status: duplicate.status,
+        });
+      }
+    }
+  });
+
+  return {
+    total_parsed: dataRows.length,
+    valid_rows: validRows,
+    duplicates,
+    errors,
+  };
 }

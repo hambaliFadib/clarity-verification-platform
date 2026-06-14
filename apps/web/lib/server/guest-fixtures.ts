@@ -5,6 +5,7 @@ import type {
   Environment,
   Project,
   Release,
+  Requirement,
   TeamMember,
   TestCase,
   TestRun,
@@ -111,6 +112,26 @@ export function guestTestCases(): TestCase[] {
   ];
 }
 
+export function guestRequirements(): Requirement[] {
+  return [
+    {
+      id: "GUEST-REQ-001",
+      displayId: "GUEST-REQ-001",
+      title: "Guest users can explore QA workflow safely",
+      description: "Guest mode must provide a realistic demo without reading from or writing to production project data.",
+      acceptanceCriteria: "Guest data is reset on each session and remains isolated from signed-in user projects.",
+      businessRules: "Guest actions use local demo fixtures only.",
+      module: "Guest Workspace",
+      type: "Functional",
+      priority: "Critical",
+      status: "Draft",
+      createdById: "guest-user",
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+}
+
 export function guestDefects(): Defect[] {
   return [{
     id: "GUEST-DEF-001",
@@ -136,7 +157,10 @@ export function guestDefects(): Defect[] {
 export function guestTestRuns(): TestRun[] {
   return [{
     id: "GUEST-RUN-001",
+    displayId: "GUEST-RUN-001",
     name: "Guest Smoke Run",
+    type: "Manual",
+    triggerType: "Manual",
     status: "Not Started",
     environment: "Demo Staging",
     release: "Guest Release",
