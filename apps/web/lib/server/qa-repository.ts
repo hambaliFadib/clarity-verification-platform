@@ -78,6 +78,16 @@ async function ensureColumnMigrations() {
       // Ensure test_steps has step detail columns
       await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS expected_result text`);
       await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS test_data text`);
+      // Widen narrow varchar columns that cause "value too long" errors on import.
+      // "Candidate to Automate" is 21 chars; automation_status was varchar(20) on some DB states.
+      await query(`ALTER TABLE test_cases ALTER COLUMN automation_status TYPE varchar(50)`);
+      await query(`ALTER TABLE test_cases ALTER COLUMN type TYPE varchar(50)`);
+      await query(`ALTER TABLE test_cases ALTER COLUMN status TYPE varchar(50)`);
+      await query(`ALTER TABLE test_cases ALTER COLUMN environment TYPE varchar(50)`);
+      await query(`ALTER TABLE test_cases ALTER COLUMN display_id TYPE varchar(50)`);
+      await query(`ALTER TABLE test_cases ALTER COLUMN module TYPE varchar(255)`);
+      await query(`ALTER TABLE test_cases ALTER COLUMN severity TYPE varchar(50)`);
+      await query(`ALTER TABLE test_steps ALTER COLUMN status TYPE varchar(50)`);
     })();
   }
   return columnMigrationsReady;
