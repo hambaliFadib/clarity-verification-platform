@@ -249,8 +249,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
 export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
   const projectId = await primaryProjectId(ctx);
   return transaction(async (client) => {
-    // Prefer TC ID supplied by the caller (e.g. from Excel import); fall back to auto-generated.
-    const displayId = (payload.displayId || payload.display_id)?.trim() || await nextDisplayId(client, "test_cases", "CLR-TC");
+    const displayId = await nextDisplayId(client, "test_cases", "CLR-TC");
     const steps = payload.testSteps || payload.test_steps || [];
     const expectedResult = payload.expectedResult || payload.expected_result || "";
     const now = new Date();
