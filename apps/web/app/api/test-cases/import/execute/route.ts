@@ -22,8 +22,17 @@ export async function POST(request: Request) {
     }
 
     const rows: any[] = Array.isArray(payload?.rows) ? payload.rows : Array.isArray(payload?.items) ? payload.items : [];
-    const overwrite: boolean = Boolean(payload?.overwrite);
-    const overwriteIds: string[] = Array.isArray(payload?.overwrite_ids) ? payload.overwrite_ids : [];
+
+    // Build a lookup map: displayId → action ("skip" | "overwrite")
+    // Frontend sends: duplicateActions: [{ displayId: string, action: "skip" | "overwrite" }]
+    const duplicateActionMap = new Map<string, "skip" | "overwrite">();
+    if (Array.isArray(payload?.duplicateActions)) {
+      for (const entry of payload.duplicateActions) {
+        if (entry?.displayId && entry?.action) {
+          duplicateActionMap.set(String(entry.displayId).toLowerCase(), entry.action);
+        }
+      }
+    }
 
     let created = 0;
     let overwritten = 0;
@@ -32,17 +41,18 @@ export async function POST(request: Request) {
 
     for (const row of rows) {
       const rowIndex: number = row.rowIndex ?? 0;
+      // The parser stores the existing TC id as display_id on the row
       const displayId: string | undefined = row.display_id || row.displayId;
+      const duplicateAction = displayId ? duplicateActionMap.get(displayId.toLowerCase()) : undefined;
 
       try {
-        const isDuplicate = displayId && overwriteIds.includes(displayId);
-
-        if (isDuplicate && overwrite && displayId) {
+        if (duplicateAction === "overwrite" && displayId) {
           await updateTestCase(displayId, row, ctx);
           overwritten += 1;
-        } else if (isDuplicate && !overwrite) {
+        } else if (duplicateAction === "skip") {
           skipped += 1;
         } else {
+          // No duplicate action means it's a brand-new row — create it
           await createTestCase(row, ctx);
           created += 1;
         }
