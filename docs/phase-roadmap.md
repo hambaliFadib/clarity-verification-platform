@@ -1,50 +1,118 @@
 # Phase Roadmap
 
-This document tracks the current release line and the next planned scope for Clarity Platform.
+This document tracks the active production release line and the next product phases for NexQA - Clarity Platform.
 
-## Phase 1 Release
+## Status Summary
 
-Phase 1 is the production foundation release. It focuses on stable QA workflows and production-backed CRUD before deeper workflow automation.
+Phase 1 and Phase 2 established the production foundation:
 
-Included scope:
+- Neon-backed CRUD for test cases, defects, environments, releases, work items, and test runs.
+- XLSX import/export and template support for test cases.
+- Google OAuth and guest mode scaffolding.
+- Guest data isolation for simulation mode.
+- Project-scoped data access for authenticated users.
+- Account, project settings, team member, and workspace label foundations.
+- Production deployment from `main` to Vercel.
 
-- Test case management with NeonDB-backed CRUD.
-- Defect and defect comment management.
-- Environment, project, release, activity, work item, and test run MVP APIs.
-- XLSX import/export flow for test cases.
-- Modal layering and backdrop bug fixes for import/export, filters, defect actions, and environment creation.
-- UI consistency fixes for Test Cases, Defects, My Work, Project Settings, and navbar branding.
-- Authentication scaffolding through NextAuth, Google provider wiring, guest login, account entry page, and backend OAuth sync endpoint.
+The current promotion line adds the Requirements/RBAC foundation and early workflow intelligence surfaces. Anything not fully enforced remains guarded or tracked as open follow-up work.
 
-Phase 1 does not claim full authentication, full team workflow, or advanced automation readiness.
+## Phase 3 - Foundation: Requirements and RBAC
 
-## Phase 2 Next Scope
+Highest priority. This phase turns Requirements from a placeholder into the foundation module for traceability and role-based collaboration.
 
-Phase 2 activates product workflows that depend on identity and project ownership.
+### Requirements Management
+
+Implemented foundation:
+
+- Requirements list, create, detail, and edit surfaces.
+- Requirement comments.
+- Requirement to test case linkage.
+- Traceability view for requirement to test case to defect coverage.
+- Functional, non-functional, and business-rule requirement categorization.
+- AI-assisted requirement analysis panel.
+- Import/export entry points for requirements.
+- Datatable navigation and visual alignment fixes.
+
+Remaining work:
+
+- Auto-generate test cases from approved requirements.
+- Enforce approval states before baseline and test generation.
+- Expand traceability into release-readiness evidence.
+- Harden import parsing for every supported source format.
+
+### Role-Based Access Control
+
+Implemented foundation:
+
+- Role, permission, role-permission, and user-role schema.
+- RBAC service helpers.
+- Guarded RBAC admin APIs.
+- Initial permission checker utilities for requirements and test runs.
+
+Remaining work:
+
+- Enforce the final role hierarchy in every frontend and backend workflow.
+- Seed and manage roles for BA, SA, QA, Developer, PO, PM, and UAT User.
+- Add owner/member/project membership checks to every protected resource.
+- Add UI for role assignment after product rules are approved.
+
+Target role split:
+
+- BA: Create/Edit Requirements, View Business Process.
+- SA: Design Documents, Architecture, Technical Specs.
+- QA: Test Cases, Test Runs, Defects.
+- Developer: Code Review, Technical Notes, Defect Resolution.
+- PO: Acceptance, Priority Setting, Release Approval.
+- PM: Dashboard, Reports, Cross-Module Visibility.
+- UAT User: UAT Test Cases, Acceptance Testing.
+
+## Phase 4 - Business Process and Design
 
 Planned scope:
 
-- Google OAuth production rollout.
-- First registration verification link.
-- Account settings for profile updates, password reset support, and account deletion.
-- Guest mode hardening and cleanup behavior.
-- Create-project-first flow and one-project restriction.
-- Team member sync from Google users and invitation verification by email.
-- My Work drag-to-move activation with DB persistence.
-- Project Settings unlock after authentication and ownership rules are ready.
+- Business Process module.
+- BPMN-style process designer.
+- Process stages: Identify, Analyze, Design, Implement, Test, Release.
+- Evidence artifact per stage.
+- AI analysis per stage: completeness check, risk assessment, and quality score.
+- Approval gate per stage transition.
+- Design module for SA users: architecture documentation, data flow diagrams, API specifications, database schema, and links back to requirements and business processes.
 
-## Decisions Required
+## Phase 5 - AI Intelligence Layer
 
-- Google Cloud OAuth project and redirect/callback domains.
-- Email provider for verification and invitation links.
-- Guest data strategy: client memory only or server session with TTL.
-- Production domain and Vercel environment variable parity.
+Planned scope:
 
-## Out Of Scope For Phase 2
+- Requirement analysis for completeness, ambiguity, and missing requirement suggestions.
+- Test coverage analysis from requirement to test case mapping.
+- Defect pattern analysis, root cause clustering, regression risk, and module health.
+- Release readiness assessment with quality gates and risk-based go/no-go recommendation.
+- Evidence system with immutable audit log, document artifacts, test execution results, defect reports, approval decisions, and AI analysis reports.
 
-- Full external automation runtime beyond local database-backed workflows.
-- Complex RBAC beyond basic owner/member restrictions.
-- Advanced analytics and release readiness forecasting.
+## Phase 6 - Approval Gates and Workflow
+
+Early foundation already exists:
+
+- `approval_gates` and `audit_trail` database tables.
+- Approval gate backend model, schema, router, and service foundation.
+- Audit trail query foundation.
+- Analytics MVP and quality score surface.
+- Approval gate write mutations locked behind `ENABLE_APPROVAL_GATE_MUTATIONS`.
+
+Remaining work:
+
+- Wire approval gates into Requirements, Test Cases, Defects, Releases, and Business Process state machines.
+- Enforce RBAC checks for every approval action.
+- Build approval queue, audit trail detail, and evidence views.
+- Add escalation rules for overdue decisions.
+- Add full audit trail of who approved what and when.
+
+Target state machines:
+
+- Requirements: Draft -> Review -> Approved -> Baseline.
+- Test Cases: Draft -> Ready -> In Review -> Approved.
+- Defects: Open -> In Progress -> Resolved -> Verified -> Closed.
+- Releases: Planning -> Testing -> UAT -> Approved -> Released.
+- Business Process: Draft -> Validated -> Implemented -> Verified.
 
 ## Promotion Rule
 
@@ -53,4 +121,7 @@ Promote `dev` to `main` only when:
 - `npm run typecheck:web` passes.
 - `npm run build:web` passes.
 - `python -m compileall apps/api/app` passes.
-- Known blocking UI or CRUD bugs are either fixed or explicitly tracked.
+- Backend import smoke passes.
+- Known blocking UI, CRUD, auth, or security bugs are fixed or explicitly tracked.
+
+Release principle: Quality Before Speed, Clarity Before Release.
