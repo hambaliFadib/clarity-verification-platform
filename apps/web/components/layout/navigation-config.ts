@@ -7,6 +7,7 @@ import {
   PlayCircle,
   Rocket,
   Settings,
+  LineChart,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -28,6 +29,7 @@ export const navGroups: NavGroupConfig[] = [
     items: [
       { label: "My Work", href: "/my-work", icon: ClipboardList },
       { label: "Requirements", href: "/requirements", icon: FileText },
+      { label: "Analytics", href: "/analytics", icon: LineChart },
     ],
   },
   {
