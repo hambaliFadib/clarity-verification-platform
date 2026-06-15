@@ -78,16 +78,16 @@ export function TCTraceabilityMatrix({ testCase }: TCTraceabilityMatrixProps) {
         <div className="hidden md:block absolute top-1/2 left-1/6 right-1/6 h-0.5 bg-outline-variant/30 -z-10 -translate-y-1/2" />
 
         {/* Column 1: Linked Requirements */}
-        <div className="space-y-4">
+        <div className="flex flex-col h-full">
           <h4 className="flex items-center gap-2 text-sm font-medium text-on-surface-variant uppercase tracking-wider mb-4">
             <FileText className="h-4 w-4" /> Requirements ({requirements.length})
           </h4>
           {requirements.length === 0 ? (
-            <div className="h-full min-h-[100px] border-2 border-dashed border-outline-variant rounded-xl flex items-center justify-center text-on-surface-variant text-sm bg-surface-container-low/50">
+            <div className="flex-1 min-h-[100px] border-2 border-dashed border-outline-variant rounded-xl flex items-center justify-center text-on-surface-variant text-sm bg-surface-container-low/50">
               No linked requirements
             </div>
           ) : (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="flex-1 space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {requirements.map(req => (
                 <div key={req.id} className="bg-white border border-outline-variant hover:border-primary/40 transition-all rounded-xl p-4 shadow-sm group">
                   <div className="flex items-center justify-between mb-2">
@@ -105,7 +105,7 @@ export function TCTraceabilityMatrix({ testCase }: TCTraceabilityMatrixProps) {
         </div>
 
         {/* Column 2: This Test Case */}
-        <div className="space-y-4">
+        <div className="flex flex-col h-full">
           <h4 className="text-sm font-medium text-on-surface-variant uppercase tracking-wider mb-4">Test Case</h4>
           <div className="bg-primary/5 border-2 border-primary/30 hover:border-primary/60 transition-colors rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
@@ -122,16 +122,16 @@ export function TCTraceabilityMatrix({ testCase }: TCTraceabilityMatrixProps) {
         </div>
 
         {/* Column 3: Linked Defects */}
-        <div className="space-y-4">
+        <div className="flex flex-col h-full">
           <h4 className="flex items-center gap-2 text-sm font-medium text-on-surface-variant uppercase tracking-wider mb-4">
             <Bug className="h-4 w-4" /> Defects ({defects.length})
           </h4>
           {defects.length === 0 ? (
-            <div className="h-full min-h-[100px] border-2 border-dashed border-outline-variant rounded-xl flex items-center justify-center text-on-surface-variant text-sm bg-surface-container-low/50">
+            <div className="flex-1 min-h-[100px] border-2 border-dashed border-outline-variant rounded-xl flex items-center justify-center text-on-surface-variant text-sm bg-surface-container-low/50">
               No defects found
             </div>
           ) : (
-            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="flex-1 space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {defects.map(def => (
                 <div key={def.id} className="bg-error/5 border border-error/20 hover:border-error/40 transition-all rounded-xl p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
