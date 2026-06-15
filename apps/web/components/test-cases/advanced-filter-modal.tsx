@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { TestCaseSeverity, TestCaseType } from "@/lib/types";
@@ -20,6 +20,20 @@ interface AdvancedFilterModalProps {
 
 export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply }: AdvancedFilterModalProps) {
   const [filters, setFilters] = useState<TestCaseAdvancedFilters>(currentFilters);
+  const [availableModules, setAvailableModules] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch("/api/test-cases/modules")
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setAvailableModules(data);
+          }
+        })
+        .catch((err) => console.error("Failed to fetch modules:", err));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -55,13 +69,16 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply }
         <div className="p-5 space-y-4">
           <div>
             <label className={labelClass}>Module</label>
-            <input
-              type="text"
-              placeholder="Filter by module..."
+            <select
               value={filters.module}
               onChange={(e) => setFilters({ ...filters, module: e.target.value })}
               className={selectClass}
-            />
+            >
+              <option value="">All</option>
+              {availableModules.map((mod) => (
+                <option key={mod} value={mod}>{mod}</option>
+              ))}
+            </select>
           </div>
 
           <div>
