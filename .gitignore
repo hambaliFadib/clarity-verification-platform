@@ -56,3 +56,12 @@ temp/
 *.local
 .vercel
 .env*.local
+
+# Scratch and Data files
+test-db*.js
+apps/web/test-db*.js
+apps/api/explore_excel.py
+apps/api/migrate.py
+apps/api/script.py
+tc_sheet.csv
+tc_sheet.xlsx
