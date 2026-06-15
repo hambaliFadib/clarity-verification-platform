@@ -4,13 +4,27 @@ from sqlalchemy import select, func, or_
 from sqlalchemy.orm import Session
 from app.models.test_case import TestCase
 from app.models.test_step import TestStep
+from app.models.project import Project
 from app.schemas.test_case import TestCaseCreate, TestCaseUpdate
+import re
+
+def normalize_module_name(module_name: str | None) -> str | None:
+    if not module_name:
+        return module_name
+    cleaned = re.sub(r'\s+', ' ', module_name).strip()
+    return cleaned.title()
 
 
 def generate_display_id(db: Session) -> str:
+    # Get project prefix
+    project = db.query(Project).filter(Project.deleted_at.is_(None)).first()
+    prefix = project.prefix if project else "CLR"
+    
+    search_pattern = f"{prefix}-TC-%"
+
     result = db.execute(
         select(func.max(TestCase.display_id)).where(
-            TestCase.display_id.like("CLR-TC-%")
+            TestCase.display_id.like(search_pattern)
         )
     ).scalar()
     
@@ -22,7 +36,7 @@ def generate_display_id(db: Session) -> str:
     else:
         max_num = 0
         
-    return f"CLR-TC-{max_num + 1:03d}"
+    return f"{prefix}-TC-{max_num + 1:03d}"
 
 
 def create_test_case(db: Session, schema: TestCaseCreate, creator_id: uuid.UUID | None = None) -> TestCase:
@@ -32,7 +46,7 @@ def create_test_case(db: Session, schema: TestCaseCreate, creator_id: uuid.UUID 
         display_id=display_id,
         title=schema.title,
         description=schema.description,
-        module=schema.module,
+        module=normalize_module_name(schema.module),
         type=schema.type,
         severity=schema.severity,
         status=schema.status,
@@ -124,6 +138,9 @@ def update_test_case(db: Session, display_id: str, schema: TestCaseUpdate) -> Te
         
     update_data = schema.model_dump(exclude_unset=True)
     
+    if "module" in update_data:
+        update_data["module"] = normalize_module_name(update_data["module"])
+    
     if "test_steps" in update_data:
         steps_data = update_data.pop("test_steps")
         db.query(TestStep).filter(TestStep.test_case_id == db_tc.id).delete()
@@ -161,3 +178,15 @@ def delete_test_case(db: Session, display_id: str) -> bool:
     db_tc.deleted_at = datetime.now(timezone.utc)
     db.commit()
     return True
+
+def get_all_modules(db: Session) -> list[str]:
+    # Use distinct on normalized module names to avoid duplicates, although now they should be normalized upon creation.
+    # To be safe against old data, we still strip and lower (well, let's just use distinct from python since table size is small, or distinct from DB)
+    rows = db.query(TestCase.module).filter(TestCase.deleted_at.is_(None)).distinct().all()
+    # Normalize the retrieved list to unique, title-cased items
+    modules = set()
+    for row in rows:
+        mod = normalize_module_name(row[0])
+        if mod:
+            modules.add(mod)
+    return sorted(list(modules))

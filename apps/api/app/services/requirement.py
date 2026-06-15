@@ -12,6 +12,14 @@ from app.models.requirement import (
 )
 from app.models.test_case import TestCase
 from app.models.defect import Defect
+from app.models.project import Project
+import re
+
+def normalize_module_name(module_name: str | None) -> str | None:
+    if not module_name:
+        return module_name
+    cleaned = re.sub(r'\s+', ' ', module_name).strip()
+    return cleaned.title()
 
 
 def get_requirements_with_filters(
@@ -86,13 +94,18 @@ def create_requirement_with_validation(
 ) -> Requirement:
     """Create a new requirement with validation."""
     # Generate display_id
-    count = db.scalar(select(func.count(Requirement.id))) or 0
-    display_id = f"REQ-{(count + 1):03d}"
+    project = db.query(Project).filter(Project.deleted_at.is_(None)).first()
+    prefix = project.prefix if project else "REQ"
+    
+    search_pattern = f"{prefix}-%"
+    
+    count = db.scalar(select(func.count(Requirement.id)).where(Requirement.display_id.like(search_pattern))) or 0
+    display_id = f"{prefix}-{(count + 1):03d}"
     
     requirement = Requirement(
         display_id=display_id,
         title=title,
-        module=module,
+        module=normalize_module_name(module),
         type=type,
         priority=priority,
         status="Draft",
@@ -129,6 +142,8 @@ def update_requirement_with_versioning(
     
     # Update fields
     for key, value in updates.items():
+        if key == "module":
+            value = normalize_module_name(value)
         setattr(requirement, key, value)
     
     # Create version record if there are changes
