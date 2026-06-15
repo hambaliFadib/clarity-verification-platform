@@ -36,6 +36,9 @@ export default function CreateRequirementPage() {
       
       if (response.ok) {
         const created = await response.json();
+        if (created?.id?.startsWith("guest-")) {
+          sessionStorage.setItem(`guest-requirement:${created.id}`, JSON.stringify(created));
+        }
         toast.success("Requirement created successfully!");
         router.push(`/requirements/${created.id}`);
       } else {

@@ -29,8 +29,8 @@ class DefectCreate(BaseModel):
     priority: str | None = None
     assigned_to: str | None = None
     reported_by: str | None = None
-    linked_test_case: str | None = None
-    linked_test_run: str | None = None
+    test_case_id: uuid.UUID | None = None
+    test_run_id: uuid.UUID | None = None
     environment: str | None = None
     browser: str | None = None
     steps_to_reproduce: str | None = None
@@ -46,8 +46,8 @@ class DefectUpdate(BaseModel):
     priority: str | None = None
     assigned_to: str | None = None
     reported_by: str | None = None
-    linked_test_case: str | None = None
-    linked_test_run: str | None = None
+    test_case_id: uuid.UUID | None = None
+    test_run_id: uuid.UUID | None = None
     environment: str | None = None
     browser: str | None = None
     steps_to_reproduce: str | None = None
@@ -66,8 +66,8 @@ class DefectResponse(BaseModel):
     priority: str
     assigned_to: str | None = None
     reported_by: str | None = None
-    linked_test_case: str | None = None
-    linked_test_run: str | None = None
+    test_case_id: uuid.UUID | None = None
+    test_run_id: uuid.UUID | None = None
     environment: str | None = None
     browser: str | None = None
     steps_to_reproduce: str | None = None
@@ -91,8 +91,8 @@ class DefectListResponse(BaseModel):
     priority: str
     assigned_to: str | None = None
     reported_by: str | None = None
-    linked_test_case: str | None = None
-    linked_test_run: str | None = None
+    test_case_id: uuid.UUID | None = None
+    test_run_id: uuid.UUID | None = None
     environment: str | None = None
     browser: str | None = None
     tags: list[str] | None = None

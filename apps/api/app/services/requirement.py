@@ -270,13 +270,13 @@ def get_traceability_matrix(
         ).all()
         
         # Get defects linked to those test cases
-        tc_display_ids = [tc.display_id for tc in linked_tcs]
+        tc_ids = [tc.id for tc in linked_tcs]
         linked_defects = []
-        if tc_display_ids:
+        if tc_ids:
             linked_defects = list(
                 db.scalars(
                     select(Defect)
-                    .where(Defect.linked_test_case.in_(tc_display_ids))
+                    .where(Defect.test_case_id.in_(tc_ids))
                 ).all()
             )
         

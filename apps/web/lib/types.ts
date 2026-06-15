@@ -17,6 +17,8 @@ export interface TestStep {
 
 export interface TestCase {
   id: string;
+  realId?: string;
+  displayId?: string;
   title: string;
   description?: string;
   module: string;

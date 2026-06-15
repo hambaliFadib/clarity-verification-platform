@@ -16,10 +16,9 @@ interface AdvancedFilterModalProps {
   onClose: () => void;
   currentFilters: TestCaseAdvancedFilters;
   onApply: (filters: TestCaseAdvancedFilters) => void;
-  availableModules: string[];
 }
 
-export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply, availableModules }: AdvancedFilterModalProps) {
+export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply }: AdvancedFilterModalProps) {
   const [filters, setFilters] = useState<TestCaseAdvancedFilters>(currentFilters);
 
   if (!isOpen) return null;
@@ -56,16 +55,13 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply, 
         <div className="p-5 space-y-4">
           <div>
             <label className={labelClass}>Module</label>
-            <select
+            <input
+              type="text"
+              placeholder="Filter by module..."
               value={filters.module}
               onChange={(e) => setFilters({ ...filters, module: e.target.value })}
               className={selectClass}
-            >
-              <option value="">All</option>
-              {availableModules.map(mod => (
-                <option key={mod} value={mod}>{mod}</option>
-              ))}
-            </select>
+            />
           </div>
 
           <div>

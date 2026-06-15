@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import JSON, DateTime, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
@@ -40,3 +40,5 @@ class TestRun(Base):
         onupdate=lambda: datetime.now(timezone.utc),
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    defects = relationship("Defect", back_populates="test_run", cascade="all, delete-orphan", lazy="selectin")

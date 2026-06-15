@@ -42,6 +42,54 @@ def read_test_case(display_id: str, db: Session = Depends(get_db_session)):
     return item
 
 
+@router.get("/{display_id}/traceability", response_model=dict)
+def get_test_case_traceability(display_id: str, db: Session = Depends(get_db_session)):
+    item = test_case_service.get_test_case_by_id(db, display_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Test case not found")
+        
+    from app.models.requirement import Requirement, RequirementTestCase
+    from app.models.defect import Defect
+    from sqlalchemy import select
+    
+    # Linked Requirements
+    requirements = db.scalars(
+        select(Requirement)
+        .join(RequirementTestCase)
+        .where(RequirementTestCase.test_case_id == item.id)
+    ).all()
+    
+    # Linked Defects
+    defects = db.scalars(
+        select(Defect)
+        .where(Defect.test_case_id == item.id)
+    ).all()
+    
+    # To get Test Runs, we could query TestRunTestCase. But since it's an MVP,
+    # let's return just defects and requirements for now.
+    
+    return {
+        "requirements": [
+            {
+                "id": str(r.id),
+                "displayId": r.display_id,
+                "title": r.title,
+                "status": r.status,
+            } for r in requirements
+        ],
+        "defects": [
+            {
+                "id": str(d.id),
+                "displayId": d.display_id,
+                "title": d.title,
+                "status": d.status,
+                "severity": d.severity,
+            } for d in defects
+        ]
+    }
+
+
+
 @router.patch("/{display_id}", response_model=TestCaseResponse)
 def update_existing_test_case(
     display_id: str,
