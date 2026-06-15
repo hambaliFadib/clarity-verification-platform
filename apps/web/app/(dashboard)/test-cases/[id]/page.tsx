@@ -242,6 +242,8 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
               <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
               <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
+              {tc.environment && <Badge variant="outline">{tc.environment}</Badge>}
+              {tc.automationStatus && <Badge variant="outline">{tc.automationStatus}</Badge>}
           </div>
         </div>
         <div className="flex gap-2">
@@ -303,6 +305,8 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               { label: "Last Modified", value: formatDate(tc.updatedAt) },
               { label: "Estimated Time", value: tc.estimatedTime || "N/A" },
               { label: "Requirement", value: tc.requirementId || "None" },
+              { label: "Environment", value: tc.environment || "N/A" },
+              { label: "Automation Status", value: tc.automationStatus || "N/A" },
             ].map((item) => (
               <div key={item.label} className="bg-white border border-outline-variant rounded-xl p-4">
                 <div className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-1">{item.label}</div>
@@ -310,6 +314,12 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               </div>
             ))}
           </div>
+          {tc.preconditions && (
+            <div className="bg-white border border-outline-variant rounded-xl p-6">
+              <h3 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-3">Preconditions</h3>
+              <p className="text-body-md text-on-surface whitespace-pre-wrap">{tc.preconditions}</p>
+            </div>
+          )}
           {tc.tags && tc.tags.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               <span className="text-label-bold text-outline">Tags:</span>
@@ -318,6 +328,12 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
                   {tag}
                 </Badge>
               ))}
+            </div>
+          )}
+          {tc.notes && (
+            <div className="bg-white border border-outline-variant rounded-xl p-6">
+              <h3 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-3">Notes</h3>
+              <p className="text-body-md text-on-surface whitespace-pre-wrap">{tc.notes}</p>
             </div>
           )}
         </div>
