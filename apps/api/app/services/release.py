@@ -56,26 +56,38 @@ def delete_release(db: Session, release_id: str) -> bool:
 
 
 def get_release_readiness(db: Session) -> list[dict]:
-    modules = [
-        row[0]
-        for row in db.query(TestCase.module)
-        .filter(TestCase.deleted_at.is_(None))
-        .distinct()
-        .order_by(TestCase.module.asc())
-        .all()
-    ]
+    # Group test cases by normalized module name
+    test_cases = db.query(TestCase.id, TestCase.module, TestCase.status).filter(TestCase.deleted_at.is_(None)).all()
+    
+    module_groups = {}
+    for tc in test_cases:
+        mod_name = tc.module.strip() if tc.module else "General"
+        mod_key = mod_name.lower()
+        
+        if mod_key not in module_groups:
+            module_groups[mod_key] = {
+                "display_name": mod_name,
+                "test_ids": [],
+                "passed_count": 0,
+                "total_count": 0
+            }
+            
+        group = module_groups[mod_key]
+        group["test_ids"].append(tc.id)
+        group["total_count"] += 1
+        if tc.status in {"Approved", "Ready"}:
+            group["passed_count"] += 1
+
     today = date.today()
     start_date = today.replace(day=1)
     target_date = today + timedelta(days=30)
     readiness = []
 
-    for index, module in enumerate(modules):
-        module_tests = db.query(TestCase).filter(
-            TestCase.module == module,
-            TestCase.deleted_at.is_(None),
-        ).all()
-        test_ids = [item.id for item in module_tests]
-        passed_tests = sum(1 for item in module_tests if item.status in {"Approved", "Ready"})
+    for index, (mod_key, group) in enumerate(module_groups.items()):
+        test_ids = group["test_ids"]
+        passed_tests = group["passed_count"]
+        module = group["display_name"]
+        total_tests = group["total_count"]
 
         defect_query = db.query(Defect).filter(Defect.deleted_at.is_(None))
         if test_ids:
@@ -86,8 +98,9 @@ def get_release_readiness(db: Session) -> list[dict]:
 
         open_defects = sum(1 for item in module_defects if item.status in {"Open", "In Progress", "Blocked", "Reopened"})
         critical_defects = sum(1 for item in module_defects if item.severity == "Critical")
+        
         status = "Planning"
-        if module_tests and passed_tests == len(module_tests):
+        if total_tests > 0 and passed_tests == total_tests:
             status = "Released"
         elif passed_tests > 0:
             status = "In Progress"
@@ -102,7 +115,7 @@ def get_release_readiness(db: Session) -> list[dict]:
                 "target_date": target_date,
                 "release_date": None,
                 "description": f"Aggregated release readiness for the {module} module based on current test cases.",
-                "total_test_cases": len(module_tests),
+                "total_test_cases": total_tests,
                 "passed_test_cases": passed_tests,
                 "total_defects": len(module_defects),
                 "open_defects": open_defects,

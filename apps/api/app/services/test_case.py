@@ -74,6 +74,7 @@ def get_test_cases(
     status: str | None = None,
     severity: str | None = None,
     type_filter: str | None = None,
+    module: str | None = None,
 ) -> tuple[list[TestCase], int]:
     query = db.query(TestCase).filter(TestCase.deleted_at.is_(None))
     
@@ -95,6 +96,9 @@ def get_test_cases(
         
     if type_filter:
         query = query.filter(TestCase.type.ilike(type_filter))
+        
+    if module:
+        query = query.filter(func.trim(func.lower(TestCase.module)) == module.strip().lower())
         
     total = query.count()
     items = query.order_by(TestCase.updated_at.desc()).offset(skip).limit(limit).all()
