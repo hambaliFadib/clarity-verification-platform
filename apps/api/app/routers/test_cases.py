@@ -26,6 +26,9 @@ def read_test_cases(
     response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
     return items
 
+@router.get("/modules", response_model=list[str])
+def get_test_case_modules(db: Session = Depends(get_db_session)):
+    return test_case_service.get_all_modules(db)
 
 @router.post("", response_model=TestCaseResponse, status_code=status.HTTP_201_CREATED)
 def create_new_test_case(
