@@ -50,7 +50,10 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
         setLinkedTestCases(data.linkedTestCase ? [data.linkedTestCase] : []);
       }
       if (usersResponse.ok) setTeamMembers(await usersResponse.json());
-      if (testCasesResponse.ok) setTestCases(await testCasesResponse.json());
+      if (testCasesResponse.ok) {
+        const tcData = await testCasesResponse.json();
+        setTestCases(Array.isArray(tcData) ? tcData : tcData.items || []);
+      }
       setIsLoading(false);
     }
 

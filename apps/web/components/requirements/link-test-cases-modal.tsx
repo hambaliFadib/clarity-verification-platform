@@ -57,7 +57,8 @@ export function LinkTestCasesModal({
     try {
       const response = await fetch("/api/test-cases");
       if (response.ok) {
-        setTestCases(await response.json());
+        const data = await response.json();
+        setTestCases(Array.isArray(data) ? data : data.items || []);
       }
     } catch (error) {
       console.error("Failed to fetch test cases", error);

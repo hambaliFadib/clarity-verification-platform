@@ -11,20 +11,10 @@ export async function GET(request: Request) {
     const ctx = await getRequestContext();
     if (isGuestContext(ctx)) {
       const items = guestTestCases();
-      return NextResponse.json(items, {
-        headers: {
-          "X-Total-Count": String(items.length),
-          "Access-Control-Expose-Headers": "X-Total-Count",
-        },
-      });
+      return NextResponse.json({ items, total: items.length });
     }
     const { items, total } = await listTestCases(searchParams, ctx);
-    return NextResponse.json(items, {
-      headers: {
-        "X-Total-Count": String(total),
-        "Access-Control-Expose-Headers": "X-Total-Count",
-      },
-    });
+    return NextResponse.json({ items, total });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

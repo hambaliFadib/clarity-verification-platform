@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { SearchFilter } from "@/components/ui/search-filter";
 import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Upload } from "lucide-react";
+import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Upload, Loader2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
   testCaseSeverityBadgeVariants,
@@ -24,6 +24,7 @@ import {
 import { ImportReviewModal } from "@/components/test-cases/import-review-modal";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 import { AlertModal } from "@/components/ui/alert-modal";
+import { useInfiniteTestCases } from "@/hooks/use-infinite-test-cases";
 
 function TestCasesLoading() {
   return (
@@ -34,11 +35,18 @@ function TestCasesLoading() {
   );
 }
 
+interface TestCaseSummary {
+  total: number;
+  approved: number;
+  draft: number;
+  ready: number;
+  inReview: number;
+  hasFailures: number;
+}
+
 function TestCasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [allCases, setAllCases] = useState<TestCase[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeStatus, setActiveStatus] = useState("all");
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
@@ -56,6 +64,71 @@ function TestCasesContent() {
   const [isParseResultOpen, setIsParseResultOpen] = useState(false);
   const [parseResult, setParseResult] = useState<any>(null);
 
+  // KPI summary from dedicated endpoint
+  const [summary, setSummary] = useState<TestCaseSummary>({
+    total: 0,
+    approved: 0,
+    draft: 0,
+    ready: 0,
+    inReview: 0,
+    hasFailures: 0,
+  });
+
+  // Advanced filters
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<TestCaseAdvancedFilters>({
+    module: "",
+    type: "",
+    severity: "",
+    tags: "",
+  });
+
+  // Infinite scroll hook
+  const {
+    items,
+    total,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    refresh,
+    sentinelRef,
+  } = useInfiniteTestCases({
+    search,
+    status: activeStatus,
+    module: advancedFilters.module || undefined,
+    type: advancedFilters.type || undefined,
+    severity: advancedFilters.severity || undefined,
+    tags: advancedFilters.tags || undefined,
+  });
+
+  // Fetch KPI summary
+  useEffect(() => {
+    async function loadSummary() {
+      try {
+        const res = await fetch("/api/test-cases/summary");
+        if (res.ok) {
+          const data = await res.json();
+          setSummary(data);
+        }
+      } catch (err) {
+        console.error("Failed to load summary:", err);
+      }
+    }
+    loadSummary();
+  }, []);
+
+  // Refresh summary after import or delete
+  const refreshSummary = async () => {
+    try {
+      const res = await fetch("/api/test-cases/summary");
+      if (res.ok) {
+        setSummary(await res.json());
+      }
+    } catch (err) {
+      console.error("Failed to refresh summary:", err);
+    }
+  };
+
   useEffect(() => {
     const toastType = searchParams.get("toast");
     if (toastType === "deleted") {
@@ -65,27 +138,12 @@ function TestCasesContent() {
         message: "The test case was deleted successfully.",
         type: "success",
       });
+      refreshSummary();
+      refresh();
       const newUrl = window.location.pathname;
       window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
     }
-  }, [searchParams]);
-
-  useEffect(() => {
-    async function loadTestCases() {
-      try {
-        const res = await fetch("/api/test-cases");
-        if (res.ok) {
-          const data = await res.json();
-          setAllCases(data);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadTestCases();
-  }, []);
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleImportComplete(result: { created: number; skipped: number; overwritten: number; errors: any[] }) {
     setIsParseResultOpen(false);
@@ -104,60 +162,19 @@ function TestCasesContent() {
         : `Import successful — ${parts.join(", ")}.`,
       type: isError ? "warning" : "success"
     });
-    async function reload() {
-      const res = await fetch("/api/test-cases");
-      if (res.ok) setAllCases(await res.json());
-    }
-    reload();
+    refresh();
+    refreshSummary();
   }
 
-  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
-  const [advancedFilters, setAdvancedFilters] = useState<TestCaseAdvancedFilters>({
-    module: "",
-    type: "",
-    severity: "",
-    tags: "",
-  });
-
-  const availableModules = Array.from(new Set(allCases.map(tc => tc.module)));
-
-  const totalCount = allCases.length;
-  const approvedCount = allCases.filter((tc) => tc.status === "Approved").length;
-  const failedCount = allCases.filter((tc) => tc.steps?.some((s) => s.status === "Failed")).length;
-  const reviewCount = allCases.filter((tc) => tc.status === "In Review" || tc.status === "Draft").length;
-
-  const filteredCases = allCases.filter((tc) => {
-    const matchesSearch =
-      tc.title.toLowerCase().includes(search.toLowerCase()) ||
-      tc.module.toLowerCase().includes(search.toLowerCase()) ||
-      tc.id.toLowerCase().includes(search.toLowerCase());
-
-    const matchesStatus =
-      activeStatus === "all" ||
-      tc.status.toLowerCase() === activeStatus.replace(/-/g, " ").toLowerCase();
-
-    const matchesModule = !advancedFilters.module || tc.module === advancedFilters.module;
-    const matchesType = !advancedFilters.type || tc.type === advancedFilters.type;
-    const matchesSeverity = !advancedFilters.severity || tc.severity === advancedFilters.severity;
-    
-    let matchesTags = true;
-    if (advancedFilters.tags) {
-      const q = advancedFilters.tags.toLowerCase();
-      matchesTags = !!tc.tags && tc.tags.some(tag => tag.toLowerCase().includes(q));
-    }
-
-    return matchesSearch && matchesStatus && matchesModule && matchesType && matchesSeverity && matchesTags;
-  });
-
   const statusTabs = [
-    { label: "All", count: totalCount, value: "all" },
-    { label: "Draft", count: allCases.filter((t) => t.status === "Draft").length, value: "draft" },
-    { label: "Ready", count: allCases.filter((t) => t.status === "Ready").length, value: "ready" },
-    { label: "In Review", count: allCases.filter((t) => t.status === "In Review").length, value: "in-review" },
-    { label: "Approved", count: approvedCount, value: "approved" },
+    { label: "All", count: summary.total, value: "all" },
+    { label: "Draft", count: summary.draft, value: "draft" },
+    { label: "Ready", count: summary.ready, value: "ready" },
+    { label: "In Review", count: summary.inReview, value: "in-review" },
+    { label: "Approved", count: summary.approved, value: "approved" },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return <TestCasesLoading />;
   }
 
@@ -195,10 +212,10 @@ function TestCasesContent() {
         />
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <KpiCard label="Total" value={totalCount} icon={FlaskConical} />
+          <KpiCard label="Total" value={summary.total} icon={FlaskConical} />
           <KpiCard
             label="Approved"
-            value={approvedCount}
+            value={summary.approved}
             icon={CheckCircle2}
             valueColor="text-emerald-600"
             iconColor="text-emerald-600"
@@ -206,7 +223,7 @@ function TestCasesContent() {
           />
           <KpiCard
             label="Has Failures"
-            value={failedCount}
+            value={summary.hasFailures}
             icon={XCircle}
             valueColor="text-error"
             iconColor="text-error"
@@ -214,7 +231,7 @@ function TestCasesContent() {
           />
           <KpiCard
             label="In Review / Draft"
-            value={reviewCount}
+            value={summary.inReview + summary.draft}
             icon={Clock}
             valueColor="text-amber-600"
             iconColor="text-amber-600"
@@ -245,7 +262,7 @@ function TestCasesContent() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50">
-              {filteredCases.map((tc) => (
+              {items.map((tc) => (
                 <tr
                   key={tc.id}
                   role="link"
@@ -281,8 +298,20 @@ function TestCasesContent() {
           </table>
         </div>
 
+        {/* Sentinel element for infinite scroll */}
+        {hasMore && (
+          <div ref={sentinelRef} className="flex items-center justify-center py-4">
+            {isLoadingMore && (
+              <div className="flex items-center gap-2 text-outline">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-body-sm">Loading more test cases...</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="text-body-sm text-on-surface-variant">
-          Showing {filteredCases.length} of {totalCount} test cases
+          Showing {items.length} of {total} test cases
         </div>
       </div>
 
@@ -291,7 +320,7 @@ function TestCasesContent() {
         onClose={() => setIsAdvancedFilterOpen(false)}
         currentFilters={advancedFilters}
         onApply={setAdvancedFilters}
-        availableModules={availableModules}
+        availableModules={Array.from(new Set(items.map(tc => tc.module)))}
       />
 
       <ImportReviewModal
@@ -316,7 +345,7 @@ function TestCasesContent() {
             type: "error",
           });
         }}
-        totalCount={totalCount}
+        totalCount={summary.total}
       />
     </>
   );
