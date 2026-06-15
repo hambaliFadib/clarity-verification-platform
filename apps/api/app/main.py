@@ -18,6 +18,8 @@ from app.routers.rbac import router as rbac_router
 from app.routers.ai_analysis import router as ai_analysis_router
 from app.routers.approval_gate import router as approval_gate_router
 from app.routers.analytics import router as analytics_router
+from app.routers.cicd_integration import router as cicd_integration_router
+from app.routers.auto_test_generation import router as auto_test_generation_router
 
 
 app = FastAPI(
@@ -53,3 +55,5 @@ app.include_router(rbac_router, prefix="/api/v1")
 app.include_router(ai_analysis_router, prefix="/api/v1")
 app.include_router(approval_gate_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
+app.include_router(cicd_integration_router, prefix="/api/v1")
+app.include_router(auto_test_generation_router, prefix="/api/v1")
