@@ -35,5 +35,18 @@ class GateResponse(BaseModel):
     ai_confidence: int | None = None
     created_at: datetime
     updated_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AuditTrailResponse(BaseModel):
+    id: uuid.UUID
+    action: str
+    entity_type: str
+    entity_id: uuid.UUID
+    user_id: uuid.UUID
+    old_value: dict | None = None
+    new_value: dict | None = None
+    audit_metadata: dict | None = None
+    created_at: datetime
     
     model_config = ConfigDict(from_attributes=True)
