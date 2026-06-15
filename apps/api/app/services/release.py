@@ -74,12 +74,12 @@ def get_release_readiness(db: Session) -> list[dict]:
             TestCase.module == module,
             TestCase.deleted_at.is_(None),
         ).all()
-        test_ids = [item.display_id for item in module_tests]
+        test_ids = [item.id for item in module_tests]
         passed_tests = sum(1 for item in module_tests if item.status in {"Approved", "Ready"})
 
         defect_query = db.query(Defect).filter(Defect.deleted_at.is_(None))
         if test_ids:
-            defect_query = defect_query.filter(Defect.linked_test_case.in_(test_ids))
+            defect_query = defect_query.filter(Defect.test_case_id.in_(test_ids))
         else:
             defect_query = defect_query.filter(false())
         module_defects = defect_query.all()

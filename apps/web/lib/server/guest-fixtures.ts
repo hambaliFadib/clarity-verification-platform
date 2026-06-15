@@ -12,6 +12,30 @@ import type {
   WorkItem,
 } from "@/lib/types";
 
+type GuestMutations = {
+  requirements: Record<string, Partial<Requirement>>;
+  testCases: Record<string, Partial<TestCase>>;
+  defects: Record<string, Partial<Defect>>;
+  testRuns: Record<string, Partial<TestRun>>;
+  requirementTestCases: Record<string, string[]>;
+};
+
+export const globalGuestStore: GuestMutations = {
+  requirements: {},
+  testCases: {},
+  defects: {},
+  testRuns: {},
+  requirementTestCases: {},
+};
+
+export function clearGuestStore() {
+  globalGuestStore.requirements = {};
+  globalGuestStore.testCases = {};
+  globalGuestStore.defects = {};
+  globalGuestStore.testRuns = {};
+  globalGuestStore.requirementTestCases = {};
+}
+
 const now = "2026-06-12T00:00:00.000Z";
 
 const guestUser: TeamMember = {
@@ -64,7 +88,7 @@ export function guestEnvironments(): Environment[] {
 }
 
 export function guestTestCases(): TestCase[] {
-  return [
+  const base = [
     {
       id: "GUEST-TC-001",
       title: "Verify login with valid credentials",
@@ -109,11 +133,17 @@ export function guestTestCases(): TestCase[] {
         { id: "guest-step-3", stepNumber: 1, order: 1, action: "Open a failed test result", expectedResult: "Failure details are visible", status: "Not Run" },
       ],
     },
-  ];
+  ] as TestCase[];
+  
+  return base.map(tc => ({
+    ...tc,
+    ...globalGuestStore.testCases[tc.id],
+    ...globalGuestStore.testCases[tc.displayId || tc.id]
+  }));
 }
 
 export function guestRequirements(): Requirement[] {
-  return [
+  const base = [
     {
       id: "GUEST-REQ-001",
       displayId: "GUEST-REQ-001",
@@ -129,11 +159,17 @@ export function guestRequirements(): Requirement[] {
       createdAt: now,
       updatedAt: now,
     },
-  ];
+  ] as Requirement[];
+  
+  return base.map(req => ({
+    ...req,
+    ...globalGuestStore.requirements[req.id],
+    ...globalGuestStore.requirements[req.displayId!]
+  }));
 }
 
 export function guestDefects(): Defect[] {
-  return [{
+  const base = [{
     id: "GUEST-DEF-001",
     title: "Sample visual issue in guest workspace",
     description: "Guest-only defect data. This is never loaded from NeonDB.",
@@ -151,11 +187,17 @@ export function guestDefects(): Defect[] {
     updatedAt: now,
     tags: ["guest", "sample"],
     comments: [],
-  }];
+  }] as Defect[];
+  
+  return base.map(def => ({
+    ...def,
+    ...globalGuestStore.defects[def.id],
+    ...globalGuestStore.defects[(def as any).displayId || def.id]
+  }));
 }
 
 export function guestTestRuns(): TestRun[] {
-  return [{
+  const base = [{
     id: "GUEST-RUN-001",
     displayId: "GUEST-RUN-001",
     name: "Guest Smoke Run",
@@ -171,7 +213,13 @@ export function guestTestRuns(): TestRun[] {
     blocked: 0,
     notRun: 2,
     createdAt: now,
-  }];
+  }] as TestRun[];
+  
+  return base.map(run => ({
+    ...run,
+    ...globalGuestStore.testRuns[run.id],
+    ...globalGuestStore.testRuns[run.displayId || run.id]
+  }));
 }
 
 export function guestWorkItems(): WorkItem[] {

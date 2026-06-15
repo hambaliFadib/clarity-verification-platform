@@ -320,7 +320,6 @@ function TestCasesContent() {
         onClose={() => setIsAdvancedFilterOpen(false)}
         currentFilters={advancedFilters}
         onApply={setAdvancedFilters}
-        availableModules={Array.from(new Set(items.map(tc => tc.module)))}
       />
 
       <ImportReviewModal

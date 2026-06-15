@@ -32,7 +32,9 @@ import { DeleteConfirmModal } from "@/components/test-cases/delete-confirm-modal
 import { AlertModal } from "@/components/ui/alert-modal";
 import { ExecutionRunner } from "@/components/test-runs/execution-runner";
 
-const tabs = ["Details", "Steps", "Defects"];
+import { TCTraceabilityMatrix } from "@/components/test-cases/tc-traceability-matrix";
+
+const tabs = ["Details", "Steps", "Traceability"];
 
 const stepStatusIcon: Record<string, ReactNode> = {
   Passed: <CheckCircle2 className="h-4 w-4 text-emerald-600" />,
@@ -433,33 +435,9 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      {activeTab === "Defects" && (
-        <div className="space-y-3 animate-fade-in">
-          {linkedDefects.length === 0 ? (
-            <div className="bg-white border border-outline-variant rounded-xl p-8 text-center">
-              <p className="text-body-md text-on-surface-variant">No defects linked to this test case.</p>
-            </div>
-          ) : (
-            linkedDefects.map((d) => (
-              <Link
-                key={d.id}
-                href={`/defects/${d.id}`}
-                className="block bg-white border border-outline-variant rounded-xl p-4 hover:shadow-card hover:border-primary/30 transition-all"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <div className="flex gap-2">
-                      <Badge variant={severityBadgeVariants[d.severity]}>{d.severity}</Badge>
-                      <Badge variant={getDefectStatusBadgeVariant(d.status)}>{d.status}</Badge>
-                    </div>
-                    <h4 className="text-body-md font-medium text-on-surface">{d.title}</h4>
-                    <p className="text-body-sm text-on-surface-variant">Reported by {d.reportedBy}</p>
-                  </div>
-                  <span className="text-[11px] text-outline">{formatDate(d.createdAt)}</span>
-                </div>
-              </Link>
-            ))
-          )}
+      {activeTab === "Traceability" && (
+        <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle animate-fade-in">
+          <TCTraceabilityMatrix testCase={tc} />
         </div>
       )}
 

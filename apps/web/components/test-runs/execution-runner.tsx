@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Play, Check, X, SkipForward, Camera } from "lucide-react";
+import { Play, Check, X, SkipForward, Camera, Bug } from "lucide-react";
+import { ReportDefectModal } from "@/components/defects/report-defect-modal";
+import type { Defect } from "@/lib/types";
 
 interface ExecutionRunnerProps {
   isOpen: boolean;
@@ -18,6 +20,7 @@ interface ExecutionRunnerProps {
 
 export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: ExecutionRunnerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isDefectModalOpen, setIsDefectModalOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +47,13 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
     onClose();
   };
 
+  const handleLogDefect = async (defect: Defect) => {
+    // In a real app, we'd post this to the API
+    console.log("Logged defect:", defect);
+    // Optionally automatically fail the test case when a defect is logged
+    handleStatus("Failed");
+  };
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
       <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md" onClick={onClose} />
@@ -68,6 +78,10 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
               </Button>
               <Button variant="outline" onClick={() => handleStatus("Skipped")}>
                 <SkipForward className="h-4 w-4" /> Skip
+              </Button>
+              <div className="w-px h-6 bg-outline-variant mx-1 self-center" />
+              <Button variant="secondary" className="text-error hover:bg-error/10" onClick={() => setIsDefectModalOpen(true)}>
+                <Bug className="h-4 w-4" /> Log Defect
               </Button>
             </div>
           </div>
@@ -120,6 +134,20 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
           </Button>
         </div>
       </div>
+
+      <ReportDefectModal
+        isOpen={isDefectModalOpen}
+        onClose={() => setIsDefectModalOpen(false)}
+        onSubmit={handleLogDefect}
+        initialData={{
+          title: `Failure in ${currentCase?.title}`,
+          description: `Failed at step ${currentIndex + 1}\n\nSteps:\n${currentCase?.steps?.map((s, i) => `${i+1}. ${s.action}`).join('\n')}`,
+          type: "Bug",
+          status: "Open",
+          severity: "High",
+          linkedTestCase: currentCase?.id,
+        } as unknown as Defect}
+      />
     </div>
   );
 }

@@ -158,6 +158,8 @@ For production NeonDB setup, Singapore region selection, and cleanup steps, see 
 
 For phase release scope and continuation planning, see [docs/phase-roadmap.md](docs/phase-roadmap.md).
 
+For AI-agent handover context, operating rules, common pitfalls, and continuation prompts, see [docs/ai-agent-handover.md](docs/ai-agent-handover.md).
+
 ## Git Branching Strategy
 
 ```text
