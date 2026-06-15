@@ -241,8 +241,14 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   if (module) filters.push(`regexp_replace(trim(tc.module), '\\s+', ' ', 'g') ilike ${addValue(module)}`);
   const tags = searchParams.get("tags");
   if (tags) {
-    const tagPlaceholder = addValue(`%${tags}%`);
-    filters.push(`array_to_string(tc.tags, ',') ilike ${tagPlaceholder}`);
+    const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+    if (tagsArray.length > 0) {
+      const tagConditions = tagsArray.map(tag => {
+        const tagPlaceholder = addValue(`%${tag}%`);
+        return `EXISTS (SELECT 1 FROM unnest(tc.tags) t WHERE t ilike ${tagPlaceholder})`;
+      });
+      filters.push(`(${tagConditions.join(' OR ')})`);
+    }
   }
 
   const whereSql = filters.join(" and ");
@@ -549,6 +555,17 @@ export async function listDefects(searchParams: URLSearchParams, ctx?: ProjectAc
   if (type) filters.push(`type ilike ${addValue(type)}`);
   const priority = searchParams.get("priority");
   if (priority) filters.push(`priority ilike ${addValue(priority)}`);
+  const tags = searchParams.get("tags");
+  if (tags) {
+    const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
+    if (tagsArray.length > 0) {
+      const tagConditions = tagsArray.map(tag => {
+        const tagPlaceholder = addValue(`%${tag}%`);
+        return `EXISTS (SELECT 1 FROM unnest(tags) t WHERE t ilike ${tagPlaceholder})`;
+      });
+      filters.push(`(${tagConditions.join(' OR ')})`);
+    }
+  }
 
   const whereSql = filters.join(" and ");
   const count = await query<{ total: string }>(`select count(*) as total from defects where ${whereSql}`, values);
