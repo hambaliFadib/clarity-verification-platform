@@ -224,18 +224,25 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   if (severity) filters.push(`tc.severity ilike ${addValue(severity)}`);
   const type = searchParams.get("type");
   if (type) filters.push(`tc.type ilike ${addValue(type)}`);
+  const module = searchParams.get("module");
+  if (module) filters.push(`tc.module ilike ${addValue(module)}`);
+  const tags = searchParams.get("tags");
+  if (tags) {
+    const tagPlaceholder = addValue(`%${tags}%`);
+    filters.push(`array_to_string(tc.tags, ',') ilike ${tagPlaceholder}`);
+  }
 
   const whereSql = filters.join(" and ");
   const count = await query<{ total: string }>(`select count(*) as total from test_cases tc where ${whereSql}`, values);
   const offset = addValue(toInt(searchParams.get("skip"), 0));
-  const limit = addValue(toInt(searchParams.get("limit"), 100));
+  const limit = addValue(toInt(searchParams.get("limit"), 50));
   const result = await query(
     `select tc.*, assignee.name as assigned_to_name, creator.name as created_by_name
      from test_cases tc
      left join users assignee on assignee.id = tc.assigned_to
      left join users creator on creator.id = tc.created_by
      where ${whereSql}
-     order by tc.updated_at desc
+     order by coalesce(cast(nullif(substring(tc.display_id from 'TC-([0-9]+)$'), '') as integer), 999999) asc, tc.created_at asc
      offset ${offset} limit ${limit}`,
     values,
   );
@@ -243,6 +250,51 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   return {
     items: result.rows.map((row: any) => mapTestCase(row, steps.get(row.id) || [])),
     total: Number(count.rows[0]?.total || 0),
+  };
+}
+
+export async function getTestCaseSummary(ctx?: ProjectAccessContext) {
+  const filters = ["tc.deleted_at is null"];
+  const values: unknown[] = [];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "tc.project_id");
+  const whereSql = filters.join(" and ");
+
+  const result = await query<{
+    total: string;
+    approved: string;
+    draft: string;
+    ready: string;
+    in_review: string;
+  }>(
+    `select
+       count(*) as total,
+       count(*) filter (where tc.status = 'Approved') as approved,
+       count(*) filter (where tc.status = 'Draft') as draft,
+       count(*) filter (where tc.status = 'Ready') as ready,
+       count(*) filter (where tc.status = 'In Review') as in_review
+     from test_cases tc
+     where ${whereSql}`,
+    values,
+  );
+
+  // Count cases that have at least one failed step
+  const failedResult = await query<{ has_failures: string }>(
+    `select count(distinct tc.id) as has_failures
+     from test_cases tc
+     inner join test_steps ts on ts.test_case_id = tc.id and ts.status = 'Failed'
+     where ${whereSql}`,
+    values,
+  );
+
+  const row = result.rows[0];
+  return {
+    total: Number(row?.total || 0),
+    approved: Number(row?.approved || 0),
+    draft: Number(row?.draft || 0),
+    ready: Number(row?.ready || 0),
+    inReview: Number(row?.in_review || 0),
+    hasFailures: Number(failedResult.rows[0]?.has_failures || 0),
   };
 }
 

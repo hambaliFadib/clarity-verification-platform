@@ -100,7 +100,10 @@ export function CreateWorkItemModal({
             fetch("/api/test-cases"),
             fetch("/api/defects")
           ]);
-          if (tcRes.ok) setTestCases(await tcRes.json());
+          if (tcRes.ok) {
+            const tcData = await tcRes.json();
+            setTestCases(Array.isArray(tcData) ? tcData : tcData.items || []);
+          }
           if (defRes.ok) setDefects(await defRes.json());
         } catch (error) {
           console.error("Failed to load related data", error);
