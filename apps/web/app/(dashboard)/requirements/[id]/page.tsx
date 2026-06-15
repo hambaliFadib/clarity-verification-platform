@@ -13,6 +13,27 @@ import { LinkTestCasesModal } from "@/components/requirements/link-test-cases-mo
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import type { Requirement } from "@/lib/types";
 
+type LinkedTestCase = {
+  id: string;
+  realId?: string;
+  displayId?: string;
+  title: string;
+  module?: string;
+  severity?: string;
+  status: string;
+  type?: string;
+};
+
+function readStoredGuestRequirement(id: string) {
+  try {
+    const stored = sessionStorage.getItem(`guest-requirement:${id}`);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    sessionStorage.removeItem(`guest-requirement:${id}`);
+    return null;
+  }
+}
+
 function requirementStatusVariant(status: Requirement["status"]): BadgeVariant {
   if (status === "In Review") return "in-review";
   if (status === "Baseline") return "approved";
@@ -24,14 +45,20 @@ export default function RequirementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [requirement, setRequirement] = useState<Requirement | null>(null);
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
-  const [linkedTestCases, setLinkedTestCases] = useState<{ id: string }[]>([]);
+  const [linkedTestCases, setLinkedTestCases] = useState<LinkedTestCase[] | null>(null);
 
   useEffect(() => {
     async function loadReq() {
       try {
+        const storedRequirement = readStoredGuestRequirement(id);
+        if (storedRequirement) {
+          setRequirement(storedRequirement);
+        }
+
         const response = await fetch(`/api/requirements/${id}`);
         if (response.ok) {
-          setRequirement(await response.json());
+          const loaded = await response.json();
+          setRequirement(storedRequirement ? { ...loaded, ...storedRequirement } : loaded);
         }
         
         const tcResponse = await fetch(`/api/requirements/${id}/test-cases`);
@@ -82,9 +109,9 @@ export default function RequirementDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        <div className="md:col-span-2 flex flex-col gap-6">
+          <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle space-y-4 shrink-0">
             <div>
               <h3 className="text-body-lg font-semibold mb-2">Description</h3>
               <p className="text-on-surface-variant whitespace-pre-wrap">
@@ -105,37 +132,40 @@ export default function RequirementDetailPage() {
             </div>
           </div>
 
-          <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle">
-            <TraceabilityMatrix requirement={requirement} />
+          <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle flex-1 flex flex-col">
+            <TraceabilityMatrix requirement={requirement} linkedTestCasesOverride={linkedTestCases || undefined} />
           </div>
         </div>
 
-        <div className="space-y-6">
-          <RequirementSidebar requirement={requirement} />
+        <div className="flex flex-col gap-6">
+          <div className="shrink-0">
+            <RequirementSidebar requirement={requirement} />
+          </div>
 
-          <AIAnalysisPanel
-            requirementId={id as string}
-            title={requirement.title}
-            description={requirement.description}
-            acceptanceCriteria={requirement.acceptanceCriteria}
-            businessRules={requirement.businessRules}
-            module={requirement.module}
-            type={requirement.type}
-            priority={requirement.priority}
-          />
+          <div className="shrink-0">
+            <AIAnalysisPanel
+              requirementId={id as string}
+              title={requirement.title}
+              description={requirement.description}
+              acceptanceCriteria={requirement.acceptanceCriteria}
+              businessRules={requirement.businessRules}
+              module={requirement.module}
+              type={requirement.type}
+              priority={requirement.priority}
+            />
+          </div>
 
-          <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle">
+          <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle flex-1 flex flex-col">
             <RequirementComments requirementId={id as string} />
           </div>
         </div>
       </div>
 
-
       <LinkTestCasesModal
         isOpen={isLinkModalOpen}
         onClose={() => setIsLinkModalOpen(false)}
         requirementId={id as string}
-        linkedTestCaseIds={linkedTestCases.map(tc => tc.id)}
+        linkedTestCaseIds={(linkedTestCases || []).map(tc => tc.id)}
         onLink={async (tcId) => {
           const res = await fetch(`/api/requirements/${id}/test-cases`, {
             method: "POST",
@@ -143,15 +173,26 @@ export default function RequirementDetailPage() {
             body: JSON.stringify({ testCaseId: tcId }),
           });
           if (res.ok) {
-            setLinkedTestCases([...linkedTestCases, { id: tcId }]);
+            const payload = await res.json().catch(() => ({}));
+            const testCase = payload.testCase || {
+              id: tcId,
+              displayId: tcId,
+              title: tcId,
+              status: "Ready",
+            };
+            setLinkedTestCases((current) =>
+              (current || []).some((tc) => tc.id === tcId || tc.displayId === tcId)
+                ? current
+                : [...(current || []), testCase],
+            );
           }
         }}
         onUnlink={async (tcId) => {
-          const res = await fetch(`/api/requirements/${id}/test-cases?testCaseId=${tcId}`, {
+          const res = await fetch(`/api/requirements/${id}/test-cases?testCaseId=${encodeURIComponent(tcId)}`, {
             method: "DELETE",
           });
           if (res.ok) {
-            setLinkedTestCases(linkedTestCases.filter((tc) => tc.id !== tcId));
+            setLinkedTestCases((current) => (current || []).filter((tc) => tc.id !== tcId && tc.displayId !== tcId));
           }
         }}
       />

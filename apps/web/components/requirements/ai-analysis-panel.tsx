@@ -138,7 +138,7 @@ export function AIAnalysisPanel({
       )}
 
       {analysis && !isLoading && (
-        <div className="space-y-6">
+        <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
           {/* Score Circle */}
           <div className="flex flex-col items-center">
             <div className="relative">

@@ -97,6 +97,14 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
+  events: {
+    async signOut({ token }) {
+      if (token?.isGuest) {
+        const { clearGuestStore } = await import("@/lib/server/guest-fixtures");
+        clearGuestStore();
+      }
+    },
+  },
   pages: {
     signIn: "/login",
   },
