@@ -20,6 +20,11 @@ from app.routers.approval_gate import router as approval_gate_router
 from app.routers.analytics import router as analytics_router
 from app.routers.cicd_integration import router as cicd_integration_router
 from app.routers.auto_test_generation import router as auto_test_generation_router
+from app.routers.predictive_analytics import router as predictive_analytics_router
+from app.routers.reports import router as reports_router
+from app.routers.multi_project import router as multi_project_router
+from app.routers.resource_optimization import router as resource_optimization_router
+from app.routers.compliance import router as compliance_router
 
 
 app = FastAPI(
@@ -57,3 +62,8 @@ app.include_router(approval_gate_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(cicd_integration_router, prefix="/api/v1")
 app.include_router(auto_test_generation_router, prefix="/api/v1")
+app.include_router(predictive_analytics_router, prefix="/api/v1")
+app.include_router(reports_router, prefix="/api/v1")
+app.include_router(multi_project_router, prefix="/api/v1")
+app.include_router(resource_optimization_router, prefix="/api/v1")
+app.include_router(compliance_router, prefix="/api/v1")
