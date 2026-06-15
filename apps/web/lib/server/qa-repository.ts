@@ -15,6 +15,19 @@ function stringArray(value: unknown) {
   return Array.isArray(value) ? value.filter(Boolean) : null;
 }
 
+function normalizeModuleName(moduleName: string | null | undefined) {
+  if (!moduleName) return null;
+  const cleaned = moduleName.replace(/\s+/g, ' ').trim();
+  if (!cleaned) return null;
+  return cleaned.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+}
+
+async function getProjectPrefix(client: DbClient, projectId: string | null) {
+  if (!projectId) return "CLR";
+  const result = await client.query<{ prefix: string }>("select prefix from projects where id = $1 and deleted_at is null", [projectId]);
+  return result.rows[0]?.prefix || "CLR";
+}
+
 function isUuid(value: unknown) {
   return typeof value === "string"
     && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -253,6 +266,23 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   };
 }
 
+export async function getTestCaseModules(ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return [];
+  const result = await query<{ module: string }>(
+    `select distinct module from test_cases
+     where deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}`,
+    projectIds === null ? [] : [projectIds],
+  );
+  const modules = new Set<string>();
+  for (const row of result.rows) {
+    const mod = normalizeModuleName(row.module);
+    if (mod) modules.add(mod);
+  }
+  return Array.from(modules).sort();
+}
+
 export async function getTestCaseSummary(ctx?: ProjectAccessContext) {
   const filters = ["tc.deleted_at is null"];
   const values: unknown[] = [];
@@ -301,7 +331,8 @@ export async function getTestCaseSummary(ctx?: ProjectAccessContext) {
 export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
   const projectId = await primaryProjectId(ctx);
   return transaction(async (client) => {
-    const displayId = await nextDisplayId(client, "test_cases", "CLR-TC");
+    const prefix = await getProjectPrefix(client, projectId);
+    const displayId = await nextDisplayId(client, "test_cases", `${prefix}-TC`);
     const steps = payload.testSteps || payload.test_steps || [];
     const expectedResult = payload.expectedResult || payload.expected_result || "";
     const now = new Date();
@@ -318,7 +349,7 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
         displayId,
         payload.title,
         emptyToNull(payload.description),
-        payload.module,
+        normalizeModuleName(payload.module),
         payload.type,
         payload.severity || payload.priority || "Medium",
         payload.status || "Draft",
@@ -392,7 +423,7 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
     const fields: Record<string, unknown> = {};
     if (payload.title !== undefined) fields.title = payload.title;
     if (payload.description !== undefined) fields.description = emptyToNull(payload.description);
-    if (payload.module !== undefined) fields.module = payload.module;
+    if (payload.module !== undefined) fields.module = normalizeModuleName(payload.module);
     if (payload.type !== undefined) fields.type = payload.type;
     if (payload.severity !== undefined || payload.priority !== undefined) fields.severity = payload.severity ?? payload.priority;
     if (payload.status !== undefined) fields.status = payload.status;
@@ -998,22 +1029,31 @@ export async function inviteProjectMember(projectId: string, email: string, user
 export async function listReleases(ctx?: ProjectAccessContext) {
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return { items: [], total: 0 };
-  const modules = await query<{ module: string }>(
-    `select distinct module from test_cases
+  
+  const tests = await query<{ id: string, display_id: string, module: string, status: string }>(
+    `select id, display_id, module, status from test_cases
      where deleted_at is null
-       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}
-     order by module asc`,
+       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}`,
     projectIds === null ? [] : [projectIds],
   );
+
+  const moduleGroups = new Map<string, { display_name: string; test_ids: string[]; passed_count: number; total_count: number }>();
+  for (const tc of tests.rows) {
+    const modName = normalizeModuleName(tc.module) || "General";
+    const modKey = modName.toLowerCase();
+    if (!moduleGroups.has(modKey)) {
+      moduleGroups.set(modKey, { display_name: modName, test_ids: [], passed_count: 0, total_count: 0 });
+    }
+    const group = moduleGroups.get(modKey)!;
+    group.test_ids.push(tc.display_id);
+    group.total_count++;
+    if (["Approved", "Ready"].includes(tc.status)) group.passed_count++;
+  }
+
   const items = [];
-  for (const [index, row] of modules.rows.entries()) {
-    const tests = await query(
-      `select display_id, status from test_cases
-       where module = $1 and deleted_at is null
-         ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
-      projectIds === null ? [row.module] : [row.module, projectIds],
-    );
-    const testIds = tests.rows.map((item: any) => item.display_id);
+  let index = 0;
+  for (const group of moduleGroups.values()) {
+    const testIds = group.test_ids;
     const defects = testIds.length
       ? await query(
           `select severity, status from defects
@@ -1022,24 +1062,25 @@ export async function listReleases(ctx?: ProjectAccessContext) {
           projectIds === null ? [testIds] : [testIds, projectIds],
         )
       : { rows: [] };
-    const passed = tests.rows.filter((item: any) => ["Approved", "Ready"].includes(item.status)).length;
     const openDefects = defects.rows.filter((item: any) => ["Open", "In Progress", "Blocked", "Reopened"].includes(item.status)).length;
     const criticalDefects = defects.rows.filter((item: any) => item.severity === "Critical").length;
+    
     items.push({
-      id: `module-${index + 1}`,
-      version: `${row.module.slice(0, 3).toUpperCase()}-REL`,
-      name: `${row.module} Module`,
-      status: tests.rows.length > 0 && passed === tests.rows.length ? "Released" : passed > 0 ? "In Progress" : "Planning",
+      id: `module-${++index}`,
+      version: `${group.display_name.slice(0, 3).toUpperCase()}-REL`,
+      name: `${group.display_name} Module`,
+      status: group.total_count > 0 && group.passed_count === group.total_count ? "Released" : group.passed_count > 0 ? "In Progress" : "Planning",
       startDate: new Date().toISOString().slice(0, 10),
       targetDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
-      description: `Aggregated release readiness for the ${row.module} module based on current test cases.`,
-      totalTestCases: tests.rows.length,
-      passedTestCases: passed,
+      description: `Aggregated release readiness for the ${group.display_name} module based on current test cases.`,
+      totalTestCases: group.total_count,
+      passedTestCases: group.passed_count,
       totalDefects: defects.rows.length,
       openDefects,
       criticalDefects,
     });
   }
+
   return { items: items.sort((a, b) => b.totalTestCases - a.totalTestCases), total: items.length };
 }
 
@@ -1343,7 +1384,10 @@ function requirementFields(payload: any, partial = false) {
   if (has("description") || !partial) fields.description = emptyToNull(payload.description);
   if (has("acceptanceCriteria", "acceptance_criteria") || !partial) fields.acceptance_criteria = emptyToNull(payload.acceptanceCriteria ?? payload.acceptance_criteria);
   if (has("businessRules", "business_rules") || !partial) fields.business_rules = emptyToNull(payload.businessRules ?? payload.business_rules);
-  add("module", payload.module);
+  
+  const mod = normalizeModuleName(payload.module);
+  if (mod !== null || !partial) add("module", mod);
+  
   add("type", payload.type, "Functional");
   add("priority", payload.priority, "Medium");
   add("status", payload.status, "Draft");
@@ -1392,7 +1436,8 @@ export async function createRequirement(payload: any, ctx?: ProjectAccessContext
   await ensureRequirementsSchema();
   const projectId = await primaryProjectId(ctx);
   const now = new Date();
-  const displayId = await nextDisplayId({ query } as DbClient, "requirements", "REQ");
+  const prefix = await getProjectPrefix({ query } as DbClient, projectId);
+  const displayId = await nextDisplayId({ query } as DbClient, "requirements", `${prefix}-REQ`);
   const fields = {
     id: randomUUID(),
     display_id: displayId,
