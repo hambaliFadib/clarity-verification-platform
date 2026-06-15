@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db_session
 from app.models.approval_gate import ApprovalGate
-from app.schemas.approval_gate import GateCreate, GateDecision, GateResponse
+from app.schemas.approval_gate import GateCreate, GateDecision, GateResponse, AuditTrailResponse
 
 router = APIRouter(prefix="/approval-gates", tags=["Approval Gates"])
 
@@ -38,7 +38,7 @@ def create_gate_endpoint(schema: GateCreate, db: Session = Depends(get_db_sessio
     )
 
 
-@router.get("/audit-trail", response_model=list[dict])
+@router.get("/audit-trail", response_model=list[AuditTrailResponse])
 def get_audit_trail_endpoint(
     entity_type: str | None = None,
     entity_id: uuid.UUID | None = None,

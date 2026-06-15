@@ -236,6 +236,76 @@ export function guestActivity(): ActivityItem[] {
   }];
 }
 
+export function guestApprovalGates(entityType?: string, entityId?: string) {
+  const gates = [
+    {
+      id: "guest-gate-req-1",
+      gate_id: "GUEST-GATE-REQ-001",
+      entity_type: "requirement",
+      entity_id: "11111111-1111-1111-1111-111111111111",
+      gate_name: "QA Review",
+      from_status: "Draft",
+      to_status: "Ready",
+      status: "pending",
+      ai_recommendation: "go",
+      ai_confidence: 85,
+      created_at: now,
+      updated_at: now,
+    },
+    {
+      id: "guest-gate-run-1",
+      gate_id: "GUEST-GATE-RUN-001",
+      entity_type: "test_run",
+      entity_id: "22222222-2222-2222-2222-222222222222",
+      gate_name: "Execution Sign-off",
+      from_status: "Running",
+      to_status: "Completed",
+      status: "pending",
+      ai_recommendation: "conditional",
+      ai_confidence: 72,
+      created_at: now,
+      updated_at: now,
+    },
+  ];
+
+  return gates.filter((gate) =>
+    (!entityType || gate.entity_type === entityType)
+    && (!entityId || gate.entity_id === entityId),
+  );
+}
+
+export function guestAuditTrail(entityType?: string, entityId?: string) {
+  const entries = [
+    {
+      id: "guest-audit-1",
+      action: "created",
+      entity_type: "requirement",
+      entity_id: "11111111-1111-1111-1111-111111111111",
+      user_id: "guest-user",
+      old_value: null,
+      new_value: { gate_name: "QA Review", status: "pending" },
+      audit_metadata: null,
+      created_at: now,
+    },
+    {
+      id: "guest-audit-2",
+      action: "created",
+      entity_type: "test_run",
+      entity_id: "22222222-2222-2222-2222-222222222222",
+      user_id: "guest-user",
+      old_value: null,
+      new_value: { gate_name: "Execution Sign-off", status: "pending" },
+      audit_metadata: null,
+      created_at: now,
+    },
+  ];
+
+  return entries.filter((entry) =>
+    (!entityType || entry.entity_type === entityType)
+    && (!entityId || entry.entity_id === entityId),
+  );
+}
+
 export function guestCreated<T extends Record<string, any>>(payload: T, fallback: T) {
   return {
     ...fallback,
