@@ -52,6 +52,13 @@ const statements = [
     deleted_at timestamptz
   )`,
   `create unique index if not exists ix_test_cases_display_id on test_cases (display_id)`,
+  `DO $$
+   BEGIN
+     IF EXISTS(SELECT 1 FROM information_schema.columns WHERE table_name='test_cases' AND column_name='priority') THEN
+       ALTER TABLE test_cases RENAME COLUMN priority TO severity;
+     END IF;
+   END $$;`,
+  `alter table test_cases drop column if exists complexity`,
   `create table if not exists test_steps (
     id uuid primary key,
     test_case_id uuid not null references test_cases(id) on delete cascade,

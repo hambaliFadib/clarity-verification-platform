@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
@@ -15,6 +16,8 @@ import { AdvancedFilterModal, type AdvancedFilters } from "@/components/defects/
 import { getDefectStatusBadgeVariant, severityBadgeVariants } from "@/lib/badge-variants";
 
 export default function DefectsPage() {
+  const { data: session } = useSession();
+  const sessionUser = session?.user as any;
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
   const [localDefects, setLocalDefects] = useState<Defect[]>([]);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
@@ -45,7 +48,10 @@ export default function DefectsPage() {
 
       if (!isMounted) return;
       if (defectResponse.ok) setLocalDefects(await defectResponse.json());
-      if (testCaseResponse.ok) setTestCases(await testCaseResponse.json());
+      if (testCaseResponse.ok) {
+        const tcData = await testCaseResponse.json();
+        setTestCases(Array.isArray(tcData) ? tcData : tcData.items || []);
+      }
       if (testRunResponse.ok) setTestRuns(await testRunResponse.json());
       if (environmentResponse.ok) setEnvironments(await environmentResponse.json());
     }
@@ -129,7 +135,7 @@ export default function DefectsPage() {
       detail: {
         id: `act-${Date.now()}`,
         user: createdDefect.reportedBy || "Unassigned",
-        userInitials: "HF",
+        userInitials: sessionUser?.initials || "??",
         action: "reported",
         targetType: "defect",
         targetId: createdDefect.id,

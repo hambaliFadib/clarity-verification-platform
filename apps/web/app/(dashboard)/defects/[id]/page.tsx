@@ -1,5 +1,6 @@
 "use client";
 import { use, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,8 @@ import { ReportDefectModal } from "@/components/defects/report-defect-modal";
 import type { Defect, DefectComment, DefectStatus, TeamMember, TestCase } from "@/lib/types";
 
 export default function DefectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { data: session } = useSession();
+  const sessionUser = session?.user as any;
   const { id } = use(params);
   const [defect, setDefect] = useState<Defect | undefined>();
   const [isLoading, setIsLoading] = useState(true);
@@ -47,7 +50,10 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
         setLinkedTestCases(data.linkedTestCase ? [data.linkedTestCase] : []);
       }
       if (usersResponse.ok) setTeamMembers(await usersResponse.json());
-      if (testCasesResponse.ok) setTestCases(await testCasesResponse.json());
+      if (testCasesResponse.ok) {
+        const tcData = await testCasesResponse.json();
+        setTestCases(Array.isArray(tcData) ? tcData : tcData.items || []);
+      }
       setIsLoading(false);
     }
 
@@ -80,7 +86,10 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
 
   const handlePostComment = async () => {
     if (!newComment.trim()) return;
-    const currentUser = teamMembers[0] || { name: "System", initials: "SY" };
+    const currentUser = {
+      name: sessionUser?.name || teamMembers[0]?.name || "System",
+      initials: sessionUser?.initials || teamMembers[0]?.initials || "??",
+    };
     const response = await fetch(`/api/defects/${defect.id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -297,7 +306,7 @@ export default function DefectDetailPage({ params }: { params: Promise<{ id: str
 
               <div className="flex gap-3">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim border-2 border-white shadow-subtle flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-on-primary-fixed">
-                  HF
+                  {sessionUser?.initials || "??"}
                 </div>
                 <div className="flex-1 space-y-2">
                   <textarea

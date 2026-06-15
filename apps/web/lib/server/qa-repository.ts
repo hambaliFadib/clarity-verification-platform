@@ -37,27 +37,63 @@ const scopedTables = [
 
 let membershipSchemaReady: Promise<void> | null = null;
 let scopedDataSchemaReady: Promise<void> | null = null;
+let columnMigrationsReady: Promise<void> | null = null;
 
 function hasSignedInUser(ctx?: ProjectAccessContext) {
   return Boolean(ctx?.userId && !ctx.isGuest && ctx.userId !== "guest-user");
+}
+
+/**
+ * Idempotent column migrations — safe to run on any DB state.
+ * Handles three cases for `severity` on test_cases:
+ *   1. Column already named `severity`  → no-op (IF NOT EXISTS guard)
+ *   2. Column named `priority`          → rename to severity
+ *   3. Neither column exists            → add severity with default
+ * Also ensures test_steps has `expected_result` and `test_data`.
+ */
+async function ensureColumnMigrations() {
+  if (!columnMigrationsReady) {
+    columnMigrationsReady = (async () => {
+      // Rename priority → severity if still on old schema
+      await query(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'test_cases' AND column_name = 'priority'
+          ) AND NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'test_cases' AND column_name = 'severity'
+          ) THEN
+            ALTER TABLE test_cases RENAME COLUMN priority TO severity;
+          END IF;
+        END $$
+      `);
+      // Add severity fresh if neither priority nor severity exist
+      await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS severity varchar(10) NOT NULL DEFAULT 'Medium'`);
+      // Remove DEFAULT after adding so new inserts must supply a value
+      await query(`ALTER TABLE test_cases ALTER COLUMN severity DROP DEFAULT`);
+      // Drop complexity if still present
+      await query(`ALTER TABLE test_cases DROP COLUMN IF EXISTS complexity`);
+      // Ensure test_steps has step detail columns
+      await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS expected_result text`);
+      await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS test_data text`);
+    })();
+  }
+  return columnMigrationsReady;
 }
 
 async function ensureScopedDataSchema() {
   if (!scopedDataSchemaReady) {
     scopedDataSchemaReady = (async () => {
       await ensureProjectMembershipSchema();
+      await ensureColumnMigrations();
       for (const table of scopedTables) {
         await query(`alter table ${table} add column if not exists project_id uuid references projects(id)`);
         await query(`create index if not exists ix_${table}_project_id on ${table} (project_id)`);
-        await query(
-          `with default_project as (
-             select id from projects where deleted_at is null order by created_at asc limit 1
-           )
-           update ${table}
-           set project_id = (select id from default_project)
-           where project_id is null
-             and exists (select 1 from default_project)`,
-        );
+        // NOTE: Do NOT auto-assign NULL project_id rows to the first project.
+        // Orphan rows (project_id IS NULL) must stay invisible to all real users.
+        // Auto-assignment caused guest-created or seeded data to leak into real user projects.
       }
     })();
   }
@@ -188,18 +224,25 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   if (severity) filters.push(`tc.severity ilike ${addValue(severity)}`);
   const type = searchParams.get("type");
   if (type) filters.push(`tc.type ilike ${addValue(type)}`);
+  const module = searchParams.get("module");
+  if (module) filters.push(`tc.module ilike ${addValue(module)}`);
+  const tags = searchParams.get("tags");
+  if (tags) {
+    const tagPlaceholder = addValue(`%${tags}%`);
+    filters.push(`array_to_string(tc.tags, ',') ilike ${tagPlaceholder}`);
+  }
 
   const whereSql = filters.join(" and ");
   const count = await query<{ total: string }>(`select count(*) as total from test_cases tc where ${whereSql}`, values);
   const offset = addValue(toInt(searchParams.get("skip"), 0));
-  const limit = addValue(toInt(searchParams.get("limit"), 100));
+  const limit = addValue(toInt(searchParams.get("limit"), 50));
   const result = await query(
     `select tc.*, assignee.name as assigned_to_name, creator.name as created_by_name
      from test_cases tc
      left join users assignee on assignee.id = tc.assigned_to
      left join users creator on creator.id = tc.created_by
      where ${whereSql}
-     order by tc.updated_at desc
+     order by coalesce(cast(nullif(substring(tc.display_id from 'TC-([0-9]+)$'), '') as integer), 999999) asc, tc.created_at asc
      offset ${offset} limit ${limit}`,
     values,
   );
@@ -207,6 +250,51 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   return {
     items: result.rows.map((row: any) => mapTestCase(row, steps.get(row.id) || [])),
     total: Number(count.rows[0]?.total || 0),
+  };
+}
+
+export async function getTestCaseSummary(ctx?: ProjectAccessContext) {
+  const filters = ["tc.deleted_at is null"];
+  const values: unknown[] = [];
+  const projectIds = await scopedProjectIds(ctx);
+  applyProjectScope(filters, values, projectIds, "tc.project_id");
+  const whereSql = filters.join(" and ");
+
+  const result = await query<{
+    total: string;
+    approved: string;
+    draft: string;
+    ready: string;
+    in_review: string;
+  }>(
+    `select
+       count(*) as total,
+       count(*) filter (where tc.status = 'Approved') as approved,
+       count(*) filter (where tc.status = 'Draft') as draft,
+       count(*) filter (where tc.status = 'Ready') as ready,
+       count(*) filter (where tc.status = 'In Review') as in_review
+     from test_cases tc
+     where ${whereSql}`,
+    values,
+  );
+
+  // Count cases that have at least one failed step
+  const failedResult = await query<{ has_failures: string }>(
+    `select count(distinct tc.id) as has_failures
+     from test_cases tc
+     inner join test_steps ts on ts.test_case_id = tc.id and ts.status = 'Failed'
+     where ${whereSql}`,
+    values,
+  );
+
+  const row = result.rows[0];
+  return {
+    total: Number(row?.total || 0),
+    approved: Number(row?.approved || 0),
+    draft: Number(row?.draft || 0),
+    ready: Number(row?.ready || 0),
+    inReview: Number(row?.in_review || 0),
+    hasFailures: Number(failedResult.rows[0]?.has_failures || 0),
   };
 }
 

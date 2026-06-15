@@ -7,6 +7,8 @@ class TestStepCreate(BaseModel):
     action: str
     status: str | None = "Not Run"
     actual_result: str | None = None
+    expected_result: str | None = None
+    test_data: str | None = None
 
 
 class TestStepResponse(BaseModel):
@@ -15,6 +17,8 @@ class TestStepResponse(BaseModel):
     action: str
     status: str | None = "Not Run"
     actual_result: str | None = None
+    expected_result: str | None = None
+    test_data: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
