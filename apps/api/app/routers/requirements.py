@@ -62,6 +62,19 @@ def get_statistics(
     from app.services.requirement import get_requirement_statistics
     return get_requirement_statistics(db)
 
+@router.get("/{requirement_id}/traceability", response_model=dict)
+def get_requirement_traceability(
+    requirement_id: uuid.UUID,
+    db: Session = Depends(get_db_session),
+) -> Any:
+    from app.services.requirement import get_traceability_matrix
+    matrix = get_traceability_matrix(db)
+    # Filter for this requirement
+    for item in matrix:
+        if getattr(item["requirement"], "id", None) == requirement_id:
+            return item
+    raise HTTPException(status_code=404, detail="Requirement not found in traceability matrix")
+
 
 @router.get("/{requirement_id}", response_model=RequirementResponse)
 def get_requirement(

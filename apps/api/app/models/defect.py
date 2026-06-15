@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import ARRAY, DateTime, String, Text
+from sqlalchemy import ARRAY, DateTime, String, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -20,8 +20,11 @@ class Defect(Base):
     priority: Mapped[str] = mapped_column(String(10), nullable=False)
     assigned_to: Mapped[str | None] = mapped_column(String(100), nullable=True)
     reported_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    linked_test_case: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
-    linked_test_run: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    test_case_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("test_cases.id", ondelete="SET NULL"), nullable=True, index=True)
+    test_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("test_runs.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    test_case = relationship("TestCase", back_populates="defects", lazy="selectin")
+    test_run = relationship("TestRun", back_populates="defects", lazy="selectin")
     environment: Mapped[str | None] = mapped_column(String(120), nullable=True)
     browser: Mapped[str | None] = mapped_column(String(120), nullable=True)
     steps_to_reproduce: Mapped[str | None] = mapped_column(Text, nullable=True)

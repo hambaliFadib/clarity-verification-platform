@@ -42,6 +42,7 @@ class TestCase(Base):
     assignee = relationship("User", foreign_keys=[assigned_to])
     creator = relationship("User", foreign_keys=[created_by])
     steps = relationship("TestStep", back_populates="test_case", cascade="all, delete-orphan", lazy="selectin")
+    defects = relationship("Defect", back_populates="test_case", cascade="all, delete-orphan", lazy="selectin")
 
     @property
     def assigned_to_name(self) -> str | None:
