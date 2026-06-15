@@ -48,7 +48,10 @@ export default function DefectsPage() {
 
       if (!isMounted) return;
       if (defectResponse.ok) setLocalDefects(await defectResponse.json());
-      if (testCaseResponse.ok) setTestCases(await testCaseResponse.json());
+      if (testCaseResponse.ok) {
+        const tcData = await testCaseResponse.json();
+        setTestCases(Array.isArray(tcData) ? tcData : tcData.items || []);
+      }
       if (testRunResponse.ok) setTestRuns(await testRunResponse.json());
       if (environmentResponse.ok) setEnvironments(await environmentResponse.json());
     }
