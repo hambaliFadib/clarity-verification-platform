@@ -300,12 +300,9 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
             {[
               { label: "Module", value: tc.module },
               { label: "Assigned To", value: tc.assignedTo || "-" },
-              { label: "Created By", value: tc.createdBy },
-              { label: "Created", value: formatDate(tc.createdAt) },
-              { label: "Last Modified", value: formatDate(tc.updatedAt) },
-              { label: "Estimated Time", value: tc.estimatedTime || "N/A" },
               { label: "Requirement", value: tc.requirementId || "None" },
               { label: "Environment", value: tc.environment || "N/A" },
+              { label: "Estimated Time", value: tc.estimatedTime || "N/A" },
               { label: "Automation Status", value: tc.automationStatus || "N/A" },
             ].map((item) => (
               <div key={item.label} className="bg-white border border-outline-variant rounded-xl p-4">
@@ -314,12 +311,6 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               </div>
             ))}
           </div>
-          {tc.preconditions && (
-            <div className="bg-white border border-outline-variant rounded-xl p-6">
-              <h3 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-3">Preconditions</h3>
-              <p className="text-body-md text-on-surface whitespace-pre-wrap">{tc.preconditions}</p>
-            </div>
-          )}
           {tc.tags && tc.tags.length > 0 && (
             <div className="flex gap-2 flex-wrap">
               <span className="text-label-bold text-outline">Tags:</span>
@@ -330,17 +321,26 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               ))}
             </div>
           )}
-          {tc.notes && (
-            <div className="bg-white border border-outline-variant rounded-xl p-6">
-              <h3 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-3">Notes</h3>
-              <p className="text-body-md text-on-surface whitespace-pre-wrap">{tc.notes}</p>
+          <div className="flex flex-col md:flex-row justify-between text-[11px] text-on-surface-variant/70 border-t border-outline-variant/30 pt-4 mt-4 px-1 gap-2">
+            <div>
+              Created by <span className="font-medium text-on-surface">{tc.createdBy}</span> on {formatDate(tc.createdAt)}
             </div>
-          )}
+            <div>
+              Last modified on {formatDate(tc.updatedAt)}
+            </div>
+          </div>
         </div>
       )}
 
       {activeTab === "Steps" && (
         <div className="space-y-4 animate-fade-in">
+          {tc.preconditions && (
+            <div className="bg-white border border-outline-variant rounded-xl p-6">
+              <h3 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-3">Preconditions</h3>
+              <p className="text-body-md text-on-surface whitespace-pre-wrap">{tc.preconditions}</p>
+            </div>
+          )}
+
           <div className="bg-white border border-outline-variant rounded-xl overflow-hidden">
             <table className="w-full">
               <thead>
@@ -421,6 +421,13 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-5 text-body-md text-on-surface whitespace-pre-wrap">
                 {tc.expectedResult}
               </div>
+            </div>
+          )}
+
+          {tc.notes && (
+            <div className="bg-white border border-outline-variant rounded-xl p-6">
+              <h3 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-3">Notes</h3>
+              <p className="text-body-md text-on-surface whitespace-pre-wrap">{tc.notes}</p>
             </div>
           )}
         </div>
