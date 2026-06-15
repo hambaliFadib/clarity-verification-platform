@@ -238,7 +238,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   const type = searchParams.get("type");
   if (type) filters.push(`tc.type ilike ${addValue(type)}`);
   const module = searchParams.get("module");
-  if (module) filters.push(`tc.module ilike ${addValue(module)}`);
+  if (module) filters.push(`regexp_replace(trim(tc.module), '\\s+', ' ', 'g') ilike ${addValue(module)}`);
   const tags = searchParams.get("tags");
   if (tags) {
     const tagPlaceholder = addValue(`%${tags}%`);

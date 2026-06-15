@@ -112,7 +112,7 @@ def get_test_cases(
         query = query.filter(TestCase.type.ilike(type_filter))
         
     if module:
-        query = query.filter(func.trim(func.lower(TestCase.module)) == module.strip().lower())
+        query = query.filter(func.regexp_replace(func.trim(func.lower(TestCase.module)), r'\s+', ' ', 'g') == module.strip().lower())
         
     total = query.count()
     items = query.order_by(TestCase.updated_at.desc()).offset(skip).limit(limit).all()
