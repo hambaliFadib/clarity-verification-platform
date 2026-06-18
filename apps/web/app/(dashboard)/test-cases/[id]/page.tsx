@@ -229,12 +229,19 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
         type={alertState.type}
         onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
       />
-      <Link
-        href="/test-cases"
+      <button
+        type="button"
+        onClick={() => {
+          if (window.history.length > 1) {
+            router.back();
+          } else {
+            router.push("/test-cases");
+          }
+        }}
         className="inline-flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-primary-container transition-colors"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Test Cases
-      </Link>
+      </button>
 
       <div className="flex justify-between items-start">
         <div className="space-y-2">
