@@ -323,17 +323,28 @@ function TestCasesContent() {
         />
 
         <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
-          <table className="w-full">
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col style={{ width: "10%" }} />  {/* ID */}
+              <col style={{ width: "22%" }} />  {/* Title */}
+              <col style={{ width: "12%" }} />  {/* Module */}
+              <col style={{ width: "9%" }} />   {/* Severity */}
+              <col style={{ width: "9%" }} />   {/* Status */}
+              <col style={{ width: "9%" }} />   {/* Type */}
+              <col style={{ width: "11%" }} />  {/* Tags */}
+              <col style={{ width: "9%" }} />   {/* Assigned */}
+              <col style={{ width: "9%" }} />   {/* Updated */}
+            </colgroup>
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant">
                 <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">ID</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Title</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Module</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Title</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Module</th>
                 <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Severity</th>
                 <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Status</th>
                 <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Type</th>
                 <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Tags</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Assigned</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Assigned</th>
                 <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Updated</th>
               </tr>
             </thead>
@@ -356,7 +367,7 @@ function TestCasesContent() {
                   <td className="px-3 py-1.5 text-xs font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
                     {tc.title}
                   </td>
-                  <td className="px-3 py-1.5 text-xs text-on-surface-variant">{tc.module}</td>
+                  <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.module}</td>
                   <td className="px-3 py-1.5">
                     <Badge variant={testCaseSeverityBadgeVariants[tc.severity]} className="text-[9px] px-1 py-0">{tc.severity}</Badge>
                   </td>
@@ -386,7 +397,7 @@ function TestCasesContent() {
                       )}
                     </div>
                   </td>
-                  <td className="px-3 py-1.5 text-xs text-on-surface-variant">{tc.assignedTo || "-"}</td>
+                  <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.assignedTo || "-"}</td>
                   <td className="px-3 py-1.5 text-xs text-outline">{formatDate(tc.updatedAt)}</td>
                 </tr>
               ))}
