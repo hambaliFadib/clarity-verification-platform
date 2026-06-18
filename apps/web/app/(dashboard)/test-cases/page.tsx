@@ -98,9 +98,20 @@ function TestCasesContent() {
       const qs = params.toString();
       const newUrl = qs ? `/test-cases?${qs}` : "/test-cases";
       window.history.replaceState(window.history.state, "", newUrl);
+
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("test-cases-last-query", qs);
+      }
     },
     []
   );
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const qs = searchParams.toString();
+      sessionStorage.setItem("test-cases-last-query", qs);
+    }
+  }, [searchParams]);
 
   // Wrap setters to also sync URL
   const handleSearchChange = useCallback(
