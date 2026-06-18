@@ -23,21 +23,21 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "bg-white/70 backdrop-blur-sm border border-outline-variant p-5 rounded-xl flex justify-between items-start shadow-subtle hover-lift transition-all duration-200",
+        "bg-card/70 backdrop-blur-sm border border-outline-variant p-5 rounded-lg flex justify-between items-start shadow-subtle hover-lift transition-all duration-200",
         hoverBorderColor,
         className
       )}
     >
       <div className="flex flex-col gap-1">
-        <span className="text-label-bold font-label-bold text-outline uppercase tracking-normal">
+        <span className="text-label-sm font-medium text-muted-foreground uppercase tracking-wide">
           {label}
         </span>
-        <span className={cn("text-headline-md font-headline font-bold", valueColor)}>
+        <span className={cn("text-headline-md font-bold", valueColor)}>
           {value}
         </span>
       </div>
       {Icon && (
-        <div className={cn("p-2 rounded-lg bg-surface-container-low", iconColor)}>
+        <div className={cn("p-2 rounded-md bg-surface-container-low", iconColor)}>
           <Icon className="h-5 w-5" />
         </div>
       )}

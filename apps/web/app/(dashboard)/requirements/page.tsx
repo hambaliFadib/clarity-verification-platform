@@ -2,12 +2,12 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
-import { KpiCard } from "@/components/ui/kpi-card";
+import { PageContainer } from "@/components/layout/page-container";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { SearchFilter } from "@/components/ui/search-filter";
 import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, BookOpen, Upload, Download } from "lucide-react";
+import { Plus, Upload, Download } from "lucide-react";
 import type { Requirement } from "@/lib/types";
 import { RequirementStats } from "@/components/requirements/requirement-stats";
 import { RequirementTable } from "@/components/requirements/requirement-table";
@@ -41,11 +41,11 @@ export default function RequirementsPage() {
   const totalCount = requirements.length;
 
   const statusTabs = [
-    { label: "ALL", count: totalCount, value: "all" },
-    { label: "DRAFT", count: requirements.filter((r) => r.status === "Draft").length, value: "draft" },
-    { label: "READY", count: requirements.filter((r) => r.status === "Ready").length, value: "ready" },
-    { label: "IN REVIEW", count: requirements.filter((r) => r.status === "In Review").length, value: "in review" },
-    { label: "APPROVED", count: requirements.filter((r) => r.status === "Approved").length, value: "approved" },
+    { label: "All", count: totalCount, value: "all" },
+    { label: "Draft", count: requirements.filter((r) => r.status === "Draft").length, value: "draft" },
+    { label: "Ready", count: requirements.filter((r) => r.status === "Ready").length, value: "ready" },
+    { label: "In Review", count: requirements.filter((r) => r.status === "In Review").length, value: "in review" },
+    { label: "Approved", count: requirements.filter((r) => r.status === "Approved").length, value: "approved" },
   ];
 
   const filteredRequirements = useMemo(() => {
@@ -64,21 +64,21 @@ export default function RequirementsPage() {
   }, [requirements, activeTab, searchQuery]);
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <PageContainer>
       <PageHeader
         title="Requirements"
         subtitle="Manage and track product requirements"
         actions={
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" /> Import
+              <Upload className="h-4 w-4" /> Import
             </Button>
             <Button variant="outline" onClick={() => setIsExportModalOpen(true)}>
-              <Download className="h-4 w-4 mr-2" /> Export
+              <Download className="h-4 w-4" /> Export
             </Button>
             <Link href="/requirements/create">
               <Button>
-                <Plus className="h-4 w-4 mr-2" /> New Requirement
+                <Plus className="h-4 w-4" /> New Requirement
               </Button>
             </Link>
           </div>
@@ -97,16 +97,16 @@ export default function RequirementsPage() {
 
       <RequirementTable requirements={filteredRequirements} />
 
-      <ImportExportModal 
-        isOpen={isImportModalOpen} 
-        onClose={() => setIsImportModalOpen(false)} 
-        type="import" 
+      <ImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        type="import"
       />
-      <ImportExportModal 
-        isOpen={isExportModalOpen} 
-        onClose={() => setIsExportModalOpen(false)} 
-        type="export" 
+      <ImportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        type="export"
       />
-    </div>
+    </PageContainer>
   );
 }

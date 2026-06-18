@@ -1,14 +1,16 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import React, { Suspense, useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useMemo, useState, type RefCallback } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
 import { SearchFilter, type ActiveFilter } from "@/components/ui/search-filter";
 import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Upload, Loader2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
@@ -16,7 +18,6 @@ import {
   testCaseStatusBadgeVariants,
   testCaseTypeBadgeVariants,
 } from "@/lib/badge-variants";
-import type { TestCase } from "@/lib/types";
 import {
   AdvancedFilterModal,
   type TestCaseAdvancedFilters,
@@ -25,12 +26,14 @@ import { ImportReviewModal } from "@/components/test-cases/import-review-modal";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 import { AlertModal } from "@/components/ui/alert-modal";
 import { useInfiniteTestCases } from "@/hooks/use-infinite-test-cases";
+import { TestCasesTabs } from "@/components/test-cases/test-cases-tabs";
+import { TestCaseMonitorStrip } from "@/components/test-cases/test-case-monitor-strip";
 
 function TestCasesLoading() {
   return (
     <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[400px]">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
-      <div className="text-body-sm text-outline">Loading test cases...</div>
+      <div className="text-body-sm text-muted-foreground">Loading test cases...</div>
     </div>
   );
 }
@@ -48,7 +51,6 @@ function TestCasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Initialize state from URL search params
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [activeStatus, setActiveStatus] = useState(searchParams.get("status") || "all");
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
@@ -65,8 +67,6 @@ function TestCasesContent() {
   });
   const [isParseResultOpen, setIsParseResultOpen] = useState(false);
   const [parseResult, setParseResult] = useState<any>(null);
-
-  // KPI summary from dedicated endpoint
   const [summary, setSummary] = useState<TestCaseSummary>({
     total: 0,
     approved: 0,
@@ -75,8 +75,6 @@ function TestCasesContent() {
     inReview: 0,
     hasFailures: 0,
   });
-
-  // Advanced filters — init from URL
   const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<TestCaseAdvancedFilters>({
     module: searchParams.get("module") || "",
@@ -85,7 +83,6 @@ function TestCasesContent() {
     tags: searchParams.get("tags") || "",
   });
 
-  // Sync filters to URL
   const syncFiltersToUrl = useCallback(
     (newSearch: string, newStatus: string, newFilters: TestCaseAdvancedFilters) => {
       const params = new URLSearchParams();
@@ -95,6 +92,7 @@ function TestCasesContent() {
       if (newFilters.type) params.set("type", newFilters.type);
       if (newFilters.severity) params.set("severity", newFilters.severity);
       if (newFilters.tags) params.set("tags", newFilters.tags);
+
       const qs = params.toString();
       const newUrl = qs ? `/test-cases?${qs}` : "/test-cases";
       window.history.replaceState(window.history.state, "", newUrl);
@@ -103,7 +101,7 @@ function TestCasesContent() {
         sessionStorage.setItem("test-cases-last-query", qs);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {
@@ -113,13 +111,12 @@ function TestCasesContent() {
     }
   }, [searchParams]);
 
-  // Wrap setters to also sync URL
   const handleSearchChange = useCallback(
     (val: string) => {
       setSearch(val);
       syncFiltersToUrl(val, activeStatus, advancedFilters);
     },
-    [activeStatus, advancedFilters, syncFiltersToUrl]
+    [activeStatus, advancedFilters, syncFiltersToUrl],
   );
 
   const handleStatusChange = useCallback(
@@ -127,7 +124,7 @@ function TestCasesContent() {
       setActiveStatus(val);
       syncFiltersToUrl(search, val, advancedFilters);
     },
-    [search, advancedFilters, syncFiltersToUrl]
+    [search, advancedFilters, syncFiltersToUrl],
   );
 
   const handleAdvancedFilterApply = useCallback(
@@ -135,7 +132,7 @@ function TestCasesContent() {
       setAdvancedFilters(filters);
       syncFiltersToUrl(search, activeStatus, filters);
     },
-    [search, activeStatus, syncFiltersToUrl]
+    [search, activeStatus, syncFiltersToUrl],
   );
 
   const handleRemoveFilter = useCallback(
@@ -144,7 +141,7 @@ function TestCasesContent() {
       setAdvancedFilters(updated);
       syncFiltersToUrl(search, activeStatus, updated);
     },
-    [advancedFilters, search, activeStatus, syncFiltersToUrl]
+    [advancedFilters, search, activeStatus, syncFiltersToUrl],
   );
 
   const handleResetFilters = useCallback(() => {
@@ -155,7 +152,6 @@ function TestCasesContent() {
     syncFiltersToUrl("", "all", empty);
   }, [syncFiltersToUrl]);
 
-  // Build active filter chips
   const activeFiltersList = useMemo<ActiveFilter[]>(() => {
     const chips: ActiveFilter[] = [];
     if (advancedFilters.module) chips.push({ label: "Module", value: advancedFilters.module, key: "module" });
@@ -165,7 +161,6 @@ function TestCasesContent() {
     return chips;
   }, [advancedFilters]);
 
-  // Infinite scroll hook
   const {
     items,
     total,
@@ -183,7 +178,6 @@ function TestCasesContent() {
     tags: advancedFilters.tags || undefined,
   });
 
-  // Fetch KPI summary
   useEffect(() => {
     async function loadSummary() {
       try {
@@ -196,10 +190,10 @@ function TestCasesContent() {
         console.error("Failed to load summary:", err);
       }
     }
+
     loadSummary();
   }, []);
 
-  // Refresh summary after import or delete
   const refreshSummary = async () => {
     try {
       const res = await fetch("/api/test-cases/summary");
@@ -230,19 +224,21 @@ function TestCasesContent() {
   function handleImportComplete(result: { created: number; skipped: number; overwritten: number; errors: any[] }) {
     setIsParseResultOpen(false);
     setParseResult(null);
+
     const parts = [
       result.created > 0 && `${result.created} created`,
       result.overwritten > 0 && `${result.overwritten} overwritten`,
       result.skipped > 0 && `${result.skipped} skipped`,
     ].filter(Boolean);
     const isError = result.errors.length > 0;
+
     setAlertState({
       isOpen: true,
       title: isError ? "Import Completed with Errors" : "Import Successful",
       message: isError
         ? `Import completed with errors: ${result.errors.length} row(s) failed.`
-        : `Import successful — ${parts.join(", ")}.`,
-      type: isError ? "warning" : "success"
+        : `Import successful - ${parts.join(", ")}.`,
+      type: isError ? "warning" : "success",
     });
     refresh();
     refreshSummary();
@@ -256,10 +252,6 @@ function TestCasesContent() {
     { label: "Approved", count: summary.approved, value: "approved" },
   ];
 
-  if (isLoading) {
-    return <TestCasesLoading />;
-  }
-
   return (
     <>
       <AlertModal
@@ -269,7 +261,7 @@ function TestCasesContent() {
         type={alertState.type}
         onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
       />
-      <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in-up">
+      <PageContainer>
         <PageHeader
           title="Test Cases"
           subtitle="Manage and organize your test case library"
@@ -285,7 +277,7 @@ function TestCasesContent() {
               </Button>
               <Link href="/test-cases/create">
                 <Button id="create-test-case-btn">
-                  <Plus className="h-4 w-4" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Create Test Case
                 </Button>
               </Link>
@@ -293,7 +285,9 @@ function TestCasesContent() {
           }
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <TestCasesTabs />
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
           <KpiCard label="Total" value={summary.total} icon={FlaskConical} />
           <KpiCard
             label="Approved"
@@ -321,6 +315,8 @@ function TestCasesContent() {
           />
         </div>
 
+        <TestCaseMonitorStrip summary={summary} items={items} total={total} />
+
         <StatusTabs tabs={statusTabs} defaultValue={activeStatus} onChange={handleStatusChange} />
         <SearchFilter
           placeholder="Search test cases..."
@@ -333,109 +329,128 @@ function TestCasesContent() {
           onResetFilters={handleResetFilters}
         />
 
-        <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
-          <table className="w-full table-fixed">
-            <colgroup>
-              <col style={{ width: "10%" }} />  {/* ID */}
-              <col style={{ width: "22%" }} />  {/* Title */}
-              <col style={{ width: "12%" }} />  {/* Module */}
-              <col style={{ width: "9%" }} />   {/* Severity */}
-              <col style={{ width: "9%" }} />   {/* Status */}
-              <col style={{ width: "9%" }} />   {/* Type */}
-              <col style={{ width: "11%" }} />  {/* Tags */}
-              <col style={{ width: "9%" }} />   {/* Assigned */}
-              <col style={{ width: "9%" }} />   {/* Updated */}
-            </colgroup>
-            <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant">
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">ID</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Title</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Module</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Severity</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Status</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Type</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Tags</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Assigned</th>
-                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Updated</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/50">
-              {items.map((tc) => (
-                <tr
-                  key={tc.id}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => router.push(`/test-cases/${tc.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      router.push(`/test-cases/${tc.id}`);
-                    }
-                  }}
-                  className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
-                >
-                  <td className="px-3 py-1.5 font-mono text-[11px] text-primary-container font-medium">{tc.id}</td>
-                  <td className="px-3 py-1.5 text-xs font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
-                    {tc.title}
-                  </td>
-                  <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.module}</td>
-                  <td className="px-3 py-1.5">
-                    <Badge variant={testCaseSeverityBadgeVariants[tc.severity]} className="text-[9px] px-1 py-0">{tc.severity}</Badge>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <Badge variant={testCaseStatusBadgeVariants[tc.status]} className="text-[9px] px-1 py-0">{tc.status}</Badge>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <Badge variant={testCaseTypeBadgeVariants[tc.type]} className="text-[9px] px-1 py-0">{tc.type}</Badge>
-                  </td>
-                  <td className="px-3 py-1.5 overflow-hidden">
-                    <div className="flex items-center gap-1">
-                      {tc.tags && tc.tags.length > 0 ? (
-                        <>
-                          <Badge
-                            key={tc.tags[0]}
-                            variant="outline"
-                            className="text-[9px] px-1 py-0 max-w-[80px] truncate block"
-                            title={tc.tags[0]}
-                          >
-                            {tc.tags[0]}
-                          </Badge>
-                          {tc.tags.length > 1 && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
-                              +{tc.tags.length - 1}
-                            </Badge>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 border border-outline-variant/30 rounded-xl bg-white shadow-subtle">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
+            <div className="text-body-sm text-muted-foreground mt-4">Loading test cases...</div>
+          </div>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={FlaskConical}
+            title="No test cases found"
+            description="Try adjusting your search or filters."
+            action={
+              <Button onClick={() => router.push("/test-cases/create")}>
+                Create Test Case
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
+              <table className="w-full table-fixed">
+                <colgroup>
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                </colgroup>
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-outline-variant">
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">ID</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Title</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Module</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Severity</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Status</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Type</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Tags</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Assigned</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Updated</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/50">
+                  {items.map((tc) => (
+                    <tr
+                      key={tc.id}
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => router.push(`/test-cases/${tc.id}`)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          router.push(`/test-cases/${tc.id}`);
+                        }
+                      }}
+                      className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
+                    >
+                      <td className="px-3 py-1.5 font-mono text-[11px] text-primary-container font-medium">{tc.id}</td>
+                      <td className="px-3 py-1.5 text-xs font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
+                        {tc.title}
+                      </td>
+                      <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.module}</td>
+                      <td className="px-3 py-1.5">
+                        <Badge variant={testCaseSeverityBadgeVariants[tc.severity]} className="text-[9px] px-1 py-0">{tc.severity}</Badge>
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <Badge variant={testCaseStatusBadgeVariants[tc.status]} className="text-[9px] px-1 py-0">{tc.status}</Badge>
+                      </td>
+                      <td className="px-3 py-1.5">
+                        <Badge variant={testCaseTypeBadgeVariants[tc.type]} className="text-[9px] px-1 py-0">{tc.type}</Badge>
+                      </td>
+                      <td className="px-3 py-1.5 overflow-hidden">
+                        <div className="flex items-center gap-1">
+                          {tc.tags && tc.tags.length > 0 ? (
+                            <>
+                              <Badge
+                                key={tc.tags[0]}
+                                variant="outline"
+                                className="text-[9px] px-1 py-0 max-w-[80px] truncate block"
+                                title={tc.tags[0]}
+                              >
+                                {tc.tags[0]}
+                              </Badge>
+                              {tc.tags.length > 1 && (
+                                <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
+                                  +{tc.tags.length - 1}
+                                </Badge>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-outline text-[10px]">-</span>
                           )}
-                        </>
-                      ) : (
-                        <span className="text-outline text-[10px]">—</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.assignedTo || "-"}</td>
-                  <td className="px-3 py-1.5 text-xs text-outline">{formatDate(tc.updatedAt)}</td>
-                </tr>
-              ))}
-              {/* Sentinel row for infinite scroll — inside tbody keeps table layout consistent */}
-              {hasMore && (
-                <tr ref={sentinelRef as React.RefCallback<HTMLTableRowElement>}>
-                  <td colSpan={9} className="px-3 py-2 text-center">
-                    {isLoadingMore && (
-                      <div className="flex items-center justify-center gap-2 text-outline">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span className="text-xs">Loading more...</span>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.assignedTo || "-"}</td>
+                      <td className="px-3 py-1.5 text-xs text-outline">{formatDate(tc.updatedAt)}</td>
+                    </tr>
+                  ))}
+                  {hasMore && (
+                    <tr ref={sentinelRef as RefCallback<HTMLTableRowElement>}>
+                      <td colSpan={9} className="px-3 py-2 text-center">
+                        {isLoadingMore && (
+                          <div className="flex items-center justify-center gap-2 text-outline">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span className="text-xs">Loading more...</span>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-        <div className="text-xs text-on-surface-variant">
-          Showing {items.length} of {total} test cases
-        </div>
-      </div>
+            <div className="text-xs text-on-surface-variant">
+              Showing {items.length} of {total} test cases
+            </div>
+          </>
+        )}
+      </PageContainer>
 
       <AdvancedFilterModal
         isOpen={isAdvancedFilterOpen}

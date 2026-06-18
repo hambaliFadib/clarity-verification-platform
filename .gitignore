@@ -53,6 +53,7 @@ htmlcov/
 # Temporary files
 tmp/
 temp/
+.tmp-local-run/
 *.local
 .vercel
 .env*.local
@@ -65,3 +66,5 @@ apps/api/migrate.py
 apps/api/script.py
 tc_sheet.csv
 tc_sheet.xlsx
+stitch_*.json
+stitch_*.html

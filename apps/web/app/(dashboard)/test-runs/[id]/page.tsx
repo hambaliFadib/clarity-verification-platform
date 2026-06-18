@@ -15,6 +15,9 @@ import {
   SkipForward,
   XCircle,
   XSquare,
+  Filter,
+  FolderGit2,
+  Bug,
 } from "lucide-react";
 import { ExecutionRunner } from "@/components/test-runs/execution-runner";
 import { EvidenceViewer } from "@/components/test-runs/evidence-viewer";
@@ -83,27 +86,27 @@ export default function TestRunDetailPage() {
           <h1 className="text-display-sm font-semibold text-on-surface">
             {testRun.displayId || testRun.id}: {testRun.name}
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
             <Badge variant="outline">{testRun.type}</Badge>
             <Badge variant={testRunStatusVariant(testRun.status)}>{testRun.status}</Badge>
             <Badge variant="success">95% Pass Rate</Badge>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="default" onClick={handleStart} disabled={testRun.status === "Completed" || testRun.status === "Aborted"}>
-            <Play className="h-4 w-4 mr-2" /> Start
+        <div className="flex flex-wrap gap-2 mt-4 xl:mt-0">
+          <Button variant="default" className="shadow-none" onClick={handleStart} disabled={testRun.status === "Completed" || testRun.status === "Aborted"}>
+            <Play className="h-4 w-4" /> Start
           </Button>
-          <Button variant="outline" className="text-error hover:bg-error/10 border-error/20" onClick={handleAbort} disabled={testRun.status === "Completed" || testRun.status === "Aborted"}>
-            <XSquare className="h-4 w-4 mr-2" /> Abort
+          <Button variant="outline" className="text-error border-error/30 hover:bg-error/5 shadow-none" onClick={handleAbort} disabled={testRun.status === "Completed" || testRun.status === "Aborted"}>
+            <XSquare className="h-4 w-4" /> Abort
           </Button>
-          <Button variant="outline" onClick={handleComplete} disabled={testRun.status === "Completed" || testRun.status === "Aborted"}>
-            <CheckCircle2 className="h-4 w-4 mr-2" /> Complete
+          <Button variant="outline" className="text-primary border-outline-variant hover:bg-surface-container-low shadow-none" onClick={handleComplete} disabled={testRun.status === "Completed" || testRun.status === "Aborted"}>
+            <CheckCircle2 className="h-4 w-4" /> Complete
           </Button>
-          <Button variant="outline">
-            <FileText className="h-4 w-4 mr-2" /> View Report
+          <Button variant="outline" className="text-primary border-outline-variant hover:bg-surface-container-low shadow-none">
+            <FileText className="h-4 w-4" /> View Report
           </Button>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" /> Export
+          <Button variant="outline" className="text-primary border-outline-variant hover:bg-surface-container-low shadow-none">
+            <Download className="h-4 w-4" /> Export
           </Button>
         </div>
       </div>
@@ -132,35 +135,103 @@ export default function TestRunDetailPage() {
         </div>
 
         <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle">
-          <h3 className="text-body-lg font-semibold border-b border-outline-variant pb-2 mb-4">Test Cases</h3>
-          <ul className="space-y-2 text-body-sm">
-            <li className="flex justify-between items-center p-3 border border-outline-variant rounded bg-surface-container-low">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                <span className="font-medium">TC-001 Login valid</span>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-outline-variant pb-4 mb-4 gap-4">
+            <h3 className="text-body-lg font-semibold">Test Cases</h3>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="h-8 shadow-none">
+                <Filter className="h-3.5 w-3.5 mr-1" /> Module: All
+              </Button>
+              <Button variant="outline" size="sm" className="h-8 shadow-none">
+                <Filter className="h-3.5 w-3.5 mr-1" /> Scenario: All
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* Module Group 1 */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 px-2">
+                <FolderGit2 className="h-5 w-5 text-primary" />
+                <h4 className="font-semibold text-on-surface">Authentication Module</h4>
+                <Badge variant="outline" className="ml-2 bg-surface-container-low text-xs">Progress: 66%</Badge>
               </div>
-              <span className="text-outline">1.2s</span>
-            </li>
-            <li className="flex justify-between items-center p-3 border border-outline-variant rounded bg-error/10">
-              <div className="flex items-center gap-2">
-                <XCircle className="h-4 w-4 text-error" />
-                <span className="font-medium">TC-003 Login expired</span>
+
+              <ul className="space-y-2 text-body-sm pl-4 border-l-2 border-outline-variant/30 ml-4">
+                {/* Scenario Group (optional, but visual indent is good) */}
+                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                    <div>
+                      <span className="font-medium text-on-surface block">TC-001: Valid Login</span>
+                      <span className="text-xs text-muted-foreground">Scenario: Login Scenario</span>
+                    </div>
+                  </div>
+                  <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">1.2s</span>
+                </li>
+
+                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-error/5 hover:bg-error/10 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <XCircle className="h-4 w-4 text-error" />
+                    <div>
+                      <span className="font-medium text-on-surface block">TC-003: Login with 2FA</span>
+                      <span className="text-xs text-muted-foreground">Scenario: Login Scenario</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">2.1s</span>
+                    <Link href="/defects/DEF-002" className="text-error hover:underline flex items-center gap-1 font-medium bg-white px-2 py-1 rounded border border-error/20">
+                      <Bug className="h-3.5 w-3.5" /> DEF-002
+                    </Link>
+                  </div>
+                </li>
+
+                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-lowest opacity-70">
+                  <div className="flex items-center gap-3">
+                    <SkipForward className="h-4 w-4 text-outline" />
+                    <div>
+                      <span className="font-medium text-outline block">TC-004: Login Timeout</span>
+                      <span className="text-xs text-muted-foreground">Scenario: Registration Scenario</span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-[10px]">SKIPPED</Badge>
+                </li>
+              </ul>
+            </div>
+
+            {/* Module Group 2 */}
+            <div>
+              <div className="flex items-center gap-2 mb-2 px-2">
+                <FolderGit2 className="h-5 w-5 text-primary" />
+                <h4 className="font-semibold text-on-surface">Payment Module</h4>
+                <Badge variant="success" className="ml-2 text-xs">Progress: 100%</Badge>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-outline">1.5s</span>
-                <Link href="/defects/DEF-002" className="text-error hover:underline flex items-center gap-1">
-                  <ArrowRight className="h-3.5 w-3.5" /> DEF-002
-                </Link>
-              </div>
-            </li>
-            <li className="flex justify-between items-center p-3 border border-outline-variant rounded bg-surface-container-low opacity-60">
-              <div className="flex items-center gap-2">
-                <SkipForward className="h-4 w-4 text-outline" />
-                <span className="font-medium text-outline">TC-004 Login 2FA</span>
-              </div>
-              <Badge variant="outline">SKIPPED</Badge>
-            </li>
-          </ul>
+
+              <ul className="space-y-2 text-body-sm pl-4 border-l-2 border-outline-variant/30 ml-4">
+                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                    <div>
+                      <span className="font-medium text-on-surface block">TC-005: Credit Card Payment</span>
+                      <span className="text-xs text-muted-foreground">Scenario: Checkout Scenario</span>
+                    </div>
+                  </div>
+                  <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">1.5s</span>
+                </li>
+
+                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                    <div>
+                      <span className="font-medium text-on-surface block">TC-006: PayPal Payment</span>
+                      <span className="text-xs text-muted-foreground">Scenario: Checkout Scenario</span>
+                    </div>
+                  </div>
+                  <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">1.3s</span>
+                </li>
+              </ul>
+            </div>
+
+          </div>
         </div>
 
         <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle">

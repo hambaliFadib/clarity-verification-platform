@@ -21,7 +21,7 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
   };
 
   return (
-    <header className="flex justify-between items-center h-14 px-gutter w-full sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-outline-variant transition-all duration-300">
+    <header className="flex justify-between items-center w-full sticky top-0 z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant h-header-height px-gutter shadow-subtle transition-all duration-300">
       <div className="flex items-center gap-2">
         {onMenuClick && (
           <button
@@ -39,7 +39,7 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
             <Menu className="h-5 w-5" />
           </button>
         )}
-        <span className="text-headline-sm font-headline font-bold text-on-surface">
+        <span className="font-brand text-headline-md font-extrabold text-primary tracking-tight">
           NexQA
         </span>
       </div>
@@ -59,14 +59,14 @@ export function TopNav({ onMenuClick, onToggleDesktop, isDesktopOpen = true }: T
 
         <Link href="/account" className="flex items-center gap-3 pl-3 ml-1 border-l border-outline-variant hover:opacity-80 transition-opacity">
           <div className="text-right hidden sm:block">
-            <p className="text-label-bold font-label-bold text-on-surface leading-tight">
+            <p className="text-body-md font-medium text-on-surface leading-tight">
               {currentUser.name}
             </p>
-            <span className="text-[9px] bg-gradient-to-r from-primary-container to-primary text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-normal">
+            <span className="text-[10px] bg-gradient-to-r from-primary-container to-primary text-white px-1.5 py-0 rounded font-semibold uppercase tracking-wider">
               {currentUser.role}
             </span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-fixed to-primary-fixed-dim flex items-center justify-center text-on-primary-fixed font-bold text-xs border-2 border-white shadow-subtle">
+          <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-label-sm border-2 border-surface shadow-sm">
             {currentUser.initials}
           </div>
         </Link>

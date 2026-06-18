@@ -28,7 +28,7 @@ export default function ReleasesPage() {
   }, []);
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in">
       <PageHeader
         title="Releases"
         subtitle="Track release milestones grouped by test case modules"

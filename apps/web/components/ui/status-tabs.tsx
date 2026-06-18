@@ -29,19 +29,22 @@ export function StatusTabs({ tabs, defaultValue, onChange, className }: StatusTa
             onChange?.(tab.value);
           }}
           className={cn(
-            "px-4 py-1.5 rounded-full text-label-bold font-label-bold flex items-center gap-2 transition-all duration-150",
+            "px-4 py-1.5 rounded-full text-body-sm font-medium flex items-center gap-2 transition-all duration-300 relative overflow-hidden group",
             active === tab.value
-              ? "bg-primary-container text-white shadow-subtle"
-              : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest"
+              ? "bg-primary text-white shadow-md transform scale-105"
+              : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-transparent hover:border-outline-variant"
           )}
         >
-          {tab.label}
+          {active === tab.value && (
+            <span className="absolute inset-0 bg-white/10 animate-pulse pointer-events-none"></span>
+          )}
+          <span className="relative z-10">{tab.label}</span>
           <span
             className={cn(
-              "px-1.5 py-0.5 rounded-full text-[10px] font-bold min-w-[20px] text-center",
+              "px-1 text-label-sm font-bold text-center transition-colors duration-300 relative z-10",
               active === tab.value
-                ? "bg-white/20 text-white"
-                : "bg-white text-on-surface-variant"
+                ? "text-white/80"
+                : "text-on-surface-variant group-hover:text-primary"
             )}
           >
             {tab.count}

@@ -10,19 +10,19 @@ import { CreateWorkItemModal } from "@/components/my-work/create-work-item-modal
 import { WorkItemDetailModal } from "@/components/my-work/work-item-detail-modal";
 
 const columns = [
-  { key: "To Do", label: "Not Started", subtitle: "Belum dimulai atau masih draft.", countColor: "text-outline" },
+  { key: "To Do", label: "Not Started", subtitle: "Belum dimulai atau masih draft.", countColor: "text-muted-foreground" },
   { key: "In Progress", label: "Active", subtitle: "Sedang berjalan atau sudah siap.", countColor: "text-primary" },
   { key: "Blocked", label: "Needs Attention", subtitle: "Gagal, blocked, rejected, overdue.", countColor: "text-error" },
   { key: "Completed", label: "Done", subtitle: "Selesai atau passed.", countColor: "text-emerald-600" },
 ];
 
-function getStatusBadgeClass(status: string) {
+function getStatusBadgeVariant(status: string) {
   switch (status) {
-    case "To Do": return "bg-primary/10 text-primary border border-primary/20";
-    case "In Progress": return "bg-primary/10 text-primary border border-primary/20";
-    case "Blocked": return "bg-error/10 text-error border border-error/20";
-    case "Completed": return "bg-emerald-100 text-emerald-700 border border-emerald-700/20";
-    default: return "bg-slate-100 text-slate-500";
+    case "To Do": return "neutral";
+    case "In Progress": return "info";
+    case "Blocked": return "danger";
+    case "Completed": return "success";
+    default: return "outline";
   }
 }
 
@@ -41,16 +41,12 @@ function WorkItemCard({
     <div
       draggable
       onDragStart={(e) => onDragStart(e, item.id)}
-      className="bg-white border border-outline-variant rounded-xl p-4 shadow-subtle hover:border-primary hover:-translate-y-px transition-all duration-200 group cursor-grab active:cursor-grabbing"
+      className="bg-card border border-outline-variant rounded-lg p-4 shadow-subtle hover:border-primary hover:-translate-y-px transition-all duration-200 group cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-start justify-between mb-3">
-        <div className="flex flex-wrap gap-1.5">
-          <span className="text-[10px] font-bold px-1.5 py-0.5 bg-surface-container-high text-primary rounded">
-            {item.type}
-          </span>
-          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", getStatusBadgeClass(item.status))}>
-            {item.status}
-          </span>
+        <div className="flex items-center gap-1.5 overflow-hidden">
+          <Badge variant="outline" className="border-primary/20 text-primary">{item.type}</Badge>
+          <Badge variant={getStatusBadgeVariant(item.status) as any}>{item.status}</Badge>
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
@@ -79,23 +75,23 @@ function WorkItemCard({
           </button>
         </div>
       </div>
-      <h3 className="font-bold text-body-md mb-2 group-hover:text-primary transition-colors">{item.title}</h3>
-      <div className="flex flex-wrap gap-2 mb-3">
+      <h3 className="font-semibold text-body-md mb-2 group-hover:text-primary transition-colors">{item.title}</h3>
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
         <Badge variant={item.priority === "High" ? "high" : item.priority === "Critical" ? "critical" : item.priority === "Medium" ? "medium" : "low"}>
           {item.priority}
         </Badge>
         {item.dueIn && (
-          <span className="bg-primary-container text-white text-[10px] font-bold px-2 py-0.5 rounded">
+          <Badge variant="outline" className="border-primary/20 text-primary bg-primary/5">
             {item.dueIn}
-          </span>
+          </Badge>
         )}
-        <span className="bg-tertiary-fixed text-tertiary text-[10px] font-bold px-2 py-0.5 rounded">
+        <Badge variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
           {item.progress}% progress
-        </span>
+        </Badge>
       </div>
-      {item.scope && <div className="text-[11px] text-outline mb-3">Scope: {item.scope}</div>}
+      {item.scope && <div className="text-caption text-muted-foreground mb-3">Scope: {item.scope}</div>}
       <div className="flex items-center justify-between border-t border-outline-variant pt-3">
-        <span className="text-label-md text-on-surface-variant">{item.assignedTo}</span>
+        <span className="text-label-md text-muted-foreground">{item.assignedTo}</span>
       </div>
     </div>
   );
@@ -164,7 +160,7 @@ export default function MyWorkPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status })
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to update status");
       }
@@ -182,22 +178,22 @@ export default function MyWorkPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-8 py-6">
+      <div className="px-6 py-6">
         <PageHeader
           title="My Work"
           subtitle="Your assigned tasks and work items"
         />
       </div>
 
-      <div className="px-8 pb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <KpiCard label="Total Work" value={workItems.length} icon={Folder} />
         <KpiCard label="Active Tasks" value={activeTasks} icon={BarChart3} valueColor="text-primary" iconColor="text-tertiary" />
         <KpiCard label="Needs Attention" value={needsAttention} icon={AlertCircle} valueColor="text-error" iconColor="text-error" hoverBorderColor="hover:border-error" />
         <KpiCard label="Avg Progress" value={`${averageProgress}%`} icon={Users} />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-8 pb-8 min-h-0">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+      <div className="flex-1 overflow-y-auto px-6 pb-6 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {columns.map((col) => {
           const items = workItems.filter((w) => w.status === col.key);
           const isActive = col.key === "In Progress";
@@ -207,22 +203,22 @@ export default function MyWorkPage() {
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.key as WorkItemStatus)}
               className={cn(
-                "flex flex-col rounded-2xl p-4 transition-colors",
+                "flex flex-col rounded-lg p-4 transition-colors",
                 isActive
-                  ? "bg-white border border-outline-variant shadow-card"
-                  : "bg-white/40 border border-outline-variant/50 hover:bg-surface-container/30"
+                  ? "bg-card border border-outline-variant shadow-card"
+                  : "bg-card/40 border border-outline-variant/50 hover:bg-surface-container/30"
               )}
             >
               <div className="flex justify-between items-center mb-4">
                 <div className="flex flex-col">
-                  <span className="font-label-bold text-on-surface">{col.label}</span>
-                  <span className="text-[11px] text-outline">{col.subtitle}</span>
+                  <span className="text-body-md font-medium text-on-surface">{col.label}</span>
+                  <span className="text-caption text-muted-foreground">{col.subtitle}</span>
                 </div>
-                <span className={cn("font-bold text-xs", col.countColor)}>{items.length}</span>
+                <span className={cn("font-semibold text-label-sm", col.countColor)}>{items.length}</span>
               </div>
               <div className="space-y-3 flex-1 overflow-y-auto px-0.5 pt-1 pb-1">
                 {items.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-outline-variant bg-white/60 p-4 text-center text-body-sm text-on-surface-variant pointer-events-none">
+                  <div className="rounded-lg border border-dashed border-outline-variant bg-card/60 p-4 text-center text-body-sm text-muted-foreground pointer-events-none">
                     Drop items here.
                   </div>
                 ) : items.map((item) => (
@@ -241,20 +237,20 @@ export default function MyWorkPage() {
         </div>
       </div>
 
-      <div className="px-8 py-3 bg-white/80 border-t border-outline-variant flex justify-between items-center">
-        <div className="text-body-sm text-on-surface-variant">
+      <div className="px-6 py-3 bg-card/80 border-t border-outline-variant flex justify-between items-center">
+        <div className="text-body-sm text-muted-foreground">
           Showing {workItems.length} work items
         </div>
       </div>
 
       <button
         onClick={() => setIsCreateModalOpen(true)}
-        className="fixed bottom-8 right-8 bg-primary text-white w-14 h-14 rounded-2xl shadow-float flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50 group"
+        className="fixed bottom-8 right-8 bg-primary text-white w-14 h-14 rounded-xl shadow-float flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-50 group"
         type="button"
         aria-label="Create work item"
       >
         <Plus className="h-6 w-6" />
-        <span className="absolute right-full mr-3 bg-inverse-surface text-inverse-on-surface text-xs font-bold py-1.5 px-3 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-elevated">
+        <span className="absolute right-full mr-3 bg-inverse-surface text-inverse-on-surface text-label-sm font-semibold py-1.5 px-3 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-elevated">
           New Work Item
         </span>
       </button>
