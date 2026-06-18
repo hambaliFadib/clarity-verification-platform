@@ -2,11 +2,11 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
-import { SearchFilter } from "@/components/ui/search-filter";
+import { SearchFilter, type ActiveFilter } from "@/components/ui/search-filter";
 import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
 import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Upload, Loader2 } from "lucide-react";
@@ -47,8 +47,10 @@ interface TestCaseSummary {
 function TestCasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState("");
-  const [activeStatus, setActiveStatus] = useState("all");
+
+  // Initialize state from URL search params
+  const [search, setSearch] = useState(searchParams.get("search") || "");
+  const [activeStatus, setActiveStatus] = useState(searchParams.get("status") || "all");
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
@@ -74,14 +76,83 @@ function TestCasesContent() {
     hasFailures: 0,
   });
 
-  // Advanced filters
+  // Advanced filters — init from URL
   const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<TestCaseAdvancedFilters>({
-    module: "",
-    type: "",
-    severity: "",
-    tags: "",
+    module: searchParams.get("module") || "",
+    type: (searchParams.get("type") || "") as TestCaseAdvancedFilters["type"],
+    severity: (searchParams.get("severity") || "") as TestCaseAdvancedFilters["severity"],
+    tags: searchParams.get("tags") || "",
   });
+
+  // Sync filters to URL
+  const syncFiltersToUrl = useCallback(
+    (newSearch: string, newStatus: string, newFilters: TestCaseAdvancedFilters) => {
+      const params = new URLSearchParams();
+      if (newSearch) params.set("search", newSearch);
+      if (newStatus && newStatus !== "all") params.set("status", newStatus);
+      if (newFilters.module) params.set("module", newFilters.module);
+      if (newFilters.type) params.set("type", newFilters.type);
+      if (newFilters.severity) params.set("severity", newFilters.severity);
+      if (newFilters.tags) params.set("tags", newFilters.tags);
+      const qs = params.toString();
+      const newUrl = qs ? `/test-cases?${qs}` : "/test-cases";
+      window.history.replaceState(window.history.state, "", newUrl);
+    },
+    []
+  );
+
+  // Wrap setters to also sync URL
+  const handleSearchChange = useCallback(
+    (val: string) => {
+      setSearch(val);
+      syncFiltersToUrl(val, activeStatus, advancedFilters);
+    },
+    [activeStatus, advancedFilters, syncFiltersToUrl]
+  );
+
+  const handleStatusChange = useCallback(
+    (val: string) => {
+      setActiveStatus(val);
+      syncFiltersToUrl(search, val, advancedFilters);
+    },
+    [search, advancedFilters, syncFiltersToUrl]
+  );
+
+  const handleAdvancedFilterApply = useCallback(
+    (filters: TestCaseAdvancedFilters) => {
+      setAdvancedFilters(filters);
+      syncFiltersToUrl(search, activeStatus, filters);
+    },
+    [search, activeStatus, syncFiltersToUrl]
+  );
+
+  const handleRemoveFilter = useCallback(
+    (key: string) => {
+      const updated = { ...advancedFilters, [key]: "" } as TestCaseAdvancedFilters;
+      setAdvancedFilters(updated);
+      syncFiltersToUrl(search, activeStatus, updated);
+    },
+    [advancedFilters, search, activeStatus, syncFiltersToUrl]
+  );
+
+  const handleResetFilters = useCallback(() => {
+    const empty: TestCaseAdvancedFilters = { module: "", type: "", severity: "", tags: "" };
+    setAdvancedFilters(empty);
+    setSearch("");
+    setActiveStatus("all");
+    syncFiltersToUrl("", "all", empty);
+  }, [syncFiltersToUrl]);
+
+  // Build active filter chips
+  const activeFiltersList = useMemo<ActiveFilter[]>(() => {
+    const chips: ActiveFilter[] = [];
+    if (advancedFilters.module) chips.push({ label: "Module", value: advancedFilters.module, key: "module" });
+    if (advancedFilters.type) chips.push({ label: "Type", value: advancedFilters.type, key: "type" });
+    if (advancedFilters.severity) chips.push({ label: "Severity", value: advancedFilters.severity, key: "severity" });
+    if (advancedFilters.tags) chips.push({ label: "Tags", value: advancedFilters.tags, key: "tags" });
+    return chips;
+  }, [advancedFilters]);
 
   // Infinite scroll hook
   const {
@@ -239,12 +310,16 @@ function TestCasesContent() {
           />
         </div>
 
-        <StatusTabs tabs={statusTabs} defaultValue={activeStatus} onChange={setActiveStatus} />
+        <StatusTabs tabs={statusTabs} defaultValue={activeStatus} onChange={handleStatusChange} />
         <SearchFilter
           placeholder="Search test cases..."
           value={search}
-          onChange={setSearch}
+          onChange={handleSearchChange}
           onAddFilterClick={() => setIsAdvancedFilterOpen(true)}
+          activeFilterCount={activeFiltersList.length}
+          activeFilters={activeFiltersList}
+          onRemoveFilter={handleRemoveFilter}
+          onResetFilters={handleResetFilters}
         />
 
         <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
@@ -257,6 +332,7 @@ function TestCasesContent() {
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Severity</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
+                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Tags</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Assigned</th>
                 <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Updated</th>
               </tr>
@@ -290,6 +366,26 @@ function TestCasesContent() {
                   <td className="px-4 py-3">
                     <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
                   </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {tc.tags && tc.tags.length > 0 ? (
+                        <>
+                          {tc.tags.slice(0, 2).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-[9px]">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {tc.tags.length > 2 && (
+                            <Badge variant="outline" className="text-[9px]">
+                              +{tc.tags.length - 2}
+                            </Badge>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-outline text-[11px]">—</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.assignedTo || "-"}</td>
                   <td className="px-4 py-3 text-body-sm text-outline">{formatDate(tc.updatedAt)}</td>
                 </tr>
@@ -319,7 +415,7 @@ function TestCasesContent() {
         isOpen={isAdvancedFilterOpen}
         onClose={() => setIsAdvancedFilterOpen(false)}
         currentFilters={advancedFilters}
-        onApply={setAdvancedFilters}
+        onApply={handleAdvancedFilterApply}
       />
 
       <ImportReviewModal
