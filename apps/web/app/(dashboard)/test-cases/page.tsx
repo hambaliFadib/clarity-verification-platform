@@ -377,18 +377,21 @@ function TestCasesContent() {
                   <td className="px-3 py-1.5">
                     <Badge variant={testCaseTypeBadgeVariants[tc.type]} className="text-[9px] px-1 py-0">{tc.type}</Badge>
                   </td>
-                  <td className="px-3 py-1.5">
-                    <div className="flex items-center gap-1 flex-wrap">
+                  <td className="px-3 py-1.5 overflow-hidden">
+                    <div className="flex items-center gap-1">
                       {tc.tags && tc.tags.length > 0 ? (
                         <>
-                          {tc.tags.slice(0, 2).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-[9px] px-1 py-0">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {tc.tags.length > 2 && (
-                            <Badge variant="outline" className="text-[9px] px-1 py-0">
-                              +{tc.tags.length - 2}
+                          <Badge
+                            key={tc.tags[0]}
+                            variant="outline"
+                            className="text-[9px] px-1 py-0 max-w-[80px] truncate block"
+                            title={tc.tags[0]}
+                          >
+                            {tc.tags[0]}
+                          </Badge>
+                          {tc.tags.length > 1 && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">
+                              +{tc.tags.length - 1}
                             </Badge>
                           )}
                         </>
