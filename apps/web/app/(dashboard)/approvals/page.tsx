@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { AuditTrail } from "@/components/approval/audit-trail";
 import { AlertTriangle, Shield } from "lucide-react";
@@ -50,30 +51,30 @@ export default function ApprovalsPage() {
   }, [entries]);
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <PageContainer>
       <PageHeader
         title="Approvals"
         subtitle="Review approval evidence and workflow audit activity"
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <KpiCard label="AUDIT EVENTS" value={summary.auditEvents} />
-        <KpiCard label="APPROVED" value={summary.approved} hoverBorderColor="hover:border-success" />
-        <KpiCard label="REJECTED" value={summary.rejected} hoverBorderColor="hover:border-error" />
-        <KpiCard label="GATED ENTITIES" value={summary.gatedEntities} />
+        <KpiCard label="Audit Events" value={summary.auditEvents} />
+        <KpiCard label="Approved" value={summary.approved} hoverBorderColor="hover:border-success" />
+        <KpiCard label="Rejected" value={summary.rejected} hoverBorderColor="hover:border-error" />
+        <KpiCard label="Gated Entities" value={summary.gatedEntities} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white border border-outline-variant rounded-xl p-6 shadow-subtle h-fit">
+        <div className="bg-card border border-outline-variant rounded-lg p-6 shadow-subtle h-fit">
           <div className="flex items-center gap-2 mb-4">
             <Shield className="h-5 w-5 text-primary" />
             <h3 className="text-body-lg font-semibold">Approval Gates</h3>
           </div>
-          <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-on-surface-variant">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-500" />
+          <div className="flex items-start gap-3 rounded-md border border-warning-muted bg-warning-muted/50 px-3 py-2 text-body-md text-on-surface-variant">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <div>
               <div className="font-medium text-on-surface">Decision actions locked</div>
-              <p className="mt-0.5">
+              <p className="mt-0.5 text-body-sm">
                 Approval gates are visible as audit evidence while RBAC approval enforcement is completed.
               </p>
             </div>
@@ -84,6 +85,6 @@ export default function ApprovalsPage() {
           <AuditTrail />
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

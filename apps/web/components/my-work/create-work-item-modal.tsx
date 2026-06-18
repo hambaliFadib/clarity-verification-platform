@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { X, Loader2, Save } from "lucide-react";
+import { Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "next-auth/react";
-import { createPortal } from "react-dom";
+import { Modal, ModalHeader, ModalTitle, ModalBody, ModalFooter } from "@/components/ui/modal";
 import type { WorkItem } from "@/lib/types";
 
 type FormValues = {
@@ -28,6 +28,10 @@ interface CreateWorkItemModalProps {
   workItem?: WorkItem | null;
 }
 
+const inputClass = "w-full bg-card border border-outline-variant rounded-lg px-3 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all";
+const selectClass = `${inputClass} appearance-none`;
+const labelClass = "block text-label-md font-semibold text-on-surface mb-1.5";
+
 export function CreateWorkItemModal({
   isOpen,
   onClose,
@@ -36,20 +40,14 @@ export function CreateWorkItemModal({
   workItem = null,
 }: CreateWorkItemModalProps) {
   const { data: session } = useSession();
-  const [mounted, setMounted] = useState(false);
   const [testCases, setTestCases] = useState<any[]>([]);
   const [defects, setDefects] = useState<any[]>([]);
   const [isLoadingRelated, setIsLoadingRelated] = useState(false);
   const isEditing = mode === "edit" && !!workItem;
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const {
     register,
     handleSubmit,
-    control,
     watch,
     reset,
     setValue,
@@ -168,30 +166,19 @@ export function CreateWorkItemModal({
     }
   };
 
-  if (!isOpen || !mounted) return null;
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} size="lg" preventClose={isSubmitting}>
+      <ModalHeader onClose={onClose} closeDisabled={isSubmitting}>
+        <ModalTitle>{isEditing ? "Edit Work Item" : "New Work Item"}</ModalTitle>
+      </ModalHeader>
 
-  const modalContent = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} />
-      <div className="relative bg-surface rounded-2xl shadow-2xl border border-outline-variant w-full max-w-lg flex flex-col animate-fade-in-up">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
-          <h2 className="text-title-md font-bold text-on-surface">
-            {isEditing ? "Edit Work Item" : "New Work Item"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-full transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+      <ModalBody>
+        <form id="work-item-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div>
-            <label className="block text-label-md font-bold text-on-surface mb-1">Title <span className="text-error">*</span></label>
+            <label className={labelClass}>Title <span className="text-error">*</span></label>
             <input
               {...register("title", { required: "Title is required", minLength: 2 })}
-              className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+              className={inputClass}
               placeholder="e.g., Run regression tests for auth module"
             />
             {errors.title && <p className="text-error text-body-sm mt-1">{errors.title.message}</p>}
@@ -199,22 +186,16 @@ export function CreateWorkItemModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Type</label>
-              <select
-                {...register("type")}
-                className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
-              >
+              <label className={labelClass}>Type</label>
+              <select {...register("type")} className={selectClass}>
                 <option value="Task">Task</option>
                 <option value="Test Case">Testing (Test Case)</option>
                 <option value="Defect">Regression Test (Defect)</option>
               </select>
             </div>
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Priority</label>
-              <select
-                {...register("priority")}
-                className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
-              >
+              <label className={labelClass}>Priority</label>
+              <select {...register("priority")} className={selectClass}>
                 <option value="Low">Low</option>
                 <option value="Medium">Medium</option>
                 <option value="High">High</option>
@@ -225,11 +206,8 @@ export function CreateWorkItemModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Status</label>
-              <select
-                {...register("status")}
-                className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
-              >
+              <label className={labelClass}>Status</label>
+              <select {...register("status")} className={selectClass}>
                 <option value="To Do">To Do</option>
                 <option value="In Progress">In Progress</option>
                 <option value="Blocked">Blocked</option>
@@ -237,20 +215,20 @@ export function CreateWorkItemModal({
               </select>
             </div>
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Progress</label>
+              <label className={labelClass}>Progress</label>
               <input
                 {...register("progress", { valueAsNumber: true, min: 0, max: 100 })}
                 type="number"
                 min={0}
                 max={100}
-                className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                className={inputClass}
               />
             </div>
           </div>
 
           {selectedType === "Test Case" && (
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Select Test Case</label>
+              <label className={labelClass}>Select Test Case</label>
               {isLoadingRelated ? (
                 <div className="flex items-center gap-2 text-body-sm text-outline px-2 py-2">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading test cases...
@@ -258,7 +236,7 @@ export function CreateWorkItemModal({
               ) : (
                 <select
                   {...register("testCaseId", { required: "Test case is required for testing" })}
-                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
+                  className={selectClass}
                 >
                   <option value="">-- Select Test Case --</option>
                   {testCases.map((tc) => (
@@ -274,7 +252,7 @@ export function CreateWorkItemModal({
 
           {selectedType === "Defect" && (
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Select Defect for Regression</label>
+              <label className={labelClass}>Select Defect for Regression</label>
               {isLoadingRelated ? (
                 <div className="flex items-center gap-2 text-body-sm text-outline px-2 py-2">
                   <Loader2 className="h-4 w-4 animate-spin" /> Loading defects...
@@ -282,7 +260,7 @@ export function CreateWorkItemModal({
               ) : (
                 <select
                   {...register("defectId", { required: "Defect is required for regression test" })}
-                  className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all appearance-none"
+                  className={selectClass}
                 >
                   <option value="">-- Select Defect --</option>
                   {defects.map((df) => (
@@ -298,10 +276,10 @@ export function CreateWorkItemModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Assignee</label>
+              <label className={labelClass}>Assignee</label>
               <select
                 {...register("assignedTo")}
-                className="w-full bg-surface-container-low text-on-surface-variant border border-outline-variant rounded-xl px-4 py-2 text-body-md appearance-none opacity-80 cursor-not-allowed"
+                className={`${selectClass} opacity-80 cursor-not-allowed`}
                 disabled
               >
                 <option value={session?.user?.name || ""}>{session?.user?.name || "Current User"}</option>
@@ -309,31 +287,29 @@ export function CreateWorkItemModal({
               </select>
             </div>
             <div>
-              <label className="block text-label-md font-bold text-on-surface mb-1">Due In</label>
+              <label className={labelClass}>Due In</label>
               <input
                 {...register("dueIn")}
-                className="w-full bg-surface-container-lowest border border-outline-variant rounded-xl px-4 py-2 text-body-md focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                className={inputClass}
                 placeholder="e.g. 3 days"
               />
             </div>
           </div>
-
-          <div className="pt-4 flex justify-end gap-3 border-t border-outline-variant mt-6">
-            <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> {isEditing ? "Saving..." : "Creating..."}</>
-              ) : (
-                <><Save className="h-4 w-4 mr-2" /> {isEditing ? "Save Changes" : "Create Work Item"}</>
-              )}
-            </Button>
-          </div>
         </form>
-      </div>
-    </div>
-  );
+      </ModalBody>
 
-  return createPortal(modalContent, document.body);
+      <ModalFooter>
+        <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" form="work-item-form" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> {isEditing ? "Saving..." : "Creating..."}</>
+          ) : (
+            <><Save className="h-4 w-4" /> {isEditing ? "Save Changes" : "Create Work Item"}</>
+          )}
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
 }

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input, Label, Select } from "@/components/ui/input";
+import { Modal, ModalHeader, ModalTitle, ModalBody, ModalFooter } from "@/components/ui/modal";
 
 interface CreateRunModalProps {
   isOpen: boolean;
@@ -25,17 +26,11 @@ export function CreateRunModal({ isOpen, onClose, onSubmit }: CreateRunModalProp
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
       setName("");
       setEnvironment("Staging");
       setRelease("");
       setType("Regression");
-    } else {
-      document.body.style.overflow = "unset";
     }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -51,96 +46,75 @@ export function CreateRunModal({ isOpen, onClose, onSubmit }: CreateRunModalProp
     }
   };
 
-  const inputClass = "w-full border border-outline-variant rounded-lg px-3 py-2 text-body-sm bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-fixed-dim focus:outline-none transition-all";
-  const labelClass = "block text-label-bold font-label-bold text-on-surface-variant uppercase tracking-normal mb-1.5";
-
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
-      <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md" onClick={isSubmitting ? undefined : onClose} />
+    <Modal isOpen={isOpen} onClose={onClose} size="lg" preventClose={isSubmitting}>
+      <ModalHeader onClose={onClose} closeDisabled={isSubmitting}>
+        <ModalTitle>Create Test Run</ModalTitle>
+      </ModalHeader>
 
-      <div className="relative bg-white w-full max-w-lg rounded-2xl shadow-elevated flex flex-col border border-outline-variant animate-scale-in">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
-          <h2 className="text-headline-sm font-headline font-semibold text-on-surface">
-            Create Test Run
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-full transition-colors disabled:opacity-50"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      <ModalBody>
+        <form id="create-run-form" onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label htmlFor="run-name">Run Name *</Label>
+            <Input
+              id="run-name"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Q3 Release Regression"
+            />
+          </div>
 
-        <div className="p-6">
-          <form id="create-run-form" onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className={labelClass} htmlFor="run-name">Run Name *</label>
-              <input
-                id="run-name"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Q3 Release Regression"
-                className={inputClass}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className={labelClass} htmlFor="run-env">Environment *</label>
-                <select
-                  id="run-env"
-                  value={environment}
-                  onChange={(e) => setEnvironment(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="Development">Development</option>
-                  <option value="Staging">Staging</option>
-                  <option value="UAT">UAT</option>
-                  <option value="Production">Production</option>
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass} htmlFor="run-type">Test Type *</label>
-                <select
-                  id="run-type"
-                  value={type}
-                  onChange={(e) => setType(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="Regression">Regression</option>
-                  <option value="Smoke">Smoke</option>
-                  <option value="Sanity">Sanity</option>
-                  <option value="Integration">Integration</option>
-                </select>
-              </div>
+              <Label htmlFor="run-env">Environment *</Label>
+              <Select
+                id="run-env"
+                value={environment}
+                onChange={(e) => setEnvironment(e.target.value)}
+              >
+                <option value="Development">Development</option>
+                <option value="Staging">Staging</option>
+                <option value="UAT">UAT</option>
+                <option value="Production">Production</option>
+              </Select>
             </div>
 
             <div>
-              <label className={labelClass} htmlFor="run-release">Release Version</label>
-              <input
-                id="run-release"
-                value={release}
-                onChange={(e) => setRelease(e.target.value)}
-                placeholder="e.g. v2.4.1"
-                className={inputClass}
-              />
+              <Label htmlFor="run-type">Test Type *</Label>
+              <Select
+                id="run-type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option value="Regression">Regression</option>
+                <option value="Smoke">Smoke</option>
+                <option value="Sanity">Sanity</option>
+                <option value="Integration">Integration</option>
+              </Select>
             </div>
-          </form>
-        </div>
+          </div>
 
-        <div className="px-6 py-4 border-t border-outline-variant flex justify-end gap-3 bg-surface-container-low/30 rounded-b-2xl">
-          <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" form="create-run-form" loading={isSubmitting}>
-            Create Run
-          </Button>
-        </div>
-      </div>
-    </div>
+          <div>
+            <Label htmlFor="run-release">Release Version</Label>
+            <Input
+              id="run-release"
+              value={release}
+              onChange={(e) => setRelease(e.target.value)}
+              placeholder="e.g. v2.4.1"
+            />
+          </div>
+        </form>
+      </ModalBody>
+
+      <ModalFooter>
+        <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" form="create-run-form" loading={isSubmitting}>
+          Create Run
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

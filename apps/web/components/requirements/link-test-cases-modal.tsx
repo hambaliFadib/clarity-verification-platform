@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Search, Link2, Unlink } from "lucide-react";
+import { Search, Link2, Unlink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Modal, ModalHeader, ModalTitle, ModalBody, ModalFooter } from "@/components/ui/modal";
 
 interface TestCase {
   id: string;
@@ -102,88 +104,81 @@ export function LinkTestCasesModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md" onClick={onClose} />
-      
-      <div className="relative bg-white w-full max-w-3xl rounded-2xl shadow-elevated flex flex-col max-h-[80vh]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
-          <h2 className="text-headline-sm font-semibold">Link Test Cases</h2>
-          <button onClick={onClose} className="p-2 hover:bg-surface-container-low rounded-full">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="2xl">
+      <ModalHeader onClose={onClose}>
+        <ModalTitle>Link Test Cases</ModalTitle>
+      </ModalHeader>
 
-        <div className="px-6 py-4 border-b border-outline-variant">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-outline" />
-            <input
-              type="text"
-              placeholder="Search test cases..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded-lg text-sm focus:border-primary-container focus:ring-1 focus:ring-primary-fixed-dim focus:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse h-16 bg-surface-container-low rounded-lg" />
-              ))}
-            </div>
-          ) : filteredTestCases.length === 0 ? (
-            <p className="text-center text-outline py-8">No test cases found</p>
-          ) : (
-            <div className="space-y-2">
-              {filteredTestCases.map((tc) => (
-                <div
-                  key={tc.id}
-                  className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                    isLinked(tc.id)
-                      ? "border-success bg-success/5"
-                      : "border-outline-variant hover:bg-surface-container-low"
-                  }`}
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{tc.displayId}</span>
-                      <span className="text-sm text-on-surface-variant">{tc.title}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline" className="text-xs">{tc.module}</Badge>
-                      <Badge variant={statusVariant(tc.status)} className="text-xs">
-                        {tc.status}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Button
-                    variant={isLinked(tc.id) ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => isLinked(tc.id) ? handleUnlink(tc.id) : handleLink(tc.id)}
-                    disabled={processingId === tc.id}
-                  >
-                    {isLinked(tc.id) ? (
-                      <>
-                        <Unlink className="h-4 w-4 mr-1" /> Unlink
-                      </>
-                    ) : (
-                      <>
-                        <Link2 className="h-4 w-4 mr-1" /> Link
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 py-4 border-t border-outline-variant flex justify-end">
-          <Button variant="outline" onClick={onClose}>Done</Button>
+      <div className="px-6 py-3 border-b border-outline-variant">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-outline" />
+          <input
+            type="text"
+            placeholder="Search test cases..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-outline-variant rounded-md text-body-sm bg-card focus:border-primary-container focus:ring-1 focus:ring-primary-fixed-dim focus:outline-none transition-all"
+          />
         </div>
       </div>
-    </div>
+
+      <ModalBody className="overflow-y-auto max-h-[50vh]">
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse h-16 bg-surface-container-low rounded-md" />
+            ))}
+          </div>
+        ) : filteredTestCases.length === 0 ? (
+          <p className="text-center text-outline py-8">No test cases found</p>
+        ) : (
+          <div className="space-y-2">
+            {filteredTestCases.map((tc) => (
+              <div
+                key={tc.id}
+                className={`flex items-center justify-between p-3 border rounded-md transition-colors ${
+                  isLinked(tc.id)
+                    ? "border-success bg-success/5"
+                    : "border-outline-variant hover:bg-surface-container-low"
+                }`}
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-body-sm">{tc.displayId}</span>
+                    <span className="text-body-sm text-on-surface-variant">{tc.title}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline">{tc.module}</Badge>
+                    <Badge variant={statusVariant(tc.status)}>
+                      {tc.status}
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  variant={isLinked(tc.id) ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => isLinked(tc.id) ? handleUnlink(tc.id) : handleLink(tc.id)}
+                  disabled={processingId === tc.id}
+                >
+                  {isLinked(tc.id) ? (
+                    <>
+                      <Unlink className="h-4 w-4" /> Unlink
+                    </>
+                  ) : (
+                    <>
+                      <Link2 className="h-4 w-4" /> Link
+                    </>
+                  )}
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </ModalBody>
+
+      <ModalFooter>
+        <Button variant="outline" onClick={onClose}>Done</Button>
+      </ModalFooter>
+    </Modal>
   );
 }

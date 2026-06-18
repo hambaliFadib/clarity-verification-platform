@@ -289,6 +289,22 @@ export async function getTestCaseModules(ctx?: ProjectAccessContext) {
   return Array.from(modules).sort();
 }
 
+export async function getTestCaseTags(ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return [];
+  const result = await query<{ tag: string }>(
+    `select distinct unnest(tags) as tag from test_cases
+     where deleted_at is null and tags is not null
+       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}`,
+    projectIds === null ? [] : [projectIds],
+  );
+  const tags = new Set<string>();
+  for (const row of result.rows) {
+    if (row.tag) tags.add(row.tag);
+  }
+  return Array.from(tags).sort();
+}
+
 export async function getTestCaseSummary(ctx?: ProjectAccessContext) {
   const filters = ["tc.deleted_at is null"];
   const values: unknown[] = [];
@@ -1046,7 +1062,7 @@ export async function inviteProjectMember(projectId: string, email: string, user
 export async function listReleases(ctx?: ProjectAccessContext) {
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return { items: [], total: 0 };
-  
+
   const tests = await query<{ id: string, display_id: string, module: string, status: string }>(
     `select id, display_id, module, status from test_cases
      where deleted_at is null
@@ -1081,7 +1097,7 @@ export async function listReleases(ctx?: ProjectAccessContext) {
       : { rows: [] };
     const openDefects = defects.rows.filter((item: any) => ["Open", "In Progress", "Blocked", "Reopened"].includes(item.status)).length;
     const criticalDefects = defects.rows.filter((item: any) => item.severity === "Critical").length;
-    
+
     items.push({
       id: `module-${++index}`,
       version: `${group.display_name.slice(0, 3).toUpperCase()}-REL`,
@@ -1401,10 +1417,10 @@ function requirementFields(payload: any, partial = false) {
   if (has("description") || !partial) fields.description = emptyToNull(payload.description);
   if (has("acceptanceCriteria", "acceptance_criteria") || !partial) fields.acceptance_criteria = emptyToNull(payload.acceptanceCriteria ?? payload.acceptance_criteria);
   if (has("businessRules", "business_rules") || !partial) fields.business_rules = emptyToNull(payload.businessRules ?? payload.business_rules);
-  
+
   const mod = normalizeModuleName(payload.module);
   if (mod !== null || !partial) add("module", mod);
-  
+
   add("type", payload.type, "Functional");
   add("priority", payload.priority, "Medium");
   add("status", payload.status, "Draft");

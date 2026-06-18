@@ -47,7 +47,7 @@ export default function EnvironmentsPage() {
 
   return (
     <>
-      <div className="p-6 space-y-6 animate-fade-in relative z-0">
+      <div className="space-y-6 animate-fade-in relative z-0">
         <PageHeader
           title="Environments"
           subtitle="Manage your deployment environments"
