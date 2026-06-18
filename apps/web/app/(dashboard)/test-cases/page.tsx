@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
+import React, { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
@@ -326,15 +326,15 @@ function TestCasesContent() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant">
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">ID</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Title</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Module</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Severity</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Status</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Type</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Tags</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Assigned</th>
-                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Updated</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">ID</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Title</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Module</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Severity</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Status</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Type</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Tags</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Assigned</th>
+                <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Updated</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50">
@@ -390,23 +390,24 @@ function TestCasesContent() {
                   <td className="px-3 py-1.5 text-xs text-outline">{formatDate(tc.updatedAt)}</td>
                 </tr>
               ))}
+              {/* Sentinel row for infinite scroll — inside tbody keeps table layout consistent */}
+              {hasMore && (
+                <tr ref={sentinelRef as React.RefCallback<HTMLTableRowElement>}>
+                  <td colSpan={9} className="px-3 py-2 text-center">
+                    {isLoadingMore && (
+                      <div className="flex items-center justify-center gap-2 text-outline">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <span className="text-xs">Loading more...</span>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
 
-        {/* Sentinel element for infinite scroll */}
-        {hasMore && (
-          <div ref={sentinelRef} className="flex items-center justify-center py-4">
-            {isLoadingMore && (
-              <div className="flex items-center gap-2 text-outline">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-body-sm">Loading more test cases...</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="text-body-sm text-on-surface-variant">
+        <div className="text-xs text-on-surface-variant">
           Showing {items.length} of {total} test cases
         </div>
       </div>
