@@ -2,7 +2,6 @@
 
 import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useForm, useFieldArray } from "react-hook-form";
 import {
   ArrowLeft,
@@ -188,11 +187,7 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
   };
 
   const handleCancel = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push(`/test-cases/${id}`);
-    }
+    router.replace(`/test-cases/${id}`);
   };
 
   const addTag = () => {
@@ -239,14 +234,7 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
         throw new Error(result.error || "Failed to update test case");
       }
 
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("test-case-toast", "updated");
-      }
-      if (typeof window !== "undefined" && window.history.length > 1) {
-        router.back();
-      } else {
-        router.push(`/test-cases/${id}`);
-      }
+      router.replace(`/test-cases/${id}?toast=updated`);
     } catch (err: any) {
       console.error(err);
       setAlertState({
@@ -294,12 +282,13 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="p-6 space-y-6 animate-fade-in w-full pb-20">
-      <Link
-        href={`/test-cases/${id}`}
+      <button
+        type="button"
+        onClick={handleCancel}
         className="inline-flex items-center gap-2 text-body-sm text-on-surface-variant hover:text-primary-container transition-colors"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Test Case Details
-      </Link>
+      </button>
 
       <AlertModal
         isOpen={alertState.isOpen}

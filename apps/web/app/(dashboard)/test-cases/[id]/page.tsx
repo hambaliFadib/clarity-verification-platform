@@ -78,42 +78,34 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
   });
 
   useEffect(() => {
-    const sessionToast = typeof window !== "undefined" ? sessionStorage.getItem("test-case-toast") : null;
-    const toastType = searchParams.get("toast") || sessionToast;
-
-    if (toastType) {
-      if (typeof window !== "undefined" && sessionToast) {
-        sessionStorage.removeItem("test-case-toast");
-      }
-
-      if (toastType === "created") {
-        setAlertState({
-          isOpen: true,
-          title: "Test Case Created",
-          message: "The test case was created successfully.",
-          type: "success",
-        });
-        const newUrl = window.location.pathname;
-        window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
-      } else if (toastType === "updated") {
-        setAlertState({
-          isOpen: true,
-          title: "Test Case Updated",
-          message: "The test case details were updated successfully.",
-          type: "success",
-        });
-        const newUrl = window.location.pathname;
-        window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
-      } else if (toastType === "cloned") {
-        setAlertState({
-          isOpen: true,
-          title: "Test Case Cloned",
-          message: "The test case has been cloned successfully.",
-          type: "success",
-        });
-        const newUrl = window.location.pathname;
-        window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
-      }
+    const toastType = searchParams.get("toast");
+    if (toastType === "created") {
+      setAlertState({
+        isOpen: true,
+        title: "Test Case Created",
+        message: "The test case was created successfully.",
+        type: "success",
+      });
+      const newUrl = window.location.pathname;
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+    } else if (toastType === "updated") {
+      setAlertState({
+        isOpen: true,
+        title: "Test Case Updated",
+        message: "The test case details were updated successfully.",
+        type: "success",
+      });
+      const newUrl = window.location.pathname;
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+    } else if (toastType === "cloned") {
+      setAlertState({
+        isOpen: true,
+        title: "Test Case Cloned",
+        message: "The test case has been cloned successfully.",
+        type: "success",
+      });
+      const newUrl = window.location.pathname;
+      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
     }
   }, [searchParams]);
 
@@ -264,11 +256,9 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           </div>
         </div>
         <div className="flex gap-2">
-          <Link href={`/test-cases/${id}/edit`}>
-            <Button variant="secondary" size="sm">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </Button>
-          </Link>
+          <Button variant="secondary" size="sm" onClick={() => router.replace(`/test-cases/${id}/edit`)}>
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
           <Button variant="secondary" size="sm" onClick={handleClone} disabled={cloning}>
             <Copy className="h-3.5 w-3.5" /> {cloning ? "Cloning..." : "Clone"}
           </Button>
