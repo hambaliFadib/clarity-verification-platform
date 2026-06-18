@@ -12,63 +12,10 @@ import { ScenarioTree } from "@/components/test-cases/scenario-tree";
 import type { ScenarioNode } from "@/components/test-cases/scenario-item";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 
-// Mock Data
-const INITIAL_SCENARIOS: ScenarioNode[] = [
-  {
-    id: "SCN-001",
-    displayId: "SCN-001",
-    name: "Login Scenario",
-    testCaseCount: 3,
-    passRate: 90,
-    status: "Ready",
-    testCases: [
-      { id: "TC-001", displayId: "TC-001", title: "Verify login with valid credentials", status: "Ready", severity: "High", type: "Functional" },
-      { id: "TC-002", displayId: "TC-002", title: "Verify login with invalid password", status: "Ready", severity: "Medium", type: "Functional" },
-      { id: "TC-003", displayId: "TC-003", title: "Verify login with 2FA", status: "Draft", severity: "High", type: "Functional" },
-    ],
-  },
-  {
-    id: "SCN-002",
-    displayId: "SCN-002",
-    name: "Registration Scenario",
-    testCaseCount: 0,
-    passRate: 0,
-    status: "Draft",
-    testCases: [],
-  },
-  {
-    id: "SCN-003",
-    displayId: "SCN-003",
-    name: "Password Reset Scenario",
-    testCaseCount: 0,
-    passRate: 0,
-    status: "Ready",
-    testCases: [],
-  },
-  {
-    id: "SCN-004",
-    displayId: "SCN-004",
-    name: "Checkout Scenario",
-    testCaseCount: 0,
-    passRate: 0,
-    status: "Ready",
-    testCases: [],
-  },
-  {
-    id: "SCN-005",
-    displayId: "SCN-005",
-    name: "Refund Scenario",
-    testCaseCount: 0,
-    passRate: 0,
-    status: "Draft",
-    testCases: [],
-  },
-];
-
 export default function ScenariosPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [scenarios, setScenarios] = useState<ScenarioNode[]>(INITIAL_SCENARIOS);
+  const [scenarios, setScenarios] = useState<ScenarioNode[]>([]);
 
   // Modal states
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
@@ -139,7 +86,7 @@ export default function ScenariosPage() {
         onImportError={(msg) => {
           alert(msg);
         }}
-        totalCount={INITIAL_SCENARIOS.reduce((acc, scn) => acc + scn.testCaseCount, 0)}
+        totalCount={scenarios.reduce((acc, scn) => acc + scn.testCaseCount, 0)}
       />
     </PageContainer>
   );
