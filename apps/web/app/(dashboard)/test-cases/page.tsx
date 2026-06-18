@@ -326,15 +326,15 @@ function TestCasesContent() {
           <table className="w-full">
             <thead>
               <tr className="bg-surface-container-low border-b border-outline-variant">
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Title</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Module</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Severity</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Tags</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Assigned</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Updated</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">ID</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Title</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Module</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Severity</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Status</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Type</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Tags</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Assigned</th>
+                <th className="text-left px-3 py-1.5 text-[10px] font-bold text-outline uppercase tracking-wider">Updated</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50">
@@ -352,42 +352,42 @@ function TestCasesContent() {
                   }}
                   className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
                 >
-                  <td className="px-4 py-3 font-mono text-code text-primary-container font-medium">{tc.id}</td>
-                  <td className="px-4 py-3 text-body-sm font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
+                  <td className="px-3 py-1.5 font-mono text-[11px] text-primary-container font-medium">{tc.id}</td>
+                  <td className="px-3 py-1.5 text-xs font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
                     {tc.title}
                   </td>
-                  <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.module}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
+                  <td className="px-3 py-1.5 text-xs text-on-surface-variant">{tc.module}</td>
+                  <td className="px-3 py-1.5">
+                    <Badge variant={testCaseSeverityBadgeVariants[tc.severity]} className="text-[9px] px-1 py-0">{tc.severity}</Badge>
                   </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
+                  <td className="px-3 py-1.5">
+                    <Badge variant={testCaseStatusBadgeVariants[tc.status]} className="text-[9px] px-1 py-0">{tc.status}</Badge>
                   </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
+                  <td className="px-3 py-1.5">
+                    <Badge variant={testCaseTypeBadgeVariants[tc.type]} className="text-[9px] px-1 py-0">{tc.type}</Badge>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-1.5">
                     <div className="flex items-center gap-1 flex-wrap">
                       {tc.tags && tc.tags.length > 0 ? (
                         <>
                           {tc.tags.slice(0, 2).map((tag) => (
-                            <Badge key={tag} variant="outline" className="text-[9px]">
+                            <Badge key={tag} variant="outline" className="text-[9px] px-1 py-0">
                               {tag}
                             </Badge>
                           ))}
                           {tc.tags.length > 2 && (
-                            <Badge variant="outline" className="text-[9px]">
+                            <Badge variant="outline" className="text-[9px] px-1 py-0">
                               +{tc.tags.length - 2}
                             </Badge>
                           )}
                         </>
                       ) : (
-                        <span className="text-outline text-[11px]">—</span>
+                        <span className="text-outline text-[10px]">—</span>
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.assignedTo || "-"}</td>
-                  <td className="px-4 py-3 text-body-sm text-outline">{formatDate(tc.updatedAt)}</td>
+                  <td className="px-3 py-1.5 text-xs text-on-surface-variant">{tc.assignedTo || "-"}</td>
+                  <td className="px-3 py-1.5 text-xs text-outline">{formatDate(tc.updatedAt)}</td>
                 </tr>
               ))}
             </tbody>
