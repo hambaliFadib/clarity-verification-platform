@@ -11,7 +11,7 @@ function LoginContent() {
   const [isLoadingGuest, setIsLoadingGuest] = useState(false);
   const [hasGoogleProvider, setHasGoogleProvider] = useState(false);
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/my-work";
+  const callbackUrl = searchParams.get("callbackUrl") || "/projects";
 
   useEffect(() => {
     getProviders()
@@ -40,7 +40,7 @@ function LoginContent() {
         <div className="w-16 h-16 bg-primary-container rounded-2xl flex items-center justify-center mb-6 shadow-subtle hover-lift">
           <Shield className="h-8 w-8 text-on-primary-container" />
         </div>
-        
+
         <h1 className="text-display-sm font-headline font-bold text-on-surface mb-2 text-center">
           Clarity Platform
         </h1>
@@ -88,7 +88,7 @@ function LoginContent() {
           </Button>
         </div>
       </div>
-      
+
       <p className="absolute bottom-6 text-body-sm text-outline text-center w-full">
         &copy; {new Date().getFullYear()} NexQA. All rights reserved.
       </p>

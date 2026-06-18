@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { Input, Label, Select, Textarea } from "@/components/ui/input";
+import { Modal, ModalHeader, ModalTitle, ModalBody, ModalFooter } from "@/components/ui/modal";
 import type { Defect, Environment, TestCase, TestRun } from "@/lib/types";
 
 interface ReportDefectModalProps {
@@ -37,7 +38,6 @@ export function ReportDefectModal({
 
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
       if (initialData) {
         setTitle(initialData.title || "");
         setDescription(initialData.description || "");
@@ -61,12 +61,7 @@ export function ReportDefectModal({
         setBrowser("");
         setTagsInput("");
       }
-    } else {
-      document.body.style.overflow = "unset";
     }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
   }, [isOpen, initialData]);
 
   if (!isOpen) return null;
@@ -97,142 +92,127 @@ export function ReportDefectModal({
     onClose();
   };
 
-  const inputClass = "w-full border border-outline-variant rounded-lg px-3 py-2 text-body-sm bg-white focus:border-primary-container focus:ring-1 focus:ring-primary-fixed-dim focus:outline-none transition-all";
-  const labelClass = "block text-label-bold font-label-bold text-on-surface-variant uppercase tracking-normal mb-1.5";
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
-      <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md" onClick={onClose} />
+    <Modal isOpen={isOpen} onClose={onClose} size="2xl">
+      <ModalHeader onClose={onClose}>
+        <ModalTitle>{initialData ? "Edit Defect" : "Report New Defect"}</ModalTitle>
+      </ModalHeader>
 
-      <div className="relative bg-white w-full max-w-2xl rounded-2xl shadow-elevated flex flex-col max-h-[90vh] animate-scale-in">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
-          <h2 className="text-headline-sm font-headline font-semibold text-on-surface">
-            {initialData ? "Edit Defect" : "Report New Defect"}
-          </h2>
-          <button onClick={onClose} className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-full transition-colors">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      <ModalBody className="overflow-y-auto max-h-[60vh]">
+        <form id="defect-form" onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label>Defect Title *</Label>
+            <Input
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Brief summary of the issue"
+            />
+          </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          <form id="defect-form" onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label>Description & Steps to Reproduce</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Provide details and steps to reproduce..."
+              className="min-h-[120px]"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className={labelClass}>Defect Title *</label>
-              <input
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Brief summary of the issue"
-                className={inputClass}
-              />
-            </div>
-
-            <div>
-              <label className={labelClass}>Description & Steps to Reproduce</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Provide details and steps to reproduce..."
-                className={`${inputClass} min-h-[120px] resize-y`}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className={labelClass}>Severity</label>
-                <select value={severity} onChange={(e) => setSeverity(e.target.value as Defect["severity"])} className={inputClass}>
-                  <option value="Critical">Critical</option>
-                  <option value="High">High</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Low">Low</option>
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass}>Status</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value as Defect["status"])} className={inputClass}>
-                  <option value="Open">Open</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Resolved">Resolved</option>
-                  <option value="Closed">Closed</option>
-                  <option value="Blocked">Blocked</option>
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass}>Test Run Category</label>
-                <select value={linkedTestRun} onChange={(e) => setLinkedTestRun(e.target.value)} className={inputClass}>
-                  <option value="Manual">Manual</option>
-                  {testRuns.map(run => (
-                    <option key={run.id} value={run.name}>{run.name}</option>
-                  ))}
-                  <option value="Debug Test Run">Debug Test Run</option>
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass}>Type</label>
-                <select value={type} onChange={(e) => setType(e.target.value as Defect["type"])} className={inputClass}>
-                  <option value="Bug">Bug</option>
-                  <option value="Enhancement">Enhancement</option>
-                  <option value="Task">Task</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className={labelClass}>Linked Test Case (Optional)</label>
-                <select value={linkedTestCase} onChange={(e) => setLinkedTestCase(e.target.value)} className={inputClass}>
-                  <option value="">-- No Test Case Linked --</option>
-                  {testCases.map((tc) => (
-                    <option key={tc.id} value={tc.id}>{tc.id} - {tc.title.substring(0, 50)}...</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className={labelClass}>Environment</label>
-                <select value={environment} onChange={(e) => setEnvironment(e.target.value)} className={inputClass}>
-                  <option value="">-- Select Environment --</option>
-                  {environments.map(env => (
-                    <option key={env.id} value={env.name}>{env.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className={labelClass}>Browser / OS</label>
-                <input
-                  value={browser}
-                  onChange={(e) => setBrowser(e.target.value)}
-                  placeholder="e.g. Chrome 126, iOS 17"
-                  className={inputClass}
-                />
-              </div>
+              <Label>Severity</Label>
+              <Select value={severity} onChange={(e) => setSeverity(e.target.value as Defect["severity"])}>
+                <option value="Critical">Critical</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </Select>
             </div>
 
             <div>
-              <label className={labelClass}>Tags (Comma Separated)</label>
-              <input
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                placeholder="ui, login, api..."
-                className={inputClass}
+              <Label>Status</Label>
+              <Select value={status} onChange={(e) => setStatus(e.target.value as Defect["status"])}>
+                <option value="Open">Open</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Closed">Closed</option>
+                <option value="Blocked">Blocked</option>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Test Run Category</Label>
+              <Select value={linkedTestRun} onChange={(e) => setLinkedTestRun(e.target.value)}>
+                <option value="Manual">Manual</option>
+                {testRuns.map(run => (
+                  <option key={run.id} value={run.name}>{run.name}</option>
+                ))}
+                <option value="Debug Test Run">Debug Test Run</option>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Type</Label>
+              <Select value={type} onChange={(e) => setType(e.target.value as Defect["type"])}>
+                <option value="Bug">Bug</option>
+                <option value="Enhancement">Enhancement</option>
+                <option value="Task">Task</option>
+              </Select>
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label>Linked Test Case (Optional)</Label>
+              <Select value={linkedTestCase} onChange={(e) => setLinkedTestCase(e.target.value)}>
+                <option value="">-- No Test Case Linked --</option>
+                {testCases.map((tc) => (
+                  <option key={tc.id} value={tc.id}>{tc.id} - {tc.title.substring(0, 50)}...</option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <Label>Environment</Label>
+              <Select value={environment} onChange={(e) => setEnvironment(e.target.value)}>
+                <option value="">-- Select Environment --</option>
+                {environments.map(env => (
+                  <option key={env.id} value={env.name}>{env.name}</option>
+                ))}
+              </Select>
+            </div>
+
+            <div>
+              <Label>Browser / OS</Label>
+              <Input
+                value={browser}
+                onChange={(e) => setBrowser(e.target.value)}
+                placeholder="e.g. Chrome 126, iOS 17"
               />
             </div>
-          </form>
-        </div>
+          </div>
 
-        <div className="px-6 py-4 border-t border-outline-variant flex justify-end gap-3 bg-surface-container-low/30 rounded-b-2xl">
-          <Button type="button" variant="ghost" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form="defect-form">
-            {initialData ? "Save Changes" : "Create Defect"}
-          </Button>
-        </div>
-      </div>
-    </div>
+          <div>
+            <Label>Tags (Comma Separated)</Label>
+            <Input
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              placeholder="ui, login, api..."
+            />
+          </div>
+        </form>
+      </ModalBody>
+
+      <ModalFooter>
+        <Button type="button" variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" form="defect-form">
+          {initialData ? "Save Changes" : "Create Defect"}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

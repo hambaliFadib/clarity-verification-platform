@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Play, Check, X, SkipForward, Camera, Bug } from "lucide-react";
 import { ReportDefectModal } from "@/components/defects/report-defect-modal";
@@ -21,6 +22,11 @@ interface ExecutionRunnerProps {
 export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: ExecutionRunnerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDefectModalOpen, setIsDefectModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,7 +40,7 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
     };
   }, [isOpen]);
 
-  if (!isOpen || testCases.length === 0) return null;
+  if (!isOpen || testCases.length === 0 || !mounted) return null;
 
   const currentCase = testCases[currentIndex];
 
@@ -54,7 +60,7 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
     handleStatus("Failed");
   };
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 animate-fade-in">
       <div className="absolute inset-0 bg-surface-container-highest/60 backdrop-blur-md" onClick={onClose} />
 
@@ -69,19 +75,19 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
                 Step {currentIndex + 1} of {testCases.length}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" className="text-success hover:bg-success/10 border-success/20" onClick={() => handleStatus("Passed")}>
-                <Check className="h-4 w-4" /> Pass
+            <div className="flex items-center gap-1.5">
+              <Button variant="outline" size="sm" className="text-emerald-600 border-emerald-200 hover:bg-emerald-50 bg-white shadow-none px-2.5 py-1 text-xs" onClick={() => handleStatus("Passed")}>
+                <Check className="h-3.5 w-3.5" /> Pass
               </Button>
-              <Button variant="outline" className="text-error hover:bg-error/10 border-error/20" onClick={() => handleStatus("Failed")}>
-                <X className="h-4 w-4" /> Fail
+              <Button variant="outline" size="sm" className="text-error border-error/20 hover:bg-error/5 bg-white shadow-none px-2.5 py-1 text-xs" onClick={() => handleStatus("Failed")}>
+                <X className="h-3.5 w-3.5" /> Fail
               </Button>
-              <Button variant="outline" onClick={() => handleStatus("Skipped")}>
-                <SkipForward className="h-4 w-4" /> Skip
+              <Button variant="outline" size="sm" className="text-primary border-outline-variant hover:bg-surface-container-low bg-white shadow-none px-2.5 py-1 text-xs" onClick={() => handleStatus("Skipped")}>
+                <SkipForward className="h-3.5 w-3.5" /> Skip
               </Button>
-              <div className="w-px h-6 bg-outline-variant mx-1 self-center" />
-              <Button variant="secondary" className="text-error hover:bg-error/10" onClick={() => setIsDefectModalOpen(true)}>
-                <Bug className="h-4 w-4" /> Log Defect
+              <div className="w-px h-5 bg-outline-variant mx-1 self-center" />
+              <Button variant="outline" size="sm" className="text-error border-error/20 hover:bg-error/5 bg-white shadow-none px-2.5 py-1 text-xs" onClick={() => setIsDefectModalOpen(true)}>
+                <Bug className="h-3.5 w-3.5" /> Log Defect
               </Button>
             </div>
           </div>
@@ -150,4 +156,6 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
       />
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

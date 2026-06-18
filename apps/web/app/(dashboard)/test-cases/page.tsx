@@ -4,11 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useState, useEffect } from "react";
 import { PageHeader } from "@/components/layout/page-header";
+import { PageContainer } from "@/components/layout/page-container";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { Badge } from "@/components/ui/badge";
 import { SearchFilter } from "@/components/ui/search-filter";
 import { StatusTabs } from "@/components/ui/status-tabs";
 import { Button } from "@/components/ui/button";
+import { DataTable, TableHead, TableBody, TableRow, TableHeaderCell, TableCell } from "@/components/ui/data-table";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Plus, FlaskConical, CheckCircle2, XCircle, Clock, Upload, Loader2 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import {
@@ -25,12 +28,14 @@ import { ImportReviewModal } from "@/components/test-cases/import-review-modal";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 import { AlertModal } from "@/components/ui/alert-modal";
 import { useInfiniteTestCases } from "@/hooks/use-infinite-test-cases";
+import { TestCasesTabs } from "@/components/test-cases/test-cases-tabs";
+import { TestCaseMonitorStrip } from "@/components/test-cases/test-case-monitor-strip";
 
 function TestCasesLoading() {
   return (
     <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[400px]">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
-      <div className="text-body-sm text-outline">Loading test cases...</div>
+      <div className="text-body-sm text-muted-foreground">Loading test cases...</div>
     </div>
   );
 }
@@ -174,10 +179,6 @@ function TestCasesContent() {
     { label: "Approved", count: summary.approved, value: "approved" },
   ];
 
-  if (isLoading) {
-    return <TestCasesLoading />;
-  }
-
   return (
     <>
       <AlertModal
@@ -187,7 +188,7 @@ function TestCasesContent() {
         type={alertState.type}
         onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
       />
-      <div className="p-6 max-w-7xl mx-auto space-y-6 animate-fade-in-up">
+      <PageContainer>
         <PageHeader
           title="Test Cases"
           subtitle="Manage and organize your test case library"
@@ -203,15 +204,17 @@ function TestCasesContent() {
               </Button>
               <Link href="/test-cases/create">
                 <Button id="create-test-case-btn">
-                  <Plus className="h-4 w-4" />
-                  Create Test Case
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Test Cases
                 </Button>
               </Link>
             </div>
           }
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <TestCasesTabs />
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
           <KpiCard label="Total" value={summary.total} icon={FlaskConical} />
           <KpiCard
             label="Approved"
@@ -247,73 +250,91 @@ function TestCasesContent() {
           onAddFilterClick={() => setIsAdvancedFilterOpen(true)}
         />
 
-        <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-surface-container-low border-b border-outline-variant">
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">ID</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Title</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Module</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Severity</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Status</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Type</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Assigned</th>
-                <th className="text-left px-4 py-3 text-[11px] font-bold text-outline uppercase tracking-normal">Updated</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-outline-variant/50">
-              {items.map((tc) => (
-                <tr
-                  key={tc.id}
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => router.push(`/test-cases/${tc.id}`)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      router.push(`/test-cases/${tc.id}`);
-                    }
-                  }}
-                  className="hover:bg-surface-container-low transition-colors cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-fixed-dim"
-                >
-                  <td className="px-4 py-3 font-mono text-code text-primary-container font-medium">{tc.id}</td>
-                  <td className="px-4 py-3 text-body-sm font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
-                    {tc.title}
-                  </td>
-                  <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.module}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-body-sm text-on-surface-variant">{tc.assignedTo || "-"}</td>
-                  <td className="px-4 py-3 text-body-sm text-outline">{formatDate(tc.updatedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 border border-outline-variant/30 rounded-xl bg-white shadow-subtle">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
+            <div className="text-body-sm text-muted-foreground mt-4">Loading test cases...</div>
+          </div>
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={FlaskConical}
+            title="No test cases found"
+            description="Try adjusting your search or filters."
+            action={
+              <Button onClick={() => router.push("/test-cases/create")}>
+                New Test Cases
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <DataTable>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>ID</TableHeaderCell>
+                  <TableHeaderCell>Title</TableHeaderCell>
+                  <TableHeaderCell>Module</TableHeaderCell>
+                  <TableHeaderCell>Severity</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Type</TableHeaderCell>
+                  <TableHeaderCell>Assigned</TableHeaderCell>
+                  <TableHeaderCell>Updated</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((tc) => (
+                  <TableRow
+                    key={tc.id}
+                    clickable
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => router.push(`/test-cases/${tc.id}`)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        router.push(`/test-cases/${tc.id}`);
+                      }
+                    }}
+                  >
+                    <TableCell className="font-mono text-code text-primary-container font-medium">{tc.id}</TableCell>
+                    <TableCell className="font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
+                      {tc.title}
+                    </TableCell>
+                    <TableCell className="text-on-surface-variant">{tc.module}</TableCell>
+                    <TableCell>
+                      <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
+                    </TableCell>
+                    <TableCell className="text-on-surface-variant">{tc.assignedTo || "-"}</TableCell>
+                    <TableCell className="text-outline">{formatDate(tc.updatedAt)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </DataTable>
 
-        {/* Sentinel element for infinite scroll */}
-        {hasMore && (
-          <div ref={sentinelRef} className="flex items-center justify-center py-4">
-            {isLoadingMore && (
-              <div className="flex items-center gap-2 text-outline">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-body-sm">Loading more test cases...</span>
+            {/* Sentinel element for infinite scroll */}
+            {hasMore && (
+              <div ref={sentinelRef} className="flex items-center justify-center py-4">
+                {isLoadingMore && (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-body-sm">Loading more test cases...</span>
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        <div className="text-body-sm text-on-surface-variant">
-          Showing {items.length} of {total} test cases
-        </div>
-      </div>
+            <div className="text-body-sm text-muted-foreground pt-2">
+              Showing {items.length} of {total} test cases
+            </div>
+          </>
+        )}
+      </PageContainer>
 
       <AdvancedFilterModal
         isOpen={isAdvancedFilterOpen}

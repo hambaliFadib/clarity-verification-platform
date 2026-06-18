@@ -19,12 +19,12 @@ export function NotificationPopover() {
     async function loadActivities() {
       const response = await fetch("/api/activity", { cache: "no-store" });
       if (!isMounted || !response.ok) return;
-      
+
       let fetched = await response.json();
       const now = new Date().getTime();
       const ONE_DAY = 24 * 60 * 60 * 1000;
       globalActivities = fetched.filter((a: ActivityItem) => (now - new Date(a.timestamp).getTime()) < ONE_DAY);
-      
+
       setActivities([...globalActivities]);
 
       const lastReadStr = localStorage.getItem("lastReadActivityTimestamp");
@@ -70,10 +70,6 @@ export function NotificationPopover() {
   const handleMarkAllRead = () => {
     localStorage.setItem("lastReadActivityTimestamp", new Date().toISOString());
     setUnreadCount(0);
-    // Don't close so they can still click them, but they are read now. Or let it close.
-    // Actually the user said "saat klik mark all as read lalu di refresh harusnya tetap ditandai sudah dibaca".
-    // Previously it did `setIsOpen(false)`, I will leave it as is or remove it. Let's leave it.
-    // setIsOpen(false); // maybe better not to close? I'll remove setIsOpen(false) to improve UX
   };
 
   useEffect(() => {
@@ -105,13 +101,13 @@ export function NotificationPopover() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-float border border-outline-variant overflow-hidden z-[100] animate-fade-in-up origin-top-right">
+        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-card rounded-xl shadow-float border border-outline-variant overflow-hidden z-[100] animate-fade-in-up origin-top-right">
           <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant bg-surface/80 backdrop-blur-sm">
-            <h3 className="text-label-bold font-label-bold text-on-surface">Recent Activity</h3>
+            <h3 className="text-body-md font-semibold text-on-surface">Recent Activity</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllRead}
-                className="text-[11px] text-primary-container font-medium hover:underline flex items-center gap-1"
+                className="text-caption text-primary-container font-medium hover:underline flex items-center gap-1"
               >
                 <Check className="h-3 w-3" /> Mark all as read
               </button>
@@ -120,7 +116,7 @@ export function NotificationPopover() {
 
           <div className="max-h-[400px] overflow-y-auto p-4 space-y-4">
             {activities.length === 0 ? (
-              <div className="text-center py-6 text-on-surface-variant text-body-sm">
+              <div className="text-center py-6 text-muted-foreground text-body-sm">
                 No recent activity.
               </div>
             ) : (
@@ -129,21 +125,21 @@ export function NotificationPopover() {
 
                 return (
                   <div key={act.id || idx} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-surface-container flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-primary">
+                    <div className="w-8 h-8 rounded-full bg-surface-container flex-shrink-0 flex items-center justify-center text-caption font-semibold text-primary">
                       {act.userInitials}
                     </div>
                     <div className="min-w-0">
                       <p className="text-body-sm text-on-surface">
-                        <span className="font-bold">{act.user}</span>{" "}
+                        <span className="font-semibold">{act.user}</span>{" "}
                         {act.action}{" "}
                         <Link href={linkTarget} onClick={() => setIsOpen(false)} className="text-primary-container font-medium hover:underline">
                           {act.targetId}
                         </Link>
                       </p>
                       {act.targetTitle && (
-                        <p className="text-[11px] text-on-surface-variant line-clamp-1">{act.targetTitle}</p>
+                        <p className="text-caption text-muted-foreground line-clamp-1">{act.targetTitle}</p>
                       )}
-                      <p className="text-[10px] text-outline mt-0.5">{timeAgo(act.timestamp)}</p>
+                      <p className="text-label-sm text-outline mt-0.5">{timeAgo(act.timestamp)}</p>
                     </div>
                   </div>
                 );
@@ -157,7 +153,7 @@ export function NotificationPopover() {
                 setIsOpen(false);
                 window.dispatchEvent(new CustomEvent("toggle-activity-sidebar"));
               }}
-              className="text-label-bold font-label-bold text-primary hover:underline"
+              className="text-body-md font-medium text-primary hover:underline"
             >
               View All Activity
             </button>

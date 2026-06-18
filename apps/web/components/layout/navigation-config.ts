@@ -24,7 +24,7 @@ export interface NavGroupConfig {
   items: NavItemConfig[];
 }
 
-export const navGroups: NavGroupConfig[] = [
+export const projectNavGroups: NavGroupConfig[] = [
   {
     title: "Workspace",
     items: [
@@ -45,13 +45,24 @@ export const navGroups: NavGroupConfig[] = [
     title: "Issues",
     items: [{ label: "Defects", href: "/defects", icon: Bug }],
   },
+  {
+    title: "Project",
+    items: [
+      { label: "Environments", href: "/settings/environments", icon: Cloud },
+      { label: "Releases", href: "/settings/releases", icon: Rocket },
+      { label: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ];
 
-export const settingsGroup: NavGroupConfig = {
-  title: "Settings",
-  items: [
-    { label: "Environments", href: "/settings/environments", icon: Cloud },
-    { label: "Releases", href: "/settings/releases", icon: Rocket },
-    { label: "Project Settings", href: "/settings/project", icon: Settings },
-  ],
-};
+export const platformNavGroups: NavGroupConfig[] = [
+  {
+    title: "Platform",
+    items: [
+      { label: "General", href: "/settings/general", icon: Settings },
+    ],
+  },
+];
+
+export const navGroups = projectNavGroups.filter(g => g.title !== "Project");
+export const settingsGroup = projectNavGroups.find(g => g.title === "Project")!;
