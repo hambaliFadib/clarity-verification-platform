@@ -314,8 +314,6 @@ function TestCasesContent() {
           />
         </div>
 
-        <TestCaseMonitorStrip summary={summary} items={items} total={total} />
-
         <StatusTabs tabs={statusTabs} defaultValue={activeStatus} onChange={handleStatusChange} />
         <SearchFilter
           placeholder="Search test cases..."
