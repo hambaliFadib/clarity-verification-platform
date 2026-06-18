@@ -1,8 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { PortfolioHeader } from "./components/portfolio-header";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "NexQA - Enterprise Portfolio",
@@ -10,22 +8,17 @@ export const metadata: Metadata = {
 };
 
 export default async function PortfolioPage() {
-  const session = await getServerSession(authOptions);
-  // Guest logic: if guest or not logged in, show the mock data.
-  // If Google Auth (real user), show empty state initially.
-  const isGuest = session?.user?.email === "guest@clarity.local" || !session?.user;
-
-  // The Exact Mock Data from the Stitch HTML Design
-  const projects = isGuest ? [
+  // Show projects for all authenticated users
+  const projects = [
     { id: "1", name: "NexQA Platform", status: "Active", quality_score: 85, metrics: { requirements: 25, test_cases: 150, defects: 12 } },
     { id: "2", name: "Mobile App", status: "Active", quality_score: 78, metrics: { requirements: 18, test_cases: 95, defects: 8 } },
     { id: "3", name: "API Gateway", status: "Planning", quality_score: 92, metrics: { requirements: 12, test_cases: 60, defects: 4 } },
-  ] : [];
+  ];
 
-  const totalProjects = isGuest ? 3 : 0;
-  const qualityScore = isGuest ? 85 : 0;
-  const atRiskCount = isGuest ? 0 : 0;
-  const complianceScore = isGuest ? 75 : 0;
+  const totalProjects = projects.length;
+  const qualityScore = 85;
+  const atRiskCount = 0;
+  const complianceScore = 75;
 
   return (
     <div className="text-on-background h-screen flex flex-col items-center overflow-hidden">

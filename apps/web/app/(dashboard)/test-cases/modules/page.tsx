@@ -11,77 +11,10 @@ import { Plus, Upload, Search } from "lucide-react";
 import type { ModuleNode } from "@/components/test-cases/module-item";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 
-// Mock Data with hierarchy
-const INITIAL_MODULES: ModuleNode[] = [
-  {
-    id: "MOD-001",
-    displayId: "MOD-001",
-    name: "Authentication",
-    description: "User login, registration, password reset and sessions.",
-    testCaseCount: 15,
-    scenarioCount: 3,
-    passRate: 85,
-    status: "Active",
-    children: [
-      {
-        id: "MOD-001-1",
-        displayId: "MOD-001-1",
-        name: "Login Flow",
-        testCaseCount: 5,
-        scenarioCount: 2,
-        passRate: 90,
-        status: "Active",
-        testCases: [
-          { id: "TC-001", displayId: "TC-001", title: "Verify login with valid credentials", status: "Ready", severity: "High", type: "Functional" },
-          { id: "TC-002", displayId: "TC-002", title: "Verify login with invalid password", status: "Ready", severity: "Medium", type: "Functional" },
-        ]
-      }
-    ],
-    testCases: [
-      { id: "TC-003", displayId: "TC-003", title: "Verify session timeout", status: "Draft", severity: "Medium", type: "Functional" },
-    ]
-  },
-  {
-    id: "MOD-002",
-    displayId: "MOD-002",
-    name: "Payment",
-    description: "Checkout flows, payment gateways and refunds.",
-    testCaseCount: 10,
-    scenarioCount: 2,
-    passRate: 92,
-    status: "Active",
-    children: [
-      {
-        id: "MOD-002-1",
-        displayId: "MOD-002-1",
-        name: "Credit Card",
-        testCaseCount: 6,
-        scenarioCount: 1,
-        passRate: 95,
-        status: "Active",
-        testCases: []
-      }
-    ],
-    testCases: []
-  },
-  {
-    id: "MOD-003",
-    displayId: "MOD-003",
-    name: "API",
-    description: "Core API endpoints testing.",
-    testCaseCount: 0,
-    scenarioCount: 0,
-    passRate: 0,
-    status: "Active",
-    children: [],
-    testCases: []
-  },
-];
-
 export default function ModulesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
-  const [modules, setModules] = useState<ModuleNode[]>(INITIAL_MODULES);
+  const [modules, setModules] = useState<ModuleNode[]>([]);
 
   // Modal states
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
@@ -162,7 +95,7 @@ export default function ModulesPage() {
         onImportError={(msg) => {
           alert(msg);
         }}
-        totalCount={INITIAL_MODULES.reduce((acc, mod) => acc + mod.testCaseCount, 0)}
+        totalCount={modules.reduce((acc, mod) => acc + mod.testCaseCount, 0)}
       />
     </PageContainer>
   );

@@ -27,7 +27,6 @@ import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 import { AlertModal } from "@/components/ui/alert-modal";
 import { useInfiniteTestCases } from "@/hooks/use-infinite-test-cases";
 import { TestCasesTabs } from "@/components/test-cases/test-cases-tabs";
-import { TestCaseMonitorStrip } from "@/components/test-cases/test-case-monitor-strip";
 
 function TestCasesLoading() {
   return (
