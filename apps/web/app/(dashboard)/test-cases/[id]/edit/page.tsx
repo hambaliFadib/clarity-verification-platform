@@ -187,6 +187,14 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
     });
   };
 
+  const handleCancel = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(`/test-cases/${id}`);
+    }
+  };
+
   const addTag = () => {
     const cleanTag = tagInput.trim().toLowerCase();
     if (cleanTag && !tags.includes(cleanTag)) {
@@ -231,7 +239,14 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
         throw new Error(result.error || "Failed to update test case");
       }
 
-      router.push(`/test-cases/${id}?toast=updated`);
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("test-case-toast", "updated");
+      }
+      if (typeof window !== "undefined" && window.history.length > 1) {
+        router.back();
+      } else {
+        router.push(`/test-cases/${id}`);
+      }
     } catch (err: any) {
       console.error(err);
       setAlertState({
@@ -307,7 +322,7 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
               <Button
                 variant="secondary"
                 type="button"
-                onClick={() => router.push(`/test-cases/${id}`)}
+                onClick={handleCancel}
                 disabled={isSubmitting}
               >
                 Cancel
@@ -744,7 +759,7 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
           <Button
             variant="secondary"
             type="button"
-            onClick={() => router.push(`/test-cases/${id}`)}
+            onClick={handleCancel}
             disabled={isSubmitting}
           >
             Cancel

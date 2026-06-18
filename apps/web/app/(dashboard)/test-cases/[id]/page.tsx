@@ -78,34 +78,42 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
   });
 
   useEffect(() => {
-    const toastType = searchParams.get("toast");
-    if (toastType === "created") {
-      setAlertState({
-        isOpen: true,
-        title: "Test Case Created",
-        message: "The test case was created successfully.",
-        type: "success",
-      });
-      const newUrl = window.location.pathname;
-      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
-    } else if (toastType === "updated") {
-      setAlertState({
-        isOpen: true,
-        title: "Test Case Updated",
-        message: "The test case details were updated successfully.",
-        type: "success",
-      });
-      const newUrl = window.location.pathname;
-      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
-    } else if (toastType === "cloned") {
-      setAlertState({
-        isOpen: true,
-        title: "Test Case Cloned",
-        message: "The test case has been cloned successfully.",
-        type: "success",
-      });
-      const newUrl = window.location.pathname;
-      window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+    const sessionToast = typeof window !== "undefined" ? sessionStorage.getItem("test-case-toast") : null;
+    const toastType = searchParams.get("toast") || sessionToast;
+
+    if (toastType) {
+      if (typeof window !== "undefined" && sessionToast) {
+        sessionStorage.removeItem("test-case-toast");
+      }
+
+      if (toastType === "created") {
+        setAlertState({
+          isOpen: true,
+          title: "Test Case Created",
+          message: "The test case was created successfully.",
+          type: "success",
+        });
+        const newUrl = window.location.pathname;
+        window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+      } else if (toastType === "updated") {
+        setAlertState({
+          isOpen: true,
+          title: "Test Case Updated",
+          message: "The test case details were updated successfully.",
+          type: "success",
+        });
+        const newUrl = window.location.pathname;
+        window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+      } else if (toastType === "cloned") {
+        setAlertState({
+          isOpen: true,
+          title: "Test Case Cloned",
+          message: "The test case has been cloned successfully.",
+          type: "success",
+        });
+        const newUrl = window.location.pathname;
+        window.history.replaceState({ ...window.history.state, as: newUrl, url: newUrl }, "", newUrl);
+      }
     }
   }, [searchParams]);
 
