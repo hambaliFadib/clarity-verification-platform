@@ -72,7 +72,7 @@ export function ModuleItem({
               description: sm.description,
               scenarioCount: 0,
               testCaseCount: sm.testCaseCount || 0,
-              passRate: 100,
+              passRate: sm.passRate !== undefined ? sm.passRate : 100,
               status: "Active",
               parentId: module.id,
             }))

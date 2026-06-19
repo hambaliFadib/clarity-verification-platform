@@ -28,6 +28,25 @@ import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 import { AlertModal } from "@/components/ui/alert-modal";
 import { useInfiniteTestCases } from "@/hooks/use-infinite-test-cases";
 import { TestCasesTabs } from "@/components/test-cases/test-cases-tabs";
+import type { TestCase } from "@/lib/types";
+
+function getExecutionBadge(tc: TestCase) {
+  if (!tc.steps || tc.steps.length === 0) {
+    return <Badge variant="not-run" className="text-[9px] px-1 py-0">Not Run</Badge>;
+  }
+  const statuses = tc.steps.map(s => s.status).filter(Boolean);
+  if (statuses.includes("Failed")) {
+    return <Badge variant="failed" className="text-[9px] px-1 py-0">Failed</Badge>;
+  }
+  const allPassed = tc.steps.length > 0 && tc.steps.every(s => s.status === "Passed");
+  if (allPassed) {
+    return <Badge variant="passed" className="text-[9px] px-1 py-0">Passed</Badge>;
+  }
+  if (statuses.includes("Skipped")) {
+    return <Badge variant="skipped" className="text-[9px] px-1 py-0">Skipped</Badge>;
+  }
+  return <Badge variant="not-run" className="text-[9px] px-1 py-0">Not Run</Badge>;
+}
 
 function TestCasesLoading() {
   return (
@@ -80,6 +99,8 @@ function TestCasesContent() {
     module: searchParams.get("module") || "",
     type: (searchParams.get("type") || "") as TestCaseAdvancedFilters["type"],
     severity: (searchParams.get("severity") || "") as TestCaseAdvancedFilters["severity"],
+    category: (searchParams.get("category") || "") as TestCaseAdvancedFilters["category"],
+    assigned: searchParams.get("assigned") || "",
   });
 
   const syncFiltersToUrl = useCallback(
@@ -90,6 +111,8 @@ function TestCasesContent() {
       if (newFilters.module) params.set("module", newFilters.module);
       if (newFilters.type) params.set("type", newFilters.type);
       if (newFilters.severity) params.set("severity", newFilters.severity);
+      if (newFilters.category) params.set("category", newFilters.category);
+      if (newFilters.assigned) params.set("assigned", newFilters.assigned);
 
       const qs = params.toString();
       const newUrl = qs ? `/test-cases?${qs}` : "/test-cases";
@@ -143,7 +166,7 @@ function TestCasesContent() {
   );
 
   const handleResetFilters = useCallback(() => {
-    const empty: TestCaseAdvancedFilters = { module: "", type: "", severity: "" };
+    const empty: TestCaseAdvancedFilters = { module: "", type: "", severity: "", category: "", assigned: "" };
     setAdvancedFilters(empty);
     setSearch("");
     setActiveStatus("all");
@@ -155,6 +178,8 @@ function TestCasesContent() {
     if (advancedFilters.module) chips.push({ label: "Module", value: advancedFilters.module, key: "module" });
     if (advancedFilters.type) chips.push({ label: "Type", value: advancedFilters.type, key: "type" });
     if (advancedFilters.severity) chips.push({ label: "Severity", value: advancedFilters.severity, key: "severity" });
+    if (advancedFilters.category) chips.push({ label: "Category", value: advancedFilters.category, key: "category" });
+    if (advancedFilters.assigned) chips.push({ label: "Assigned", value: advancedFilters.assigned, key: "assigned" });
     return chips;
   }, [advancedFilters]);
 
@@ -172,6 +197,8 @@ function TestCasesContent() {
     module: advancedFilters.module || undefined,
     type: advancedFilters.type || undefined,
     severity: advancedFilters.severity || undefined,
+    category: advancedFilters.category || undefined,
+    assigned: advancedFilters.assigned || undefined,
   });
 
   useEffect(() => {
@@ -344,15 +371,16 @@ function TestCasesContent() {
             <div className="overflow-x-auto bg-white border border-outline-variant rounded-xl shadow-subtle">
               <table className="w-full table-fixed">
                 <colgroup>
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "25%" }} />
-                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
-                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "8%" }} />
                 </colgroup>
                 <thead>
                   <tr className="bg-surface-container-low border-b border-outline-variant">
@@ -362,6 +390,7 @@ function TestCasesContent() {
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Category</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Severity</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Status</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Execution</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Type</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Assigned</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Updated</th>
@@ -397,6 +426,9 @@ function TestCasesContent() {
                       </td>
                       <td className="px-3 py-1.5">
                         <Badge variant={testCaseStatusBadgeVariants[tc.status]} className="text-[9px] px-1 py-0">{tc.status}</Badge>
+                      </td>
+                      <td className="px-3 py-1.5">
+                        {getExecutionBadge(tc)}
                       </td>
                       <td className="px-3 py-1.5">
                         <Badge variant={testCaseTypeBadgeVariants[tc.type]} className="text-[9px] px-1 py-0">{tc.type}</Badge>

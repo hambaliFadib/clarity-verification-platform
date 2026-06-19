@@ -33,7 +33,7 @@ export default function ModulesPage() {
           description: m.description || "",
           scenarioCount: 0,
           testCaseCount: m.testCaseCount || 0,
-          passRate: 100,
+          passRate: m.passRate !== undefined ? m.passRate : 100,
           status: "Active",
           children: [],
         }));

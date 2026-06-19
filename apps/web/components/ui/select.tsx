@@ -38,12 +38,17 @@ export function Select({ value, onChange, options, placeholder, className, error
   // Close on scroll / resize
   useEffect(() => {
     if (!isOpen) return;
-    const close = () => setIsOpen(false);
+    const close = (e: Event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target as Node)) {
+        return;
+      }
+      setIsOpen(false);
+    };
     window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
+    window.addEventListener("resize", () => setIsOpen(false));
     return () => {
       window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("resize", () => setIsOpen(false));
     };
   }, [isOpen]);
 

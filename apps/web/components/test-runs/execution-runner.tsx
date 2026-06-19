@@ -5,21 +5,17 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Play, Check, X, SkipForward, Camera, Bug } from "lucide-react";
 import { ReportDefectModal } from "@/components/defects/report-defect-modal";
-import type { Defect } from "@/lib/types";
+import type { Defect, TestCase } from "@/lib/types";
 
 interface ExecutionRunnerProps {
   isOpen: boolean;
   onClose: () => void;
-  testCases: Array<{
-    id: string;
-    title: string;
-    description?: string;
-    steps?: Array<{ action: string; expectedResult?: string }>;
-  }>;
+  testCases: TestCase[];
+  onTestCaseResult: (tcId: string, status: "Passed" | "Failed" | "Skipped") => Promise<void>;
   onComplete: () => void;
 }
 
-export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: ExecutionRunnerProps) {
+export function ExecutionRunner({ isOpen, onClose, testCases, onTestCaseResult, onComplete }: ExecutionRunnerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isDefectModalOpen, setIsDefectModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -44,7 +40,10 @@ export function ExecutionRunner({ isOpen, onClose, testCases, onComplete }: Exec
 
   const currentCase = testCases[currentIndex];
 
-  const handleStatus = (_status: "Passed" | "Failed" | "Skipped") => {
+  const handleStatus = async (status: "Passed" | "Failed" | "Skipped") => {
+    if (currentCase) {
+      await onTestCaseResult(currentCase.id, status);
+    }
     if (currentIndex < testCases.length - 1) {
       setCurrentIndex((prev) => prev + 1);
       return;

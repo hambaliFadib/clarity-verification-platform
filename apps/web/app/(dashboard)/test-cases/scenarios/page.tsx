@@ -34,7 +34,7 @@ export default function ScenariosPage() {
           name: sc.name,
           description: sc.description || "",
           testCaseCount: sc.testCaseCount || 0,
-          passRate: 100,
+          passRate: sc.passRate !== undefined ? sc.passRate : 100,
           status: "Approved",
           moduleId: sc.moduleId || undefined,
         }));

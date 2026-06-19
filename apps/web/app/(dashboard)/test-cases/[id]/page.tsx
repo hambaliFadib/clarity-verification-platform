@@ -65,6 +65,26 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
       [stepNumber]: !prev[stepNumber],
     }));
   };
+
+  const handleTestCaseResult = async (tcId: string, status: "Passed" | "Failed" | "Skipped") => {
+    if (!tc) return;
+    const stepStatus: "Passed" | "Failed" | "Blocked" | "Not Run" | "Skipped" | undefined = status === "Passed" ? "Passed" : status === "Failed" ? "Failed" : "Skipped";
+    const updatedSteps = tc.steps.map(step => ({
+      ...step,
+      status: stepStatus
+    }));
+
+    const tcRes = await fetch(`/api/test-cases/${tc.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ testSteps: updatedSteps })
+    });
+
+    if (tcRes.ok) {
+      const updatedTc = await tcRes.json();
+      setTc(updatedTc);
+    }
+  };
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
     title: string;
@@ -462,15 +482,8 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
       <ExecutionRunner
         isOpen={isRunnerOpen}
         onClose={() => setIsRunnerOpen(false)}
-        testCases={tc ? [{
-          id: tc.id,
-          title: tc.title,
-          description: tc.description || undefined,
-          steps: tc.steps?.map(step => ({
-            action: step.action,
-            expectedResult: step.expectedResult || undefined,
-          })),
-        }] : []}
+        testCases={tc ? [tc] : []}
+        onTestCaseResult={handleTestCaseResult}
         onComplete={() => {
           setAlertState({
             isOpen: true,

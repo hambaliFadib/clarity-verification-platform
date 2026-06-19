@@ -331,7 +331,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   const search = searchParams.get("search");
   if (search) {
     const placeholder = addValue(`%${search}%`);
-    filters.push(`(tc.title ilike ${placeholder} or m.name ilike ${placeholder} or tc.display_id ilike ${placeholder})`);
+    filters.push(`(tc.title ilike ${placeholder} or m.name ilike ${placeholder} or tc.display_id ilike ${placeholder} or assignee.name ilike ${placeholder})`);
   }
   const status = searchParams.get("status");
   if (status && status.toLowerCase() !== "all") filters.push(`tc.status ilike ${addValue(status)}`);
@@ -339,6 +339,10 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   if (severity) filters.push(`tc.severity ilike ${addValue(severity)}`);
   const type = searchParams.get("type");
   if (type) filters.push(`tc.type ilike ${addValue(type)}`);
+  const category = searchParams.get("category");
+  if (category) filters.push(`tc.category ilike ${addValue(category)}`);
+  const assigned = searchParams.get("assigned");
+  if (assigned) filters.push(`assignee.name ilike ${addValue(`%${assigned}%`)}`);
 
   const moduleId = searchParams.get("moduleId") || searchParams.get("module_id");
   if (moduleId) {
@@ -362,6 +366,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
     `select count(*) as total 
      from test_cases tc 
      left join tc_modules m on m.id = tc.module_id
+     left join users assignee on assignee.id = tc.assigned_to
      where ${whereSql}`, 
     values
   );
@@ -775,7 +780,16 @@ export async function listModules(ctx?: ProjectAccessContext) {
   const result = await query(
     `select m.id, m.name, m.description,
             (select count(*)::integer from tc_sub_modules sm where sm.module_id = m.id and sm.deleted_at is null) as "subModuleCount",
-            (select count(*)::integer from test_cases tc where tc.module_id = m.id and tc.deleted_at is null) as "testCaseCount"
+            (select count(*)::integer from test_cases tc where tc.module_id = m.id and tc.deleted_at is null) as "testCaseCount",
+            coalesce(
+              round(
+                (select count(*)::float from test_cases tc 
+                 where tc.module_id = m.id and tc.deleted_at is null
+                   and not exists (select 1 from test_steps ts where ts.test_case_id = tc.id and ts.status = 'Failed')
+                ) / nullif((select count(*)::float from test_cases tc where tc.module_id = m.id and tc.deleted_at is null), 0) * 100
+              )::integer,
+              100
+            ) as "passRate"
      from tc_modules m
      where m.deleted_at is null
        ${projectIds === null ? "" : "and m.project_id = any($1::uuid[])"}
@@ -877,7 +891,16 @@ export async function listSubModules(moduleId: string, ctx?: ProjectAccessContex
 
   const result = await query(
     `select sm.id, sm.name, sm.description, sm.module_id as "moduleId",
-            (select count(*)::integer from test_cases tc where tc.sub_module_id = sm.id and tc.deleted_at is null) as "testCaseCount"
+            (select count(*)::integer from test_cases tc where tc.sub_module_id = sm.id and tc.deleted_at is null) as "testCaseCount",
+            coalesce(
+              round(
+                (select count(*)::float from test_cases tc 
+                 where tc.sub_module_id = sm.id and tc.deleted_at is null
+                   and not exists (select 1 from test_steps ts where ts.test_case_id = tc.id and ts.status = 'Failed')
+                ) / nullif((select count(*)::float from test_cases tc where tc.sub_module_id = sm.id and tc.deleted_at is null), 0) * 100
+              )::integer,
+              100
+            ) as "passRate"
      from tc_sub_modules sm
      where sm.module_id = $1 and sm.deleted_at is null
        ${projectIds === null ? "" : "and sm.project_id = any($2::uuid[])"}
@@ -958,7 +981,16 @@ export async function listScenarios(ctx?: ProjectAccessContext) {
     `select sc.id, sc.name, sc.description, 
             sc.module_id as "moduleId", m.name as "moduleName",
             sc.sub_module_id as "subModuleId", sm.name as "subModuleName",
-            (select count(*)::integer from test_cases tc where tc.scenario_id = sc.id and tc.deleted_at is null) as "testCaseCount"
+            (select count(*)::integer from test_cases tc where tc.scenario_id = sc.id and tc.deleted_at is null) as "testCaseCount",
+            coalesce(
+              round(
+                (select count(*)::float from test_cases tc 
+                 where tc.scenario_id = sc.id and tc.deleted_at is null
+                   and not exists (select 1 from test_steps ts where ts.test_case_id = tc.id and ts.status = 'Failed')
+                ) / nullif((select count(*)::float from test_cases tc where tc.scenario_id = sc.id and tc.deleted_at is null), 0) * 100
+              )::integer,
+              100
+            ) as "passRate"
      from tc_scenarios sc
      left join tc_modules m on m.id = sc.module_id
      left join tc_sub_modules sm on sm.id = sc.sub_module_id
@@ -2228,6 +2260,45 @@ export async function listTestRuns(searchParams: URLSearchParams, ctx?: ProjectA
   return { items: result.rows.map(mapTestRun), total: Number(count.rows[0]?.total || 0) };
 }
 
+export async function createTestRun(payload: any, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
+  return transaction(async (client) => {
+    const prefix = await getProjectPrefix(client, projectId);
+    const displayId = await nextDisplayId(client, "test_runs", `${prefix}-RUN`);
+    
+    // Count how many test cases we have in the project
+    const tcCountResult = await client.query(
+      "select count(*)::integer as count from test_cases where project_id = $1 and deleted_at is null",
+      [projectId]
+    );
+    const totalCases = tcCountResult.rows[0]?.count || 0;
+    
+    const id = randomUUID();
+    const result = await client.query(
+      `insert into test_runs (
+        id, display_id, name, description, status, environment, release, 
+        assigned_to, total_cases, passed, failed, blocked, not_run, 
+        created_at, updated_at, project_id
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, 0, 0, $9, now(), now(), $10)
+      returning *`,
+      [
+        id,
+        displayId,
+        payload.name || "Unnamed Run",
+        payload.description || "",
+        "Not Started",
+        payload.environment || "Staging",
+        payload.release || "",
+        payload.assignedTo || "Guest User",
+        totalCases,
+        projectId
+      ]
+    );
+    return mapTestRun(result.rows[0]);
+  });
+}
+
 export async function getTestRun(id: string, ctx?: ProjectAccessContext) {
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return null;
@@ -2255,6 +2326,33 @@ export async function updateTestRunStatus(id: string, status: "Running" | "Abort
   const result = await query(
     `update test_runs
      set ${entries.map(([key], index) => `${key} = $${index + 1}`).join(", ")}, updated_at = now()
+     where id = $${entries.length + 1}
+     returning *`,
+    [...entries.map(([, value]) => value), testRun.realId],
+  );
+  return result.rows[0] ? mapTestRun(result.rows[0]) : null;
+}
+
+export async function updateTestRun(id: string, payload: any, ctx?: ProjectAccessContext) {
+  const testRun = await getTestRun(id, ctx);
+  if (!testRun?.realId) return null;
+  
+  const fields: Record<string, unknown> = {};
+  if (payload.status !== undefined) fields.status = payload.status;
+  if (payload.passed !== undefined) fields.passed = payload.passed;
+  if (payload.failed !== undefined) fields.failed = payload.failed;
+  if (payload.blocked !== undefined) fields.blocked = payload.blocked;
+  if (payload.notRun !== undefined || payload.not_run !== undefined) fields.not_run = payload.notRun ?? payload.not_run;
+  if (payload.totalCases !== undefined || payload.total_cases !== undefined) fields.total_cases = payload.totalCases ?? payload.total_cases;
+  if (payload.completedAt !== undefined || payload.completed_at !== undefined) fields.completed_at = payload.completedAt ?? payload.completed_at;
+  
+  if (Object.keys(fields).length === 0) return testRun;
+  
+  const entries = Object.entries(fields);
+  const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
+  const result = await query(
+    `update test_runs
+     set ${assignments}, updated_at = now()
      where id = $${entries.length + 1}
      returning *`,
     [...entries.map(([, value]) => value), testRun.realId],

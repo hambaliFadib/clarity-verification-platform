@@ -16,13 +16,19 @@ export async function GET(request: Request) {
       const module = searchParams.get("module");
       const type = searchParams.get("type");
       const severity = searchParams.get("severity");
+      const category = searchParams.get("category");
+      const assigned = searchParams.get("assigned");
 
       if (status) {
         items = items.filter(tc => tc.status.toLowerCase() === status.toLowerCase());
       }
       if (search) {
         const q = search.toLowerCase();
-        items = items.filter(tc => tc.title.toLowerCase().includes(q) || tc.id.toLowerCase().includes(q));
+        items = items.filter(tc => 
+          tc.title.toLowerCase().includes(q) || 
+          tc.id.toLowerCase().includes(q) || 
+          (tc.assignedTo && tc.assignedTo.toLowerCase().includes(q))
+        );
       }
       if (module) {
         items = items.filter(tc => tc.moduleName === module);
@@ -32,6 +38,13 @@ export async function GET(request: Request) {
       }
       if (severity) {
         items = items.filter(tc => tc.severity === severity);
+      }
+      if (category) {
+        items = items.filter(tc => tc.category === category);
+      }
+      if (assigned) {
+        const q = assigned.toLowerCase();
+        items = items.filter(tc => tc.assignedTo && tc.assignedTo.toLowerCase().includes(q));
       }
       return NextResponse.json({ items, total: items.length });
     }

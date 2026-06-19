@@ -23,7 +23,7 @@ import { ExecutionRunner } from "@/components/test-runs/execution-runner";
 import { EvidenceViewer } from "@/components/test-runs/evidence-viewer";
 import { RunTimeline } from "@/components/test-runs/run-timeline";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import type { TestRun } from "@/lib/types";
+import type { TestRun, TestCase } from "@/lib/types";
 
 function testRunStatusVariant(status: TestRun["status"]): BadgeVariant {
   if (status === "Not Started") return "not-run";
@@ -37,6 +37,7 @@ function testRunStatusVariant(status: TestRun["status"]): BadgeVariant {
 export default function TestRunDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [testRun, setTestRun] = useState<TestRun | null>(null);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [isRunnerOpen, setIsRunnerOpen] = useState(false);
 
   useEffect(() => {
@@ -52,6 +53,21 @@ export default function TestRunDetailPage() {
     }
     loadRun();
   }, [id]);
+
+  useEffect(() => {
+    async function loadTestCases() {
+      try {
+        const response = await fetch("/api/test-cases?limit=1000", { cache: "no-store" });
+        if (response.ok) {
+          const data = await response.json();
+          setTestCases(data.items || []);
+        }
+      } catch (error) {
+        console.error("Failed to load test cases", error);
+      }
+    }
+    loadTestCases();
+  }, []);
 
   const handleStart = async () => {
     const res = await fetch(`/api/test-runs/${id}/start`, { method: "POST" });
@@ -69,9 +85,99 @@ export default function TestRunDetailPage() {
     if (res.ok) setTestRun(await res.json());
   };
 
+  const handleTestCaseResult = async (tcId: string, status: "Passed" | "Failed" | "Skipped") => {
+    const targetCase = testCases.find(tc => tc.id === tcId);
+    if (!targetCase) return;
+
+    const stepStatus: "Passed" | "Failed" | "Blocked" | "Not Run" | "Skipped" | undefined = status === "Passed" ? "Passed" : status === "Failed" ? "Failed" : "Skipped";
+    const updatedSteps = targetCase.steps.map(step => ({
+      ...step,
+      status: stepStatus
+    }));
+
+    const tcRes = await fetch(`/api/test-cases/${targetCase.id || tcId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ testSteps: updatedSteps })
+    });
+
+    let newCases = [...testCases];
+    if (tcRes.ok) {
+      const updatedTc = await tcRes.json();
+      newCases = testCases.map(tc => tc.id === tcId ? updatedTc : tc);
+      setTestCases(newCases);
+    } else {
+      newCases = testCases.map(tc => tc.id === tcId ? { ...tc, steps: updatedSteps } : tc);
+      setTestCases(newCases);
+    }
+
+    let passedCount = 0;
+    let failedCount = 0;
+    let notRunCount = 0;
+
+    newCases.forEach(tc => {
+      const hasFailed = tc.steps.some(s => s.status === "Failed");
+      const allPassed = tc.steps.length > 0 && tc.steps.every(s => s.status === "Passed");
+      if (hasFailed) failedCount++;
+      else if (allPassed) passedCount++;
+      else notRunCount++;
+    });
+
+    const runRes = await fetch(`/api/test-runs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        passed: passedCount,
+        failed: failedCount,
+        blocked: 0,
+        notRun: notRunCount,
+        totalCases: newCases.length
+      })
+    });
+
+    if (runRes.ok) {
+      const updatedRun = await runRes.json();
+      setTestRun(updatedRun);
+    } else {
+      setTestRun(prev => prev ? {
+        ...prev,
+        passed: passedCount,
+        failed: failedCount,
+        notRun: notRunCount,
+        totalCases: newCases.length
+      } : null);
+    }
+  };
+
+  const getCaseStatusIcon = (tc: TestCase) => {
+    const hasFailed = tc.steps.some(s => s.status === "Failed");
+    const allPassed = tc.steps.length > 0 && tc.steps.every(s => s.status === "Passed");
+    if (hasFailed) return <XCircle className="h-4 w-4 text-error" />;
+    if (allPassed) return <CheckCircle2 className="h-4 w-4 text-success" />;
+    return <SkipForward className="h-4 w-4 text-outline" />;
+  };
+
+  const getCaseBgClass = (tc: TestCase) => {
+    const hasFailed = tc.steps.some(s => s.status === "Failed");
+    const allPassed = tc.steps.length > 0 && tc.steps.every(s => s.status === "Passed");
+    if (hasFailed) return "bg-error/5 hover:bg-error/10 border-error/20";
+    if (allPassed) return "bg-surface-container-low hover:bg-surface-container";
+    return "bg-surface-container-lowest opacity-70";
+  };
+
+  const modulesGroup = testCases.reduce<Record<string, TestCase[]>>((acc, tc) => {
+    const key = tc.moduleName || "General";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(tc);
+    return acc;
+  }, {});
+
   if (!testRun) {
     return <PageSkeleton />;
   }
+
+  const totalCases = testRun.totalCases || 0;
+  const passRate = totalCases > 0 ? Math.round((testRun.passed / totalCases) * 100) : 0;
 
   return (
     <div className="p-6 space-y-6 animate-fade-in max-w-5xl mx-auto">
@@ -89,7 +195,7 @@ export default function TestRunDetailPage() {
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
             <Badge variant="outline">{testRun.type}</Badge>
             <Badge variant={testRunStatusVariant(testRun.status)}>{testRun.status}</Badge>
-            <Badge variant="success">95% Pass Rate</Badge>
+            <Badge variant="success">{passRate}% Pass Rate</Badge>
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mt-4 xl:mt-0">
@@ -129,7 +235,7 @@ export default function TestRunDetailPage() {
             </div>
             <div>
               <span className="block text-outline mb-1">Pass Rate</span>
-              <span className="font-medium text-success">95%</span>
+              <span className="font-medium text-success">{passRate}%</span>
             </div>
           </div>
         </div>
@@ -148,89 +254,53 @@ export default function TestRunDetailPage() {
           </div>
 
           <div className="space-y-6">
-            {/* Module Group 1 */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 px-2">
-                <FolderGit2 className="h-5 w-5 text-primary" />
-                <h4 className="font-semibold text-on-surface">Authentication Module</h4>
-                <Badge variant="outline" className="ml-2 bg-surface-container-low text-xs">Progress: 66%</Badge>
+            {Object.keys(modulesGroup).length === 0 ? (
+              <div className="text-center py-6 text-outline border border-outline-variant rounded-xl border-dashed">
+                No test cases defined in the project.
               </div>
-
-              <ul className="space-y-2 text-body-sm pl-4 border-l-2 border-outline-variant/30 ml-4">
-                {/* Scenario Group (optional, but visual indent is good) */}
-                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <div>
-                      <span className="font-medium text-on-surface block">TC-001: Valid Login</span>
-                      <span className="text-xs text-muted-foreground">Scenario: Login Scenario</span>
+            ) : (
+              Object.entries(modulesGroup).map(([moduleName, cases]) => {
+                const total = cases.length;
+                const passed = cases.filter(tc => tc.steps.length > 0 && tc.steps.every(s => s.status === "Passed")).length;
+                const progress = total > 0 ? Math.round((passed / total) * 100) : 0;
+                
+                return (
+                  <div key={moduleName}>
+                    <div className="flex items-center gap-2 mb-2 px-2">
+                      <FolderGit2 className="h-5 w-5 text-primary" />
+                      <h4 className="font-semibold text-on-surface">{moduleName}</h4>
+                      <Badge variant="outline" className="ml-2 bg-surface-container-low text-xs">
+                        Progress: {progress}%
+                      </Badge>
                     </div>
-                  </div>
-                  <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">1.2s</span>
-                </li>
 
-                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-error/5 hover:bg-error/10 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <XCircle className="h-4 w-4 text-error" />
-                    <div>
-                      <span className="font-medium text-on-surface block">TC-003: Login with 2FA</span>
-                      <span className="text-xs text-muted-foreground">Scenario: Login Scenario</span>
-                    </div>
+                    <ul className="space-y-2 text-body-sm pl-4 border-l-2 border-outline-variant/30 ml-4">
+                      {cases.map((tc) => (
+                        <li 
+                          key={tc.id} 
+                          className={`flex justify-between items-center p-3 border border-outline-variant rounded-lg transition-colors ${getCaseBgClass(tc)}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {getCaseStatusIcon(tc)}
+                            <div>
+                              <span className="font-medium text-on-surface block">
+                                {tc.id}: {tc.title}
+                              </span>
+                              {tc.scenarioName && (
+                                <span className="text-xs text-muted-foreground">Scenario: {tc.scenarioName}</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">
+                            {tc.estimatedTime || "5m"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">2.1s</span>
-                    <Link href="/defects/DEF-002" className="text-error hover:underline flex items-center gap-1 font-medium bg-white px-2 py-1 rounded border border-error/20">
-                      <Bug className="h-3.5 w-3.5" /> DEF-002
-                    </Link>
-                  </div>
-                </li>
-
-                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-lowest opacity-70">
-                  <div className="flex items-center gap-3">
-                    <SkipForward className="h-4 w-4 text-outline" />
-                    <div>
-                      <span className="font-medium text-outline block">TC-004: Login Timeout</span>
-                      <span className="text-xs text-muted-foreground">Scenario: Registration Scenario</span>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-[10px]">SKIPPED</Badge>
-                </li>
-              </ul>
-            </div>
-
-            {/* Module Group 2 */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 px-2">
-                <FolderGit2 className="h-5 w-5 text-primary" />
-                <h4 className="font-semibold text-on-surface">Payment Module</h4>
-                <Badge variant="success" className="ml-2 text-xs">Progress: 100%</Badge>
-              </div>
-
-              <ul className="space-y-2 text-body-sm pl-4 border-l-2 border-outline-variant/30 ml-4">
-                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <div>
-                      <span className="font-medium text-on-surface block">TC-005: Credit Card Payment</span>
-                      <span className="text-xs text-muted-foreground">Scenario: Checkout Scenario</span>
-                    </div>
-                  </div>
-                  <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">1.5s</span>
-                </li>
-
-                <li className="flex justify-between items-center p-3 border border-outline-variant rounded-lg bg-surface-container-low hover:bg-surface-container transition-colors">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <div>
-                      <span className="font-medium text-on-surface block">TC-006: PayPal Payment</span>
-                      <span className="text-xs text-muted-foreground">Scenario: Checkout Scenario</span>
-                    </div>
-                  </div>
-                  <span className="text-outline text-xs bg-white px-2 py-1 border border-outline-variant rounded">1.3s</span>
-                </li>
-              </ul>
-            </div>
-
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -247,8 +317,9 @@ export default function TestRunDetailPage() {
       <ExecutionRunner
         isOpen={isRunnerOpen}
         onClose={() => setIsRunnerOpen(false)}
-        testCases={[{ id: "TC-001", title: "Login valid", steps: [{ action: "Enter credentials", expectedResult: "Dashboard loads" }] }]}
-        onComplete={() => console.log("Run completed")}
+        testCases={testCases}
+        onTestCaseResult={handleTestCaseResult}
+        onComplete={handleComplete}
       />
     </div>
   );
