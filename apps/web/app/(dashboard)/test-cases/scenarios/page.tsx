@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageContainer } from "@/components/layout/page-container";
 import { TestCasesTabs } from "@/components/test-cases/test-cases-tabs";
@@ -12,8 +12,20 @@ import { ScenarioTree } from "@/components/test-cases/scenario-tree";
 import type { ScenarioNode } from "@/components/test-cases/scenario-item";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
 
-export default function ScenariosPage() {
+function ScenariosLoading() {
+  return (
+    <div className="p-6 space-y-6 flex flex-col items-center justify-center min-h-[400px]">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-container"></div>
+      <div className="text-body-sm text-muted-foreground">Loading scenarios...</div>
+    </div>
+  );
+}
+
+function ScenariosContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const expandId = searchParams.get("expand") || undefined;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [scenarios, setScenarios] = useState<ScenarioNode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,6 +49,8 @@ export default function ScenariosPage() {
           passRate: sc.passRate !== undefined ? sc.passRate : 100,
           status: "Approved",
           moduleId: sc.moduleId || undefined,
+          parentScenarioId: sc.parentScenarioId || undefined,
+          type: sc.type || undefined,
         }));
         setScenarios(nodes);
       }
@@ -111,6 +125,7 @@ export default function ScenariosPage() {
 
       <ScenarioTree
         scenarios={filteredScenarios}
+        initialExpandedId={expandId}
         onScenarioClick={(id) => router.push(`/test-cases/scenarios/${id}`)}
         onTestCaseClick={(id) => router.push(`/test-cases/${id}`)}
         onEditScenario={(scn) => router.push(`/test-cases/scenarios/${scn.id}/edit`)}
@@ -130,5 +145,13 @@ export default function ScenariosPage() {
         totalCount={scenarios.reduce((acc, scn) => acc + scn.testCaseCount, 0)}
       />
     </PageContainer>
+  );
+}
+
+export default function ScenariosPage() {
+  return (
+    <Suspense fallback={<ScenariosLoading />}>
+      <ScenariosContent />
+    </Suspense>
   );
 }

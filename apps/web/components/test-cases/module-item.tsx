@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { ChevronRight, FolderGit2, Plus, Edit, Trash2 } from "lucide-react";
+import { ChevronRight, FolderGit2, Plus, Edit, Trash2, Boxes } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TestCaseRow, type TestCaseNode } from "./test-case-row";
@@ -222,43 +222,83 @@ export function ModuleItem({
             {!scenariosLoading && scenarios.length > 0 && (
               <div className="space-y-3">
                 {scenarios.map((sc) => (
-                  <ScenarioItem
+                  <div
                     key={sc.id}
-                    scenario={{
-                      id: sc.id,
-                      displayId: sc.id,
-                      name: sc.name,
-                      description: sc.description,
-                      testCaseCount: sc.testCaseCount || 0,
-                      passRate: sc.passRate !== undefined ? sc.passRate : 100,
-                      status: "Approved",
-                      type: sc.type,
+                    className="flex items-center gap-4 py-2.5 px-3 hover:bg-surface-container-low transition-colors group rounded-lg cursor-pointer border border-outline-variant/30 bg-white"
+                    onClick={() => {
+                      router.push(`/test-cases/scenarios?expand=${sc.id}`);
                     }}
-                    isExpanded={expandedScenarios.has(sc.id)}
-                    onToggle={() => toggleScenario(sc.id)}
-                    expandedScenarios={expandedScenarios}
-                    onToggleScenario={toggleScenario}
-                    onScenarioClick={(id) => {
-                      router.push(`/test-cases/scenarios/${id}/edit`);
-                    }}
-                    onTestCaseClick={onTestCaseClick}
-                    onEdit={(scn) => {
-                      router.push(`/test-cases/scenarios/${scn.id}/edit`);
-                    }}
-                    onDelete={async (scn) => {
-                      if (confirm(`Are you sure you want to delete scenario "${scn.name}"?`)) {
-                        const res = await fetch(`/api/test-cases/scenarios/${scn.id}`, { method: "DELETE" });
-                        if (res.ok) {
-                          fetch(`/api/test-cases/scenarios?subModuleId=${module.id}`)
-                            .then((r) => (r.ok ? r.json() : []))
-                            .then((d) => setScenarios(d));
-                        }
-                      }
-                    }}
-                    onAddTestCase={(scenarioId) => {
-                      router.push(`/test-cases/create?scenarioId=${scenarioId}`);
-                    }}
-                  />
+                  >
+                    {/* Icon */}
+                    <Boxes className="h-4 w-4 text-secondary group-hover:text-primary transition-colors" />
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <span className="text-body-sm font-semibold text-on-surface group-hover:text-primary transition-colors">
+                          {sc.name}
+                        </span>
+                        {sc.type && (
+                          <Badge variant="info" className="text-[9px] px-1.5 py-0.5 font-bold rounded-full">
+                            {sc.type}
+                          </Badge>
+                        )}
+                      </div>
+                      {sc.description && (
+                        <p className="text-xs text-on-surface-variant truncate">
+                          {sc.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Stats */}
+                    <div className="hidden sm:flex items-center gap-6 text-body-sm mr-2">
+                      <div className="text-center w-20">
+                        <div className="font-semibold text-on-surface text-xs">{sc.testCaseCount || 0}</div>
+                        <div className="text-on-surface-variant text-[10px] uppercase tracking-wider">Cases</div>
+                      </div>
+                      <div className="text-center w-20">
+                        <div className={cn(
+                          "font-semibold text-xs",
+                          (sc.passRate || 0) >= 80 ? "text-success" :
+                          (sc.passRate || 0) >= 60 ? "text-warning" : "text-error"
+                        )}>
+                          {sc.passRate || 0}%
+                        </div>
+                        <div className="text-on-surface-variant text-[10px] uppercase tracking-wider">Pass Rate</div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="ml-2" onClick={(e) => e.stopPropagation()}>
+                      <ActionMenu
+                        items={[
+                          {
+                            label: "Edit Scenario",
+                            icon: <Edit className="h-4 w-4" />,
+                            onClick: () => {
+                              router.push(`/test-cases/scenarios/${sc.id}/edit`);
+                            },
+                          },
+                          {
+                            label: "Delete Scenario",
+                            icon: <Trash2 className="h-4 w-4" />,
+                            onClick: async () => {
+                              if (confirm(`Are you sure you want to delete scenario "${sc.name}"?`)) {
+                                const res = await fetch(`/api/test-cases/scenarios/${sc.id}`, { method: "DELETE" });
+                                if (res.ok) {
+                                  fetch(`/api/test-cases/scenarios?subModuleId=${module.id}`)
+                                    .then((r) => (r.ok ? r.json() : []))
+                                    .then((d) => setScenarios(d));
+                                }
+                              }
+                            },
+                            variant: "danger",
+                          },
+                        ]}
+                      />
+                    </div>
+                  </div>
                 ))}
               </div>
             )}

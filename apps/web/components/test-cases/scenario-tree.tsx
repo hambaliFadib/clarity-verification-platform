@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ScenarioItem, type ScenarioNode } from "./scenario-item";
 
 interface ScenarioTreeProps {
   scenarios: ScenarioNode[];
+  initialExpandedId?: string;
   onScenarioClick?: (scenarioId: string) => void;
   onTestCaseClick?: (testCaseId: string) => void;
   onEditScenario?: (scenario: ScenarioNode) => void;
@@ -12,6 +13,7 @@ interface ScenarioTreeProps {
 
 export function ScenarioTree({
   scenarios,
+  initialExpandedId,
   onScenarioClick,
   onTestCaseClick,
   onEditScenario,
@@ -19,6 +21,21 @@ export function ScenarioTree({
   onAddTestCase,
 }: ScenarioTreeProps) {
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (initialExpandedId && scenarios.length > 0) {
+      const newExpanded = new Set<string>();
+      
+      let currentId: string | undefined = initialExpandedId;
+      while (currentId) {
+        newExpanded.add(currentId);
+        const currentScen = scenarios.find(s => s.id === currentId);
+        currentId = currentScen?.parentScenarioId;
+      }
+      
+      setExpandedScenarios(newExpanded);
+    }
+  }, [initialExpandedId, scenarios]);
 
   const toggleScenario = (scenarioId: string) => {
     setExpandedScenarios(prev => {
