@@ -155,10 +155,16 @@ function testCaseRow(testCase: TestCase) {
       }).join("\n")
     : "";
 
+  const scenarioText = testCase.scenarioName === "Positive"
+    ? "✔ Positive"
+    : testCase.scenarioName === "Negative"
+    ? "❌ Negative"
+    : (testCase.scenarioName || "");
+
   return [
     testCase.displayId || testCase.id,
     testCase.subModuleName || "",
-    testCase.scenarioName || "",
+    scenarioText,
     testCase.type,
     testCase.title,
     testCase.severity,
@@ -211,35 +217,279 @@ export async function generateTestCasesExportXlsx(ctx?: ProjectAccessContext) {
     
     copyWorksheet(templateSheet, newSheet);
 
+    // Update Title text dynamically
+    const titleCell = newSheet.getRow(1).getCell(1);
+    titleCell.value = `${mod} — Test Cases`;
+    titleCell.font = { name: "Inter", size: 12, bold: true, color: { argb: "FFFFFFFF" } };
+
     const rows = groups[mod];
-    rows.forEach((tc, idx) => {
-      const rowData = testCaseRow(tc);
-      const rowNum = idx + 2;
-      const targetRow = newSheet.getRow(rowNum);
+    
+    // Sort rows: Menu asc, Scenario asc, displayId/RealId asc
+    rows.sort((a, b) => {
+      const menuA = (a.subModuleName || "").toLowerCase();
+      const menuB = (b.subModuleName || "").toLowerCase();
+      if (menuA !== menuB) return menuA.localeCompare(menuB);
       
+      const scnA = (a.scenarioName || "").toLowerCase();
+      const scnB = (b.scenarioName || "").toLowerCase();
+      if (scnA !== scnB) return scnA.localeCompare(scnB);
+      
+      return (a.displayId || a.id).localeCompare(b.displayId || b.id);
+    });
+
+    // Write Module Separator Row
+    let currentRowNum = 3;
+    newSheet.getRow(currentRowNum).height = 24;
+    newSheet.mergeCells(currentRowNum, 1, currentRowNum, 18);
+    const modCell = newSheet.getRow(currentRowNum).getCell(1);
+    modCell.value = `MODULE: ${mod.toUpperCase()}`;
+    modCell.font = { name: "Inter", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
+    modCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FF1E3A5F" }, // Deep Navy
+    };
+    modCell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+    currentRowNum++;
+
+    let lastMenu = "";
+    let lastScenario = "";
+    let tcCount = 0;
+
+    rows.forEach((tc) => {
+      const menu = tc.subModuleName || "General";
+      const scenario = tc.scenarioName || "General";
+
+      // Menu Separator
+      if (menu !== lastMenu) {
+        lastMenu = menu;
+        lastScenario = ""; // Reset scenario to force category header under new menu
+        
+        newSheet.getRow(currentRowNum).height = 22;
+        newSheet.mergeCells(currentRowNum, 1, currentRowNum, 18);
+        const cell = newSheet.getRow(currentRowNum).getCell(1);
+        cell.value = `• Menu: ${menu}`;
+        cell.font = { name: "Inter", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF2E5F8A" }, // Mid Blue
+        };
+        cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+        currentRowNum++;
+      }
+
+      // Scenario Separator
+      if (scenario !== lastScenario) {
+        lastScenario = scenario;
+        
+        newSheet.getRow(currentRowNum).height = 20;
+        newSheet.mergeCells(currentRowNum, 1, currentRowNum, 18);
+        const cell = newSheet.getRow(currentRowNum).getCell(1);
+        
+        const isPositive = scenario.toLowerCase().includes("positive");
+        const isNegative = scenario.toLowerCase().includes("negative");
+        let prefix = "• ";
+        let fgColor = "FFD97706"; // Edge Case / Suite Other - Amber
+        if (isPositive) {
+          prefix = "✔ ";
+          fgColor = "FF16A34A"; // Green-600
+        } else if (isNegative) {
+          prefix = "❌ ";
+          fgColor = "FFDC2626"; // Red-600
+        }
+        
+        cell.value = `    ${prefix}${scenario}`;
+        cell.font = { name: "Inter", size: 9, bold: true, color: { argb: "FFFFFFFF" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: fgColor },
+        };
+        cell.alignment = { vertical: "middle", horizontal: "left" };
+        currentRowNum++;
+      }
+
+      // Write Test Case Row
+      tcCount++;
+      const rowData = [tcCount, ...testCaseRow(tc)];
+      const targetRow = newSheet.getRow(currentRowNum);
+      targetRow.height = 60; // 60 pts height as per guide
+
+      const rowBg = tcCount % 2 !== 0 ? "FFF8FAFC" : "FFEFF6FF";
+
       rowData.forEach((val, colIdx) => {
         const cell = targetRow.getCell(colIdx + 1);
         cell.value = val;
-        
-        // Preserve data styling (Inter, size 9, normal weight)
-        cell.font = { name: "Inter", size: 9 };
-        cell.border = {
-          top: { style: "thin", color: { argb: "FFE2E8F0" } },
-          bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-          left: { style: "thin", color: { argb: "FFE2E8F0" } },
-          right: { style: "thin", color: { argb: "FFE2E8F0" } },
+
+        cell.font = { name: "Inter", size: 9, color: { argb: "FF1A202C" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: rowBg },
         };
-        
-        // Align center for specific fields
-        const centerCols = [1, 4, 6, 7, 8, 14, 15, 16, 17];
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFCBD5E1" } },
+          bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+          left: { style: "thin", color: { argb: "FFCBD5E1" } },
+          right: { style: "thin", color: { argb: "FFCBD5E1" } },
+        };
+
+        // Alignments: No, TC ID, Scenario/Suite, Type, Severity, Priority, Status, Author, Date Created, Sprint/Release, Automated?
+        const centerCols = [1, 2, 4, 5, 7, 8, 9, 15, 16, 17, 18];
         cell.alignment = {
           vertical: "top",
           horizontal: centerCols.includes(colIdx + 1) ? "center" : "left",
           wrapText: true,
         };
+
+        // TC ID (blue, bold)
+        if (colIdx + 1 === 2) {
+          cell.font = { name: "Inter", size: 9, bold: true, color: { argb: "FF2563EB" } };
+        }
+
+        // Severity colored badges
+        if (colIdx + 1 === 7) {
+          const sev = String(val).toLowerCase();
+          let bg = "FFF3F4F6";
+          let fg = "FF374151";
+          if (sev === "critical" || sev === "blocker") {
+            bg = "FFFEE2E2";
+            fg = "FF7F1D1D";
+          } else if (sev === "major") {
+            bg = "FFFEF3C7";
+            fg = "FF92400E";
+          } else if (sev === "minor") {
+            bg = "FFFEF9C3";
+            fg = "FF713F12";
+          } else if (sev === "low") {
+            bg = "FFDCFCE7";
+            fg = "FF14532D";
+          }
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: bg },
+          };
+          cell.font = { name: "Inter", size: 9, bold: true, color: { argb: fg } };
+        }
+
+        // Status colored bold text
+        if (colIdx + 1 === 9) {
+          const stat = String(val).toLowerCase();
+          let bg = "FFE0E7FF";
+          let fg = "FF3730A3"; // Draft default
+          if (stat === "approved" || stat === "pass") {
+            bg = "FFDCFCE7";
+            fg = "FF166534";
+          } else if (stat === "fail" || stat === "obsolete") {
+            bg = "FFFEE2E2";
+            fg = "FF991B1B";
+          } else if (stat === "ready" || stat === "blocked") {
+            bg = "FFFEF3C7";
+            fg = "FF92400E";
+          } else if (stat === "in review" || stat === "skip") {
+            bg = "FFF1F5F9";
+            fg = "FF475569";
+          }
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: bg },
+          };
+          cell.font = { name: "Inter", size: 9, bold: true, color: { argb: fg } };
+        }
       });
-      targetRow.commit();
+
+      // Data Validations
+      targetRow.getCell(5).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Functional,UI,API,Security,Performance,Integration,Regression"'],
+      };
+      targetRow.getCell(7).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Blocker,Critical,Major,Minor"'],
+      };
+      targetRow.getCell(8).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Critical,High,Medium,Low"'],
+      };
+      targetRow.getCell(9).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Draft,Ready,In Review,Approved,Obsolete"'],
+      };
+      targetRow.getCell(18).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Yes,No"'],
+      };
+
+      currentRowNum++;
     });
+
+    // Write 20 blank template rows at the bottom
+    for (let i = 0; i < 20; i++) {
+      const blankRow = newSheet.getRow(currentRowNum);
+      blankRow.height = 50;
+      
+      const rowBg = (tcCount + i + 1) % 2 !== 0 ? "FFF8FAFC" : "FFEFF6FF";
+
+      for (let col = 1; col <= 18; col++) {
+        const cell = blankRow.getCell(col);
+        cell.font = { name: "Inter", size: 9, color: { argb: "FF1A202C" } };
+        cell.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: rowBg },
+        };
+        cell.border = {
+          top: { style: "thin", color: { argb: "FFCBD5E1" } },
+          bottom: { style: "thin", color: { argb: "FFCBD5E1" } },
+          left: { style: "thin", color: { argb: "FFCBD5E1" } },
+          right: { style: "thin", color: { argb: "FFCBD5E1" } },
+        };
+
+        const centerCols = [1, 2, 4, 5, 7, 8, 9, 15, 16, 17, 18];
+        cell.alignment = {
+          vertical: "top",
+          horizontal: centerCols.includes(col) ? "center" : "left",
+          wrapText: true,
+        };
+      }
+
+      // Add validations to blank rows
+      blankRow.getCell(5).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Functional,UI,API,Security,Performance,Integration,Regression"'],
+      };
+      blankRow.getCell(7).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Blocker,Critical,Major,Minor"'],
+      };
+      blankRow.getCell(8).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Critical,High,Medium,Low"'],
+      };
+      blankRow.getCell(9).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Draft,Ready,In Review,Approved,Obsolete"'],
+      };
+      blankRow.getCell(18).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Yes,No"'],
+      };
+
+      currentRowNum++;
+    }
   }
 
   workbook.removeWorksheet(originalSheetId);
@@ -278,11 +528,34 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
   workbook.eachSheet((sheet) => {
     const sheetName = sheet.name;
     
-    const headerRow = sheet.getRow(1);
-    const headers: string[] = [];
-    headerRow.eachCell({ includeEmpty: true }, (cell) => {
-      headers.push(String(cell.value || ""));
-    });
+    let headerRowNumber = 1;
+    let headers: string[] = [];
+
+    // Scan first 5 rows to find headers
+    for (let r = 1; r <= 5; r++) {
+      const row = sheet.getRow(r);
+      const rowValues: string[] = [];
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        rowValues.push(String(cell.value || "").trim().toLowerCase());
+      });
+      if (
+        rowValues.includes("title") &&
+        (rowValues.includes("severity") || rowValues.includes("type") || rowValues.includes("tc id") || rowValues.includes("expected result"))
+      ) {
+        headerRowNumber = r;
+        row.eachCell({ includeEmpty: true }, (cell) => {
+          headers.push(String(cell.value || ""));
+        });
+        break;
+      }
+    }
+
+    if (headers.length === 0) {
+      const headerRow = sheet.getRow(1);
+      headerRow.eachCell({ includeEmpty: true }, (cell) => {
+        headers.push(String(cell.value || ""));
+      });
+    }
 
     const REQUIRED_COLUMNS = [
       { label: "Title", aliases: ["Title"] },
@@ -309,7 +582,7 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
     }
 
     sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
-      if (rowNumber === 1) return; 
+      if (rowNumber <= headerRowNumber) return; 
 
       const values: string[] = [];
       for (let i = 1; i <= headers.length; i++) {
@@ -318,6 +591,26 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
       }
 
       if (!values.some(v => v.trim())) return; 
+
+      // Skip separator / decorative rows (MODULE:, • Menu:, ✔ Positive, ❌ Negative)
+      const firstVal = values[0] || "";
+      if (
+        firstVal.startsWith("MODULE:") || 
+        firstVal.trim().startsWith("• Menu:") || 
+        firstVal.trim().startsWith("•") || 
+        firstVal.trim().startsWith("✔") || 
+        firstVal.trim().startsWith("❌")
+      ) {
+        return; 
+      }
+
+      const hasNoCol = headerIndex(headers, ["No"]) >= 0;
+      if (hasNoCol) {
+        const noVal = valueAt(values, headers, ["No"]);
+        if (!noVal || isNaN(Number(noVal))) {
+          return; 
+        }
+      }
 
       totalParsed++;
 
@@ -352,7 +645,7 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
       const category = valueAt(values, headers, ["Category"]) || "Positive";
       const author = valueAt(values, headers, ["Author"]);
       const releaseVersion = valueAt(values, headers, ["Release Version", "Sprint / Release", "Sprint", "Release"]);
-      const isAutomatedText = valueAt(values, headers, ["Is Automated", "Automation?", "Automated"]);
+      const isAutomatedText = valueAt(values, headers, ["Is Automated", "Automation?", "Automated", "Automated?"]);
       const isAutomated = isAutomatedText.toLowerCase() === "yes" || isAutomatedText.toLowerCase() === "true" || isAutomatedText === "1";
 
       if (!title) {
