@@ -265,6 +265,16 @@ const statements = [
    on conflict (version_num) do nothing`,
   `alter table test_steps add column if not exists expected_result text`,
   `alter table test_steps add column if not exists test_data text`,
+  `alter table requirements add column if not exists deleted_at timestamptz`,
+  `alter table requirements add column if not exists project_id uuid references projects(id)`,
+  `create index if not exists ix_requirements_project_id on requirements (project_id)`,
+  `with default_project as (
+     select id from projects where deleted_at is null order by created_at asc limit 1
+   )
+   update requirements
+   set project_id = (select id from default_project)
+   where project_id is null
+     and exists (select 1 from default_project)`,
   ...[
     "test_cases",
     "defects",
