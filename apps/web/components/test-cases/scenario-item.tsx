@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { ChevronRight, Boxes, ExternalLink, Edit, Trash2, Plus } from "lucide-react";
+import { ChevronRight, Boxes, ExternalLink, Edit, Trash2, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TestCaseRow, type TestCaseNode } from "./test-case-row";
@@ -38,6 +38,7 @@ interface ScenarioItemProps {
   onEdit?: (scenario: ScenarioNode) => void;
   onDelete?: (scenario: ScenarioNode) => void;
   onAddTestCase?: (scenarioId: string) => void;
+  onReorder?: (id: string, direction: "up" | "down") => void;
 }
 
 export function ScenarioItem({
@@ -51,6 +52,7 @@ export function ScenarioItem({
   onEdit,
   onDelete,
   onAddTestCase,
+  onReorder,
 }: ScenarioItemProps) {
   const [testCases, setTestCaseNodes] = useState<TestCaseNode[]>([]);
   const [loading, setLoading] = useState(false);
@@ -158,6 +160,28 @@ export function ScenarioItem({
             <ExternalLink className="h-3.5 w-3.5 text-on-surface-variant" />
           </button>
 
+          {/* Reorder Buttons */}
+          <button
+            className="p-1.5 rounded-md hover:bg-surface-container-high transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReorder?.(scenario.id, "up");
+            }}
+            title="Move Up"
+          >
+            <ArrowUp className="h-3.5 w-3.5 text-on-surface-variant" />
+          </button>
+          <button
+            className="p-1.5 rounded-md hover:bg-surface-container-high transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReorder?.(scenario.id, "down");
+            }}
+            title="Move Down"
+          >
+            <ArrowDown className="h-3.5 w-3.5 text-on-surface-variant" />
+          </button>
+
           {/* Actions */}
           <ActionMenu
             onOpen={() => {
@@ -208,6 +232,7 @@ export function ScenarioItem({
                     onEdit={onEdit}
                     onDelete={onDelete}
                     onAddTestCase={onAddTestCase}
+                    onReorder={onReorder}
                   />
                 ))}
               </div>

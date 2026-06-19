@@ -170,7 +170,7 @@ function testCaseRow(testCase: TestCase) {
     testCase.actualResult || "",
     testCase.notes || "",
     testCase.author || "",
-    testCase.createdAt ? testCase.createdAt.split("T")[0] : "",
+    testCase.createdAt ? ((testCase.createdAt as any) instanceof Date ? (testCase.createdAt as any).toISOString().split("T")[0] : String(testCase.createdAt).split("T")[0]) : "",
     testCase.releaseVersion || "",
     testCase.isAutomated ? "Yes" : "No",
   ];

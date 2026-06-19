@@ -28,6 +28,8 @@ function ScenariosContent() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [scenarios, setScenarios] = useState<ScenarioNode[]>([]);
+  const [modules, setModules] = useState<any[]>([]);
+  const [selectedModuleId, setSelectedModuleId] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
 
   // Modal states
@@ -61,14 +63,29 @@ function ScenariosContent() {
     }
   };
 
+  const fetchModules = async () => {
+    try {
+      const res = await fetch("/api/test-cases/modules");
+      if (res.ok) {
+        const data = await res.json();
+        setModules(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch modules", err);
+    }
+  };
+
   useEffect(() => {
     fetchScenarios();
+    fetchModules();
   }, []);
 
-  const filteredScenarios = scenarios.filter(scn =>
-    scn.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    scn.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredScenarios = scenarios.filter(scn => {
+    const matchesSearch = scn.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      scn.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesModule = selectedModuleId === "all" || scn.moduleId === selectedModuleId;
+    return matchesSearch && matchesModule;
+  });
 
   const handleDeleteScenario = async (scenario: ScenarioNode) => {
     if (confirm(`Are you sure you want to delete scenario "${scenario.name}"?`)) {
@@ -83,6 +100,21 @@ function ScenariosContent() {
         console.error(err);
         alert("Error deleting scenario");
       }
+    }
+  };
+
+  const handleReorderScenario = async (id: string, direction: "up" | "down") => {
+    try {
+      const res = await fetch("/api/test-cases/scenarios/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, direction }),
+      });
+      if (res.ok) {
+        fetchScenarios();
+      }
+    } catch (err) {
+      console.error("Failed to reorder scenario", err);
     }
   };
 
@@ -109,17 +141,34 @@ function ScenariosContent() {
 
       <TestCasesTabs />
 
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex items-center gap-4 justify-between">
         <div className="flex-1"></div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
-          <input
-            type="text"
-            placeholder="Search scenarios..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 w-[300px] rounded-lg border border-outline-variant bg-white text-body-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-          />
+        <div className="flex items-center gap-3">
+          {/* Module Filter Select */}
+          <select
+            value={selectedModuleId}
+            onChange={(e) => setSelectedModuleId(e.target.value)}
+            className="px-3 py-2 rounded-lg border border-outline-variant bg-white text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer min-w-[200px]"
+          >
+            <option value="all">All Modules</option>
+            {modules.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-on-surface-variant" />
+            <input
+              type="text"
+              placeholder="Search scenarios..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 w-[250px] rounded-lg border border-outline-variant bg-white text-body-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+          </div>
         </div>
       </div>
 
@@ -131,6 +180,7 @@ function ScenariosContent() {
         onEditScenario={(scn) => router.push(`/test-cases/scenarios/${scn.id}/edit`)}
         onDeleteScenario={handleDeleteScenario}
         onAddTestCase={(scenarioId) => router.push(`/test-cases/create?scenarioId=${scenarioId}`)}
+        onReorderScenario={handleReorderScenario}
       />
 
       <ImportExportModal

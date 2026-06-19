@@ -9,6 +9,7 @@ interface ScenarioTreeProps {
   onEditScenario?: (scenario: ScenarioNode) => void;
   onDeleteScenario?: (scenario: ScenarioNode) => void;
   onAddTestCase?: (scenarioId: string) => void;
+  onReorderScenario?: (id: string, direction: "up" | "down") => void;
 }
 
 export function ScenarioTree({
@@ -19,6 +20,7 @@ export function ScenarioTree({
   onEditScenario,
   onDeleteScenario,
   onAddTestCase,
+  onReorderScenario,
 }: ScenarioTreeProps) {
   const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
 
@@ -95,6 +97,7 @@ export function ScenarioTree({
           onEdit={onEditScenario}
           onDelete={onDeleteScenario}
           onAddTestCase={onAddTestCase}
+          onReorder={onReorderScenario}
         />
       ))}
     </div>

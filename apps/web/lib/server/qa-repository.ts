@@ -213,6 +213,7 @@ async function ensureColumnMigrations() {
       await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS release_version VARCHAR(50)`);
       await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS is_automated BOOLEAN DEFAULT false`);
       await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS author VARCHAR(150)`);
+      await query(`ALTER TABLE tc_scenarios ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0`);
     })();
   }
   return columnMigrationsReady;
@@ -1129,7 +1130,7 @@ export async function listScenarios(ctx?: ProjectAccessContext, filters?: { modu
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return [];
 
-  let sql = `select sc.id, sc.name, sc.description, sc.type,
+  let sql = `select sc.id, sc.name, sc.description, sc.type, sc.sort_order as "sortOrder",
                     sc.module_id as "moduleId", m.name as "moduleName",
                     sc.sub_module_id as "subModuleId", sm.name as "subModuleName",
                     sc.parent_scenario_id as "parentScenarioId",
@@ -1197,7 +1198,7 @@ export async function listScenarios(ctx?: ProjectAccessContext, filters?: { modu
     sql += ` and sc.sub_module_id = $${params.length}`;
   }
 
-  sql += ` order by sc.name asc`;
+  sql += ` order by sc.sort_order asc, sc.name asc`;
 
   const result = await query(sql, params);
   return result.rows;
@@ -2680,5 +2681,67 @@ export async function ensureGuestSeedData() {
     seeded: false,
     message: "Guest data is served from isolated fixtures and is never written to NeonDB.",
   };
+}
+
+export async function reorderScenario(id: string, direction: "up" | "down", ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+
+  return transaction(async (client) => {
+    const selfRes = await client.query(
+      `select id, module_id, sub_module_id, parent_scenario_id, sort_order, project_id 
+       from tc_scenarios 
+       where id = $1 and deleted_at is null`,
+      [id]
+    );
+    const self = selfRes.rows[0];
+    if (!self) throw new Error("Scenario not found");
+
+    const siblingsRes = await client.query(
+      `select id, sort_order, name from tc_scenarios
+       where deleted_at is null
+         and project_id = $1
+         and (module_id = $2 or (module_id is null and $2 is null))
+         and (sub_module_id = $3 or (sub_module_id is null and $3 is null))
+         and (parent_scenario_id = $4 or (parent_scenario_id is null and $4 is null))
+       order by sort_order asc, name asc`,
+      [
+        self.project_id,
+        self.module_id,
+        self.sub_module_id,
+        self.parent_scenario_id,
+      ]
+    );
+
+    const siblings = siblingsRes.rows;
+    const currentIndex = siblings.findIndex((s) => s.id === id);
+    if (currentIndex === -1) return false;
+
+    let targetIndex = -1;
+    if (direction === "up" && currentIndex > 0) {
+      targetIndex = currentIndex - 1;
+    } else if (direction === "down" && currentIndex < siblings.length - 1) {
+      targetIndex = currentIndex + 1;
+    }
+
+    if (targetIndex === -1) return false;
+
+    for (let i = 0; i < siblings.length; i++) {
+      siblings[i].sort_order = i * 10;
+    }
+
+    const temp = siblings[currentIndex].sort_order;
+    siblings[currentIndex].sort_order = siblings[targetIndex].sort_order;
+    siblings[targetIndex].sort_order = temp;
+
+    for (const sib of siblings) {
+      await client.query(
+        `update tc_scenarios set sort_order = $1, updated_at = now() where id = $2`,
+        [sib.sort_order, sib.id]
+      );
+    }
+
+    return true;
+  });
 }
 
