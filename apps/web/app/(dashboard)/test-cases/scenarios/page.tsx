@@ -11,6 +11,8 @@ import { Plus, Upload, Search } from "lucide-react";
 import { ScenarioTree } from "@/components/test-cases/scenario-tree";
 import type { ScenarioNode } from "@/components/test-cases/scenario-item";
 import { ImportExportModal } from "@/components/test-cases/import-export-modal";
+import { Select } from "@/components/ui/select";
+
 
 function ScenariosLoading() {
   return (
@@ -145,18 +147,15 @@ function ScenariosContent() {
         <div className="flex-1"></div>
         <div className="flex items-center gap-3">
           {/* Module Filter Select */}
-          <select
+          <Select
             value={selectedModuleId}
-            onChange={(e) => setSelectedModuleId(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-outline-variant bg-white text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 cursor-pointer min-w-[200px]"
-          >
-            <option value="all">All Modules</option>
-            {modules.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedModuleId(val)}
+            options={[
+              { label: "All Modules", value: "all" },
+              ...modules.map((m) => ({ label: m.name, value: m.id }))
+            ]}
+            className="min-w-[200px]"
+          />
 
           {/* Search Input */}
           <div className="relative">
