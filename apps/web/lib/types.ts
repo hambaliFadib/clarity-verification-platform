@@ -43,6 +43,7 @@ export interface TestCase {
   automationStatus?: "Manual" | "Automated" | "Candidate to Automate";
   preconditions?: string;
   expectedResult?: string;
+  category?: "Positive" | "Negative";
   notes?: string;
 }
 
@@ -68,6 +69,8 @@ export interface TcScenario {
   description?: string;
   moduleId?: string;
   moduleName?: string;
+  subModuleId?: string;
+  subModuleName?: string;
   testCaseCount?: number;
 }
 

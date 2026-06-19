@@ -24,16 +24,18 @@ const COL = {
   estimatedTime: "Estimated Time",
   requirementId: "Requirement ID",
   assignedTo: "Assigned To",
+  category: "Category",
 } as const;
 
 const EXPORT_HEADER = Object.values(COL);
-const COLUMN_WIDTHS = [14, 40, 20, 25, 16, 12, 14, 32, 28, 45, 38, 24, 13, 13, 13, 13, 13, 13];
+const COLUMN_WIDTHS = [14, 40, 20, 25, 16, 12, 14, 32, 28, 45, 38, 24, 13, 13, 13, 13, 13, 12];
 
 const VALID_TYPES = ["Functional", "Regression", "Smoke", "Integration", "UI", "Performance", "Security"].sort();
 const VALID_SEVERITIES = ["Blocker", "Critical", "Major", "Minor"].sort();
 const VALID_STATUSES = ["Draft", "Ready", "In Review", "Approved", "Obsolete"].sort();
 const VALID_ENVIRONMENTS = ["Staging", "Production", "UAT", "Development"].sort();
 const VALID_AUTOMATION_STATUSES = ["Manual", "Automated", "Candidate to Automate"].sort();
+const VALID_CATEGORIES = ["Positive", "Negative"].sort();
 
 const DATA_VALIDATIONS: Record<string, string[]> = {
   [COL.type]: VALID_TYPES,
@@ -41,6 +43,7 @@ const DATA_VALIDATIONS: Record<string, string[]> = {
   [COL.status]: VALID_STATUSES,
   [COL.automationStatus]: VALID_AUTOMATION_STATUSES,
   [COL.environment]: VALID_ENVIRONMENTS,
+  [COL.category]: VALID_CATEGORIES,
 };
 
 export { XLSX_MIME };
@@ -72,8 +75,8 @@ function inlineStringCell(ref: string, value: unknown, style = 0) {
 
 function getDataCellStyle(col: number): number {
   // col is 1-based index
-  // Type (3), Severity (4), Status (5), Automation Status (11), Environment (12), Estimated Time (13)
-  const centerCols = [3, 4, 5, 11, 12, 13];
+  // Type (5), Severity (6), Status (7), Automation Status (13), Environment (14), Estimated Time (15), Category (18)
+  const centerCols = [5, 6, 7, 13, 14, 15, 18];
   return centerCols.includes(col) ? 3 : 2;
 }
 
@@ -139,6 +142,7 @@ function testCaseRow(testCase: TestCase) {
     testCase.estimatedTime,
     testCase.requirementId,
     testCase.assignedTo,
+    testCase.category || "Positive",
   ];
 }
 
@@ -272,6 +276,7 @@ function templateRows() {
     "5 min",
     "REQ-AUTH-001",
     "",
+    "Positive",
   ]];
 }
 
@@ -823,6 +828,7 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
       const status = valueAt(row, headers, [COL.status]) || "Draft";
       const automationStatus = valueAt(row, headers, [COL.automationStatus]) || "Manual";
       const environment = valueAt(row, headers, [COL.environment]);
+      const category = valueAt(row, headers, [COL.category, "Category"]) || "Positive";
 
       if (!title) {
         rowErrors.push({ row: rowNumber, field: "Title", message: `Title is required (in sheet '${sheetInfo.name}').` });
@@ -831,6 +837,7 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
       validateChoiceInSheet(rowErrors, rowNumber, "Severity", severity, VALID_SEVERITIES, sheetInfo.name);
       validateChoiceInSheet(rowErrors, rowNumber, "Status", status, VALID_STATUSES, sheetInfo.name);
       validateChoiceInSheet(rowErrors, rowNumber, "Automation Status", automationStatus, VALID_AUTOMATION_STATUSES, sheetInfo.name);
+      validateChoiceInSheet(rowErrors, rowNumber, "Category", category, VALID_CATEGORIES, sheetInfo.name);
 
       if (rowErrors.length > 0) {
         errors.push(...rowErrors);
@@ -848,6 +855,7 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
         type,
         severity,
         status,
+        category,
         description: valueAt(row, headers, [COL.description]) || undefined,
         preconditions: valueAt(row, headers, [COL.preconditions]) || undefined,
         testSteps: parseSteps(valueAt(row, headers, [COL.stepActions, "Steps"])),

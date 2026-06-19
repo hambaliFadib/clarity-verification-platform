@@ -10,9 +10,10 @@ interface ComboboxProps {
   placeholder?: string;
   className?: string;
   error?: boolean;
+  disabled?: boolean;
 }
 
-export function Combobox({ value, onChange, options, placeholder, className, error }: ComboboxProps) {
+export function Combobox({ value, onChange, options, placeholder, className, error, disabled }: ComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -55,19 +56,24 @@ export function Combobox({ value, onChange, options, placeholder, className, err
       <div className="relative">
         <input
           type="text"
+          disabled={disabled}
           className={cn(
             "w-full border rounded-lg px-3 py-2 text-body-sm bg-white focus:outline-none focus:ring-1 transition-all pr-10",
             error ? "border-error focus:border-error focus:ring-error/20" : "border-outline-variant focus:border-primary-container focus:ring-primary-fixed-dim",
+            disabled && "bg-surface-container-low text-on-surface-variant/40 cursor-not-allowed",
             className
           )}
           placeholder={placeholder}
           value={inputValue}
           onChange={handleChange}
-          onFocus={() => setIsOpen(true)}
+          onFocus={() => !disabled && setIsOpen(true)}
         />
         <div
-          className="absolute inset-y-0 right-0 flex items-center pr-3 cursor-pointer"
-          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            "absolute inset-y-0 right-0 flex items-center pr-3",
+            disabled ? "cursor-not-allowed" : "cursor-pointer"
+          )}
+          onClick={() => !disabled && setIsOpen(!isOpen)}
         >
           <ChevronDown className="h-4 w-4 text-on-surface-variant/60" />
         </div>

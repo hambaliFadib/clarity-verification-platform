@@ -143,6 +143,8 @@ export function guestScenarios(): TcScenario[] {
       description: "Verification of normal login flow.",
       moduleId: "guest-mod-auth",
       moduleName: "Authentication",
+      subModuleId: "guest-submod-login",
+      subModuleName: "Login Flow",
       testCaseCount: 1,
     },
     {
@@ -151,6 +153,8 @@ export function guestScenarios(): TcScenario[] {
       description: "Verification of reporting bugs.",
       moduleId: "guest-mod-defects",
       moduleName: "Defect Management",
+      subModuleId: "guest-submod-triage",
+      subModuleName: "Defect Triage",
       testCaseCount: 1,
     },
   ];
@@ -171,6 +175,7 @@ export function guestTestCases(): TestCase[] {
       severity: "Major",
       status: "Ready",
       type: "Functional",
+      category: "Positive",
       assignedTo: "Guest User",
       createdBy: "Guest User",
       createdAt: now,
@@ -198,6 +203,7 @@ export function guestTestCases(): TestCase[] {
       severity: "Critical",
       status: "Draft",
       type: "Regression",
+      category: "Positive",
       assignedTo: "Guest User",
       createdBy: "Guest User",
       createdAt: now,

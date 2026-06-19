@@ -20,6 +20,7 @@ function mapTestCaseToFormValues(testCase: TestCase): Partial<TestCaseFormValues
     type: testCase.type || "Functional",
     severity: testCase.severity || "Major",
     status: testCase.status || "Draft",
+    category: testCase.category || "Positive",
     assignedTo: testCase.assignedToId || "",
     requirementId: testCase.requirementId || "",
     estimatedTime: testCase.estimatedTime || "",

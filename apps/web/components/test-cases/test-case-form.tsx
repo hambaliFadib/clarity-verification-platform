@@ -54,6 +54,7 @@ export interface TestCaseFormValues {
   type: TestCaseType;
   severity: TestCaseSeverity;
   status: TestCaseStatus;
+  category: "Positive" | "Negative";
   assignedTo: string;
   requirementId: string;
   estimatedTime: string;
@@ -96,6 +97,7 @@ const DEFAULT_VALUES: TestCaseFormValues = {
   type: "Functional",
   severity: "Major",
   status: "Draft",
+  category: "Positive",
   assignedTo: "",
   requirementId: "",
   estimatedTime: "",
@@ -554,6 +556,25 @@ export function TestCaseForm({
                             onChange={field.onChange}
                             options={TEST_CASE_STATUSES}
                             error={!!errors.status}
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Category *</label>
+                      <Controller
+                        control={control}
+                        name="category"
+                        rules={{ required: "Category is required" }}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onChange={field.onChange}
+                            options={["Positive", "Negative"]}
+                            error={!!errors.category}
                           />
                         )}
                       />

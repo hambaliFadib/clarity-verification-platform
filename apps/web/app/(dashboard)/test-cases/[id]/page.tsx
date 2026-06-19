@@ -141,6 +141,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
         type: tc.type,
         severity: tc.severity,
         status: "Draft",
+        category: tc.category || "Positive",
         assignedTo: tc.assignedToId || null,
         requirementId: tc.requirementId || "",
         estimatedTime: tc.estimatedTime || "",
@@ -252,6 +253,15 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               <Badge variant={testCaseStatusBadgeVariants[tc.status]}>{tc.status}</Badge>
               <Badge variant={testCaseSeverityBadgeVariants[tc.severity]}>{tc.severity}</Badge>
               <Badge variant={testCaseTypeBadgeVariants[tc.type]}>{tc.type}</Badge>
+              {tc.category && (
+                <Badge variant="outline" className={cn(
+                  tc.category === "Positive" 
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                    : "bg-rose-50 text-rose-700 border-rose-200"
+                )}>
+                  {tc.category}
+                </Badge>
+              )}
               {tc.environment && <Badge variant="outline">{tc.environment}</Badge>}
               {tc.automationStatus && <Badge variant="outline">{tc.automationStatus}</Badge>}
           </div>
@@ -309,6 +319,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               { label: "Module", value: tc.moduleName || tc.moduleId || "-" },
               { label: "Sub-Module", value: tc.subModuleName || "-" },
               { label: "Scenario", value: tc.scenarioName || "-" },
+              { label: "Category", value: tc.category || "Positive" },
               { label: "Assigned To", value: tc.assignedTo || "-" },
               { label: "Requirement", value: tc.requirementId || "None" },
               { label: "Environment", value: tc.environment || "N/A" },

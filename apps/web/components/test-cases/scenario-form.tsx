@@ -2,19 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, useWatch } from "react-hook-form";
 import { Combobox } from "@/components/ui/combobox";
 import { ArrowLeft, Save, Info } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { AlertModal } from "@/components/ui/alert-modal";
 
-import type { TcModule } from "@/lib/types";
+import type { TcModule, TcSubModule } from "@/lib/types";
 
 export interface ScenarioFormValues {
   title: string;
   description: string;
   moduleId: string;
+  subModuleId: string;
 }
 
 interface ScenarioFormProps {
@@ -38,6 +39,7 @@ const DEFAULT_VALUES: ScenarioFormValues = {
   title: "",
   description: "",
   moduleId: "",
+  subModuleId: "",
 };
 
 export function ScenarioForm({
@@ -52,6 +54,7 @@ export function ScenarioForm({
   onSubmit,
 }: ScenarioFormProps) {
   const [modules, setModules] = useState<TcModule[]>([]);
+  const [subModules, setSubModules] = useState<TcSubModule[]>([]);
 
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
@@ -72,6 +75,7 @@ export function ScenarioForm({
     control,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<ScenarioFormValues>({
     defaultValues,
@@ -100,6 +104,31 @@ export function ScenarioForm({
   const moduleNames = useMemo(() => modules.map(m => m.name), [modules]);
   const moduleNameToId = useMemo(() => new Map(modules.map(m => [m.name, m.id])), [modules]);
   const moduleIdToName = useMemo(() => new Map(modules.map(m => [m.id, m.name])), [modules]);
+
+  const moduleIdVal = useWatch({ control, name: "moduleId" });
+
+  useEffect(() => {
+    if (!moduleIdVal) {
+      setSubModules([]);
+      return;
+    }
+    let isMounted = true;
+    fetch(`/api/test-cases/modules/${moduleIdVal}/sub-modules`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!isMounted) return;
+        setSubModules(Array.isArray(data) ? data : []);
+      })
+      .catch((err) => console.error(err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [moduleIdVal]);
+
+  const subModuleNames = useMemo(() => subModules.map(sm => sm.name), [subModules]);
+  const subModuleNameToId = useMemo(() => new Map(subModules.map(sm => [sm.name, sm.id])), [subModules]);
+  const subModuleIdToName = useMemo(() => new Map(subModules.map(sm => [sm.id, sm.name])), [subModules]);
 
   const handleCancel = () => {
     if (isDirty && !confirm("Are you sure you want to discard your changes?")) {
@@ -200,6 +229,7 @@ export function ScenarioForm({
                           onChange={(name) => {
                             const id = moduleNameToId.get(name) || "";
                             field.onChange(id);
+                            setValue("subModuleId", "");
                           }}
                           options={moduleNames}
                           placeholder="Select a module..."
@@ -212,6 +242,26 @@ export function ScenarioForm({
                         {errors.moduleId.message}
                       </span>
                     )}
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Sub-Module</label>
+                    <Controller
+                      control={control}
+                      name="subModuleId"
+                      render={({ field }) => (
+                        <Combobox
+                          value={subModuleIdToName.get(field.value) || ""}
+                          onChange={(name) => {
+                            const id = subModuleNameToId.get(name) || "";
+                            field.onChange(id);
+                          }}
+                          options={subModuleNames}
+                          placeholder="Select a sub-module..."
+                          disabled={!moduleIdVal}
+                        />
+                      )}
+                    />
                   </div>
 
                   <div>

@@ -44,6 +44,7 @@ const statements = [
     automation_status varchar(30),
     preconditions text,
     expected_result text not null,
+    category varchar(50) not null default 'Positive',
     notes text,
     created_at timestamptz not null,
     updated_at timestamptz not null,
@@ -156,14 +157,18 @@ const statements = [
     name         varchar(255) not null,
     description  text,
     module_id    uuid references tc_modules(id) on delete set null,
+    sub_module_id uuid references tc_sub_modules(id) on delete set null,
     created_at   timestamptz not null default now(),
     updated_at   timestamptz not null default now(),
     deleted_at   timestamptz
   )`,
   `create index if not exists ix_tc_scenarios_module_id on tc_scenarios (module_id)`,
+  `create index if not exists ix_tc_scenarios_sub_module_id on tc_scenarios (sub_module_id)`,
+  `alter table tc_scenarios add column if not exists sub_module_id uuid references tc_sub_modules(id) on delete set null`,
   `alter table test_cases add column if not exists module_id uuid references tc_modules(id) on delete set null`,
   `alter table test_cases add column if not exists sub_module_id uuid references tc_sub_modules(id) on delete set null`,
   `alter table test_cases add column if not exists scenario_id uuid references tc_scenarios(id) on delete set null`,
+  `alter table test_cases add column if not exists category varchar(50) not null default 'Positive'`,
   `with owner_candidate as (
      select id from users
      where lower(email) <> 'guest@clarity.local'

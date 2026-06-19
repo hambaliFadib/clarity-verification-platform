@@ -34,6 +34,11 @@ export const testCaseTypeBadgeVariants = {
   Security: "security",
 } as const satisfies Record<string, BadgeVariant>;
 
+export const testCaseCategoryBadgeVariants = {
+  Positive: "success",
+  Negative: "danger",
+} as const satisfies Record<string, BadgeVariant>;
+
 export const releaseStatusBadgeVariants = {
   Planning: "draft",
   "In Progress": "in-progress",

@@ -29,6 +29,8 @@ export async function POST(req: Request) {
         description: body.description || "",
         moduleId: body.moduleId || null,
         moduleName: body.moduleName || null,
+        subModuleId: body.subModuleId || null,
+        subModuleName: body.subModuleName || null,
         testCaseCount: 0,
       };
       return NextResponse.json(newScen);

@@ -17,6 +17,7 @@ import {
   testCaseSeverityBadgeVariants,
   testCaseStatusBadgeVariants,
   testCaseTypeBadgeVariants,
+  testCaseCategoryBadgeVariants,
 } from "@/lib/badge-variants";
 import {
   AdvancedFilterModal,
@@ -344,8 +345,9 @@ function TestCasesContent() {
               <table className="w-full table-fixed">
                 <colgroup>
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "33%" }} />
+                  <col style={{ width: "25%" }} />
                   <col style={{ width: "12%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "9%" }} />
                   <col style={{ width: "9%" }} />
                   <col style={{ width: "9%" }} />
@@ -357,6 +359,7 @@ function TestCasesContent() {
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">ID</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Title</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider truncate">Module</th>
+                    <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Category</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Severity</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Status</th>
                     <th className="text-left px-3 py-2 text-[11px] font-bold text-outline uppercase tracking-wider">Type</th>
@@ -385,6 +388,11 @@ function TestCasesContent() {
                       </td>
                       <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.moduleName || tc.moduleId || "-"}</td>
                       <td className="px-3 py-1.5">
+                        <Badge variant={testCaseCategoryBadgeVariants[(tc.category || "Positive") as "Positive" | "Negative"]} className="text-[9px] px-1 py-0">
+                          {tc.category || "Positive"}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-1.5">
                         <Badge variant={testCaseSeverityBadgeVariants[tc.severity]} className="text-[9px] px-1 py-0">{tc.severity}</Badge>
                       </td>
                       <td className="px-3 py-1.5">
@@ -400,7 +408,7 @@ function TestCasesContent() {
                   ))}
                   {hasMore && (
                     <tr ref={sentinelRef as RefCallback<HTMLTableRowElement>}>
-                      <td colSpan={9} className="px-3 py-2 text-center">
+                      <td colSpan={10} className="px-3 py-2 text-center">
                         {isLoadingMore && (
                           <div className="flex items-center justify-center gap-2 text-outline">
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
