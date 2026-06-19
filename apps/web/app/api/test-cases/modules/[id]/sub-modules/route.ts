@@ -30,6 +30,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         id: `guest-submod-${Date.now()}`,
         name: body.name,
         description: body.description || "",
+        code: body.code || null,
         moduleId,
         testCaseCount: 0,
       };

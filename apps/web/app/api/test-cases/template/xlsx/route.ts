@@ -5,8 +5,8 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const buffer = generateTestCasesTemplateXlsx();
-    return new NextResponse(buffer, {
+    const buffer = await generateTestCasesTemplateXlsx();
+    return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         "Content-Type": XLSX_MIME,

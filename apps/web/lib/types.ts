@@ -45,6 +45,11 @@ export interface TestCase {
   expectedResult?: string;
   category?: "Positive" | "Negative";
   notes?: string;
+  priority?: TestCasePriority;
+  actualResult?: string;
+  releaseVersion?: string;
+  isAutomated?: boolean;
+  author?: string;
 }
 
 export interface TcModule {

@@ -175,6 +175,15 @@ const statements = [
   `alter table test_cases add column if not exists sub_module_id uuid references tc_sub_modules(id) on delete set null`,
   `alter table test_cases add column if not exists scenario_id uuid references tc_scenarios(id) on delete set null`,
   `alter table test_cases add column if not exists category varchar(50) not null default 'Positive'`,
+  `alter table tc_modules add column if not exists code varchar(50)`,
+  `alter table tc_sub_modules add column if not exists code varchar(50)`,
+  `alter table tc_scenarios add column if not exists parent_scenario_id uuid references tc_scenarios(id) on delete cascade`,
+  `alter table tc_scenarios add column if not exists type varchar(50)`,
+  `alter table test_cases add column if not exists priority varchar(20) not null default 'Medium'`,
+  `alter table test_cases add column if not exists actual_result text`,
+  `alter table test_cases add column if not exists release_version varchar(50)`,
+  `alter table test_cases add column if not exists is_automated boolean default false`,
+  `alter table test_cases add column if not exists author varchar(150)`,
   `with owner_candidate as (
      select id from users
      where lower(email) <> 'guest@clarity.local'
@@ -302,14 +311,31 @@ const statements = [
 const client = await pool.connect();
 
 try {
-  await client.query("begin");
-  for (const statement of statements) {
-    await client.query(statement);
+  console.log(`Running ${statements.length} schema statements individually...`);
+  for (let i = 0; i < statements.length; i++) {
+    const statement = statements[i];
+    try {
+      await client.query(statement);
+    } catch (err) {
+      // If it is already altered/exists, we can log it and continue
+      if (err.message.includes("already exists") || err.message.includes("already a column")) {
+        console.log(`Statement ${i + 1} skipped (already applied): ${err.message.split('\n')[0]}`);
+        continue;
+      }
+      
+      console.warn(`Statement ${i + 1} failed: ${err.message}`);
+      if (err.code === '40P01') {
+        console.log(`Retrying statement ${i + 1} after deadlock...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await client.query(statement);
+      } else {
+        throw err;
+      }
+    }
   }
-  await client.query("commit");
-  console.log(`Applied ${statements.length} schema statements.`);
+  console.log(`Successfully completed all schema statements.`);
 } catch (error) {
-  await client.query("rollback");
+  console.error("Migration failed:", error);
   throw error;
 } finally {
   client.release();

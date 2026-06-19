@@ -9,7 +9,7 @@ export async function GET() {
     const ctx = await getRequestContext();
     const buffer = await generateTestCasesExportXlsx(ctx);
     const today = new Date().toISOString().slice(0, 10);
-    return new NextResponse(buffer, {
+    return new NextResponse(buffer as any, {
       status: 200,
       headers: {
         "Content-Type": XLSX_MIME,

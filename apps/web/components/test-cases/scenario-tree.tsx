@@ -1,6 +1,4 @@
-"use client";
-
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScenarioItem, type ScenarioNode } from "./scenario-item";
 
 interface ScenarioTreeProps {
@@ -34,7 +32,29 @@ export function ScenarioTree({
     });
   };
 
-  if (scenarios.length === 0) {
+  const scenarioTree = useMemo(() => {
+    const map = new Map<string, ScenarioNode>();
+    scenarios.forEach(sc => {
+      map.set(sc.id, { ...sc, children: [] });
+    });
+
+    const roots: ScenarioNode[] = [];
+
+    scenarios.forEach(sc => {
+      const node = map.get(sc.id)!;
+      if (sc.parentScenarioId && map.has(sc.parentScenarioId)) {
+        const parent = map.get(sc.parentScenarioId)!;
+        parent.children = parent.children || [];
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    });
+
+    return roots;
+  }, [scenarios]);
+
+  if (scenarioTree.length === 0) {
     return (
       <div className="text-center py-16 border border-outline-variant border-dashed rounded-xl bg-surface-container-lowest text-on-surface-variant">
         <p className="text-body-lg font-medium mb-1">No scenarios found.</p>
@@ -45,12 +65,14 @@ export function ScenarioTree({
 
   return (
     <div className="space-y-3">
-      {scenarios.map(scenario => (
+      {scenarioTree.map(scenario => (
         <ScenarioItem
           key={scenario.id}
           scenario={scenario}
           isExpanded={expandedScenarios.has(scenario.id)}
           onToggle={() => toggleScenario(scenario.id)}
+          expandedScenarios={expandedScenarios}
+          onToggleScenario={toggleScenario}
           onScenarioClick={onScenarioClick}
           onTestCaseClick={onTestCaseClick}
           onEdit={onEditScenario}
@@ -61,3 +83,4 @@ export function ScenarioTree({
     </div>
   );
 }
+

@@ -9,7 +9,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const { id } = await params;
     const ctx = await getRequestContext();
     if (isGuestContext(ctx)) {
-      return NextResponse.json({ id, name: "Guest Module", description: "Simulation only" });
+      return NextResponse.json({ id, name: "Guest Module", description: "Simulation only", code: "GMOD" });
     }
     const module = await getModule(id, ctx);
     if (!module) return NextResponse.json({ success: false, error: "Module not found" }, { status: 404 });

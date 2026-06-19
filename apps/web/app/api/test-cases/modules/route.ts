@@ -27,6 +27,7 @@ export async function POST(req: Request) {
         id: `guest-mod-${Date.now()}`,
         name: body.name,
         description: body.description || "",
+        code: body.code || null,
         subModuleCount: 0,
         testCaseCount: 0,
       };

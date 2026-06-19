@@ -13,9 +13,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ id, name: "Guest Scenario", description: "Simulation only", moduleId: "guest-mod-auth", moduleName: "Authentication", subModuleId: "guest-submod-login", subModuleName: "Login Flow" });
     }
     const result = await query(
-      `select sc.id, sc.name, sc.description, 
+      `select sc.id, sc.name, sc.description, sc.type,
               sc.module_id as "moduleId", m.name as "moduleName",
-              sc.sub_module_id as "subModuleId", sm.name as "subModuleName"
+              sc.sub_module_id as "subModuleId", sm.name as "subModuleName",
+              sc.parent_scenario_id as "parentScenarioId"
        from tc_scenarios sc
        left join tc_modules m on m.id = sc.module_id
        left join tc_sub_modules sm on sm.id = sc.sub_module_id

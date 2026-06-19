@@ -39,6 +39,11 @@ function mapTestCaseToFormValues(testCase: TestCase): Partial<TestCaseFormValues
         : [{ id: "step-1", order: 1, action: "" }],
     expectedResult: testCase.expectedResult || "",
     notes: testCase.notes || "",
+    priority: testCase.priority || "Medium",
+    actualResult: testCase.actualResult || "",
+    releaseVersion: testCase.releaseVersion || "",
+    isAutomated: testCase.isAutomated ?? false,
+    author: testCase.author || "",
   };
 }
 

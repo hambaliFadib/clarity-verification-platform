@@ -16,6 +16,7 @@ export interface ScenarioFormValues {
   description: string;
   moduleId: string;
   subModuleId: string;
+  type: string;
 }
 
 interface ScenarioFormProps {
@@ -40,6 +41,7 @@ const DEFAULT_VALUES: ScenarioFormValues = {
   description: "",
   moduleId: "",
   subModuleId: "",
+  type: "Positive",
 };
 
 export function ScenarioForm({
@@ -262,6 +264,28 @@ export function ScenarioForm({
                         />
                       )}
                     />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>Type *</label>
+                    <select
+                      className={`h-10 ${inputClass} ${
+                        errors.type ? "border-error focus:border-error focus:ring-error/20" : ""
+                      }`}
+                      {...register("type", { required: "Type is required" })}
+                    >
+                      <option value="Positive">Positive</option>
+                      <option value="Negative">Negative</option>
+                      <option value="Edge Case">Edge Case</option>
+                      <option value="Boundary">Boundary</option>
+                      <option value="Security">Security</option>
+                      <option value="Performance">Performance</option>
+                    </select>
+                    {errors.type && (
+                      <span className="text-body-sm text-error mt-1 block" role="alert">
+                        {errors.type.message}
+                      </span>
+                    )}
                   </div>
 
                   <div>

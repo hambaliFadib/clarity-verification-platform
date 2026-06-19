@@ -30,6 +30,7 @@ import type {
   Environment,
   TeamMember,
   TestCaseSeverity,
+  TestCasePriority,
   TestCaseStatus,
   TestCaseType,
   TcModule,
@@ -64,6 +65,11 @@ export interface TestCaseFormValues {
   testSteps: TestCaseFormStep[];
   expectedResult: string;
   notes: string;
+  priority: TestCasePriority;
+  actualResult: string;
+  releaseVersion: string;
+  isAutomated: boolean;
+  author: string;
 }
 
 export interface TestCaseFormSubmitPayload extends TestCaseFormValues {
@@ -107,6 +113,11 @@ const DEFAULT_VALUES: TestCaseFormValues = {
   testSteps: [{ id: "step-1", order: 1, action: "" }],
   expectedResult: "",
   notes: "",
+  priority: "Medium",
+  actualResult: "",
+  releaseVersion: "",
+  isAutomated: false,
+  author: "",
 };
 
 const TEST_CASE_TYPES: TestCaseType[] = [
@@ -604,6 +615,23 @@ export function TestCaseForm({
                         )}
                       />
                     </div>
+
+                    <div>
+                      <label className={labelClass}>Priority *</label>
+                      <Controller
+                        control={control}
+                        name="priority"
+                        rules={{ required: "Priority is required" }}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onChange={field.onChange}
+                            options={["Critical", "High", "Medium", "Low"]}
+                            error={!!errors.priority}
+                          />
+                        )}
+                      />
+                    </div>
                   </div>
 
                   <div>
@@ -668,6 +696,28 @@ export function TestCaseForm({
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Author</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. John Doe"
+                        className={`h-10 ${inputClass}`}
+                        {...register("author")}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>Release Version</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. v1.0.0"
+                        className={`h-10 ${inputClass}`}
+                        {...register("releaseVersion")}
+                      />
+                    </div>
+                  </div>
+
 
 
                   <div className="pt-4 border-t border-outline-variant/30 space-y-4">
@@ -714,6 +764,18 @@ export function TestCaseForm({
                             />
                           )}
                         />
+                      </div>
+
+                      <div className="flex items-center gap-2 mt-7">
+                        <input
+                          type="checkbox"
+                          id="isAutomated"
+                          className="h-4 w-4 rounded border-outline-variant text-primary focus:ring-primary-container"
+                          {...register("isAutomated")}
+                        />
+                        <label htmlFor="isAutomated" className="text-body-sm font-medium text-on-surface cursor-pointer select-none">
+                          Is Automated?
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -879,6 +941,25 @@ export function TestCaseForm({
 
           <div className="bg-white border border-outline-variant rounded-xl p-6 space-y-4 shadow-subtle">
             <div className="flex items-center gap-2 pb-2 border-b border-outline-variant/30">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              <h2 className="text-label-bold font-label-bold text-outline uppercase tracking-normal">
+                Actual Result
+              </h2>
+            </div>
+            <div>
+              <textarea
+                placeholder="e.g. User is logged in but page is blank"
+                className={`${inputClass} min-h-[90px] resize-y`}
+                {...register("actualResult")}
+              />
+              <p className="text-[11px] text-on-surface-variant/80 mt-1">
+                Record the actual outcome observed during execution (used for tracking failures)
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-outline-variant rounded-xl p-6 space-y-4 shadow-subtle">
+            <div className="flex items-center gap-2 pb-2 border-b border-outline-variant/30">
               <HelpCircle className="h-4 w-4 text-primary" />
               <h2 className="text-label-bold font-label-bold text-outline uppercase tracking-normal">
                 Notes
@@ -976,6 +1057,10 @@ export function TestCaseForm({
                   },
                   { label: "Requirement", value: previewData.requirementId || "None" },
                   { label: "Estimated Time", value: previewData.estimatedTime || "N/A" },
+                  { label: "Priority", value: previewData.priority || "Medium" },
+                  { label: "Author", value: previewData.author || "N/A" },
+                  { label: "Release Version", value: previewData.releaseVersion || "N/A" },
+                  { label: "Is Automated", value: previewData.isAutomated ? "Yes" : "No" },
                 ].map((item) => (
                   <div key={item.label} className="bg-surface-container-low/50 border border-outline-variant/65 rounded-xl p-4">
                     <div className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-1">
@@ -1085,6 +1170,19 @@ export function TestCaseForm({
                   </p>
                 </div>
               </div>
+
+              {previewData.actualResult && (
+                <div>
+                  <h4 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-2">
+                    Actual Result
+                  </h4>
+                  <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-5">
+                    <p className="text-body-md whitespace-pre-wrap">
+                      {previewData.actualResult}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {previewData.notes && (
                 <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-5">

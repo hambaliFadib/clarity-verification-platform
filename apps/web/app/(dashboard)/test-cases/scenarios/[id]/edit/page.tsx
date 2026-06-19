@@ -10,7 +10,7 @@ import Link from "next/link";
 export default function EditScenarioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [scenario, setScenario] = useState<{ id: string; name: string; description?: string; moduleId?: string; subModuleId?: string } | null>(null);
+  const [scenario, setScenario] = useState<{ id: string; name: string; description?: string; moduleId?: string; subModuleId?: string; type?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -49,6 +49,7 @@ export default function EditScenarioPage({ params }: { params: Promise<{ id: str
       description: scenario.description || "",
       moduleId: scenario.moduleId || "",
       subModuleId: scenario.subModuleId || "",
+      type: scenario.type || "Positive",
     };
   }, [scenario]);
 
@@ -63,6 +64,7 @@ export default function EditScenarioPage({ params }: { params: Promise<{ id: str
         description: payload.description,
         moduleId: payload.moduleId,
         subModuleId: payload.subModuleId || null,
+        type: payload.type,
       }),
     });
 

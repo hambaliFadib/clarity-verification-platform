@@ -174,6 +174,11 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
         })),
         expectedResult: tc.expectedResult || "",
         notes: tc.notes || "",
+        priority: tc.priority || "Medium",
+        actualResult: "",
+        releaseVersion: tc.releaseVersion || "",
+        isAutomated: tc.isAutomated ?? false,
+        author: tc.author || "",
       };
       
       const res = await fetch("/api/test-cases", {
@@ -340,11 +345,15 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               { label: "Sub-Module", value: tc.subModuleName || "-" },
               { label: "Scenario", value: tc.scenarioName || "-" },
               { label: "Category", value: tc.category || "Positive" },
+              { label: "Priority", value: tc.priority || "Medium" },
               { label: "Assigned To", value: tc.assignedTo || "-" },
               { label: "Requirement", value: tc.requirementId || "None" },
               { label: "Environment", value: tc.environment || "N/A" },
               { label: "Estimated Time", value: tc.estimatedTime || "N/A" },
               { label: "Automation Status", value: tc.automationStatus || "N/A" },
+              { label: "Is Automated", value: tc.isAutomated ? "Yes" : "No" },
+              { label: "Release Version", value: tc.releaseVersion || "N/A" },
+              { label: "Author", value: tc.author || "N/A" },
             ].map((item) => (
               <div key={item.label} className="bg-white border border-outline-variant rounded-xl p-4">
                 <div className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-1">{item.label}</div>
@@ -352,6 +361,15 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               </div>
             ))}
           </div>
+
+          {tc.actualResult && (
+            <div className="bg-white border border-outline-variant rounded-xl p-6">
+              <h3 className="text-label-bold font-label-bold text-outline uppercase tracking-normal mb-3">Overall Actual Result</h3>
+              <div className="bg-amber-50/50 border border-amber-200 rounded-xl p-5 text-body-md text-on-surface whitespace-pre-wrap font-medium">
+                {tc.actualResult}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col md:flex-row justify-between text-[11px] text-on-surface-variant/70 border-t border-outline-variant/30 pt-4 mt-4 px-1 gap-2">
             <div>

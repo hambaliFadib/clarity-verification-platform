@@ -19,6 +19,9 @@ export interface ScenarioNode {
   // Hierarchy
   moduleId?: string;
   testCases?: TestCaseNode[];
+  parentScenarioId?: string;
+  type?: string;
+  children?: ScenarioNode[];
 
   // UI State
   isExpanded?: boolean;
@@ -28,6 +31,8 @@ interface ScenarioItemProps {
   scenario: ScenarioNode;
   isExpanded: boolean;
   onToggle: () => void;
+  expandedScenarios: Set<string>;
+  onToggleScenario: (scenarioId: string) => void;
   onScenarioClick?: (scenarioId: string) => void;
   onTestCaseClick?: (testCaseId: string) => void;
   onEdit?: (scenario: ScenarioNode) => void;
@@ -39,6 +44,8 @@ export function ScenarioItem({
   scenario,
   isExpanded,
   onToggle,
+  expandedScenarios,
+  onToggleScenario,
   onScenarioClick,
   onTestCaseClick,
   onEdit,
@@ -103,10 +110,15 @@ export function ScenarioItem({
 
         {/* Scenario Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="text-body-md font-semibold text-on-surface">
               {scenario.name}
             </span>
+            {scenario.type && (
+              <Badge variant="info" className="text-[10px] px-1.5 py-0.5 font-bold rounded-full">
+                {scenario.type}
+              </Badge>
+            )}
           </div>
           {scenario.description && (
             <p className="text-body-sm text-on-surface-variant truncate">
@@ -173,25 +185,55 @@ export function ScenarioItem({
         </div>
       </div>
 
-      {/* Expanded Test Cases */}
+      {/* Expanded Test Cases & Sub-Scenarios */}
       {isExpanded && (
-        <div className="border-t border-outline-variant bg-surface-container-lowest">
+        <div className="border-t border-outline-variant bg-surface-container-lowest divide-y divide-outline-variant/50">
+          {/* Render Sub-Scenarios if any */}
+          {scenario.children && scenario.children.length > 0 && (
+            <div className="p-4 pl-8 bg-surface-container-low/20 space-y-3">
+              <div className="text-[10px] font-bold text-outline uppercase tracking-wider">
+                Sub-Scenarios
+              </div>
+              <div className="space-y-3">
+                {scenario.children.map((child) => (
+                  <ScenarioItem
+                    key={child.id}
+                    scenario={child}
+                    isExpanded={expandedScenarios.has(child.id)}
+                    onToggle={() => onToggleScenario(child.id)}
+                    expandedScenarios={expandedScenarios}
+                    onToggleScenario={onToggleScenario}
+                    onScenarioClick={onScenarioClick}
+                    onTestCaseClick={onTestCaseClick}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onAddTestCase={onAddTestCase}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Render Test Cases */}
           {testCases && testCases.length > 0 ? (
             <div className="p-2 space-y-1">
               {testCases.map(tc => (
-            <TestCaseRow
-              key={tc.id}
-              testCase={tc}
-              onClick={() => onTestCaseClick?.(tc.id)}
-            />
-          ))}
+                <TestCaseRow
+                  key={tc.id}
+                  testCase={tc}
+                  onClick={() => onTestCaseClick?.(tc.id)}
+                />
+              ))}
             </div>
           ) : (
             <div className="p-4 text-center text-on-surface-variant text-body-sm">
               {!loading && (
-                <Button variant="link" className="px-1 py-0 h-auto" onClick={() => onAddTestCase?.(scenario.id)}>
-                  <Plus className="h-3 w-3 mr-1" /> Add Test Case
-                </Button>
+                <div className="flex flex-col items-center justify-center py-2">
+                  <span className="text-body-xs text-on-surface-variant/70 mb-1">No test cases directly under this scenario</span>
+                  <Button variant="link" className="px-1 py-0 h-auto text-xs" onClick={() => onAddTestCase?.(scenario.id)}>
+                    <Plus className="h-3 w-3 mr-1" /> Add Test Case
+                  </Button>
+                </div>
               )}
             </div>
           )}

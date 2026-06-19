@@ -18,6 +18,7 @@ export default function CreateScenarioPage() {
         description: payload.description,
         moduleId: payload.moduleId,
         subModuleId: payload.subModuleId || null,
+        type: payload.type,
       }),
     });
 
