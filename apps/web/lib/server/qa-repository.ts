@@ -19,7 +19,12 @@ function normalizeModuleName(moduleName: string | null | undefined) {
   if (!moduleName) return null;
   const cleaned = moduleName.replace(/\s+/g, ' ').trim();
   if (!cleaned) return null;
-  return cleaned.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+  return cleaned.replace(/\b\w+\b/g, (word) => {
+    if (word === word.toUpperCase() || (/[a-z]/.test(word) && /[A-Z]/.test(word))) {
+      return word;
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  });
 }
 
 async function getProjectPrefix(client: DbClient, projectId: string | null) {
