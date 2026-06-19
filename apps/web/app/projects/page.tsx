@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { PortfolioHeader } from "./components/portfolio-header";
+import { CreateProjectButton } from "./components/create-project-modal";
 import { getRequestContext, isGuestContext } from "@/lib/server/request-context";
 import { listProjects } from "@/lib/server/qa-repository";
 import { guestProjects } from "@/lib/server/guest-fixtures";
@@ -124,10 +125,7 @@ export default async function PortfolioPage() {
             )}
 
             {/* Create New Project Card */}
-            <div className="bg-surface-container-low rounded-xl border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-4 min-h-[140px] hover:border-primary hover:bg-[#F0F7FF] transition-all duration-300 cursor-pointer text-outline hover:text-primary group">
-              <span className="material-symbols-outlined text-[24px] mb-2 group-hover:scale-110 transition-transform duration-300">add_circle</span>
-              <span className="font-bold text-body-md">Create New Project</span>
-            </div>
+            <CreateProjectButton />
           </section>
         </main>
       </div>
