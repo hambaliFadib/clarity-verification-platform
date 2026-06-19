@@ -162,6 +162,7 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply }
             onChange={(val) => setFilters({ ...filters, assigned: val })}
             options={availableUsers}
             placeholder="Select or type assignee..."
+            openUpward
           />
         </div>
       </ModalBody>

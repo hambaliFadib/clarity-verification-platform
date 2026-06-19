@@ -11,9 +11,10 @@ interface ComboboxProps {
   className?: string;
   error?: boolean;
   disabled?: boolean;
+  openUpward?: boolean;
 }
 
-export function Combobox({ value, onChange, options, placeholder, className, error, disabled }: ComboboxProps) {
+export function Combobox({ value, onChange, options, placeholder, className, error, disabled, openUpward = false }: ComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -80,7 +81,10 @@ export function Combobox({ value, onChange, options, placeholder, className, err
       </div>
 
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-outline-variant rounded-lg shadow-lg max-h-60 overflow-y-auto py-1">
+        <div className={cn(
+          "absolute z-50 w-full bg-white border border-outline-variant rounded-lg shadow-lg max-h-60 overflow-y-auto py-1",
+          openUpward ? "bottom-full mb-1" : "mt-1"
+        )}>
           {inputValue.trim() && !options.find(opt => opt.toLowerCase() === inputValue.trim().toLowerCase()) && (
             <div
               className="px-3 py-2 text-body-sm cursor-pointer hover:bg-surface-container-low text-primary font-medium"
