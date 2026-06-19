@@ -46,6 +46,9 @@ const scopedTables = [
   "test_runs",
   "work_items",
   "activity_items",
+  "tc_modules",
+  "tc_sub_modules",
+  "tc_scenarios",
 ];
 
 let membershipSchemaReady: Promise<void> | null = null;
@@ -67,6 +70,94 @@ function hasSignedInUser(ctx?: ProjectAccessContext) {
 async function ensureColumnMigrations() {
   if (!columnMigrationsReady) {
     columnMigrationsReady = (async () => {
+      // Create tc_modules table
+      await query(`
+        CREATE TABLE IF NOT EXISTS tc_modules (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(150) NOT NULL,
+          description TEXT,
+          project_id UUID REFERENCES projects(id),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          deleted_at TIMESTAMPTZ
+        )
+      `);
+      await query(`CREATE INDEX IF NOT EXISTS ix_tc_modules_project_id ON tc_modules (project_id)`);
+
+      // Create tc_sub_modules table
+      await query(`
+        CREATE TABLE IF NOT EXISTS tc_sub_modules (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(150) NOT NULL,
+          description TEXT,
+          module_id UUID NOT NULL REFERENCES tc_modules(id) ON DELETE CASCADE,
+          project_id UUID REFERENCES projects(id),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          deleted_at TIMESTAMPTZ
+        )
+      `);
+      await query(`CREATE INDEX IF NOT EXISTS ix_tc_sub_modules_module_id ON tc_sub_modules (module_id)`);
+      await query(`CREATE INDEX IF NOT EXISTS ix_tc_sub_modules_project_id ON tc_sub_modules (project_id)`);
+
+      // Create tc_scenarios table
+      await query(`
+        CREATE TABLE IF NOT EXISTS tc_scenarios (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name VARCHAR(255) NOT NULL,
+          description TEXT,
+          module_id UUID REFERENCES tc_modules(id) ON DELETE SET NULL,
+          project_id UUID REFERENCES projects(id),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          deleted_at TIMESTAMPTZ
+        )
+      `);
+      await query(`CREATE INDEX IF NOT EXISTS ix_tc_scenarios_module_id ON tc_scenarios (module_id)`);
+      await query(`CREATE INDEX IF NOT EXISTS ix_tc_scenarios_project_id ON tc_scenarios (project_id)`);
+
+      // Alter test_cases to add FK columns
+      await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS module_id UUID REFERENCES tc_modules(id) ON DELETE SET NULL`);
+      await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS sub_module_id UUID REFERENCES tc_sub_modules(id) ON DELETE SET NULL`);
+      await query(`ALTER TABLE test_cases ADD COLUMN IF NOT EXISTS scenario_id UUID REFERENCES tc_scenarios(id) ON DELETE SET NULL`);
+
+      // Data migration for existing module data
+      await query(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'test_cases' AND column_name = 'module'
+          ) THEN
+            -- Step 1: Insert distinct module names into tc_modules (skip if already exists)
+            INSERT INTO tc_modules (id, name, project_id, created_at, updated_at)
+            SELECT gen_random_uuid(), TRIM(module), project_id, NOW(), NOW()
+            FROM (
+              SELECT DISTINCT REGEXP_REPLACE(TRIM(module), '\\s+', ' ', 'g') AS module, project_id
+              FROM test_cases
+              WHERE module IS NOT NULL AND TRIM(module) <> '' AND deleted_at IS NULL
+            ) sub
+            WHERE NOT EXISTS (
+              SELECT 1 FROM tc_modules m
+              WHERE LOWER(m.name) = LOWER(sub.module)
+                AND (m.project_id = sub.project_id OR (m.project_id IS NULL AND sub.project_id IS NULL))
+            );
+
+            -- Step 2: Backfill module_id on test_cases
+            UPDATE test_cases tc
+            SET module_id = m.id
+            FROM tc_modules m
+            WHERE LOWER(REGEXP_REPLACE(TRIM(tc.module), '\\s+', ' ', 'g')) = LOWER(m.name)
+              AND (tc.project_id = m.project_id OR (tc.project_id IS NULL AND m.project_id IS NULL))
+              AND tc.module_id IS NULL
+              AND tc.module IS NOT NULL;
+
+            -- Step 3: Drop legacy module column
+            ALTER TABLE test_cases DROP COLUMN IF EXISTS module;
+          END IF;
+        END $$;
+      `);
+
       // Rename priority → severity if still on old schema
       await query(`
         DO $$
@@ -182,7 +273,12 @@ function mapTestCase(row: any, steps: any[] = []) {
     realId: row.id,
     title: row.title,
     description: row.description || undefined,
-    module: row.module,
+    moduleId: row.module_id || undefined,
+    moduleName: row.module_name || undefined,
+    subModuleId: row.sub_module_id || undefined,
+    subModuleName: row.sub_module_name || undefined,
+    scenarioId: row.scenario_id || undefined,
+    scenarioName: row.scenario_name || undefined,
     severity: row.severity,
     status: row.status,
     type: row.type,
@@ -230,7 +326,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   const search = searchParams.get("search");
   if (search) {
     const placeholder = addValue(`%${search}%`);
-    filters.push(`(tc.title ilike ${placeholder} or tc.module ilike ${placeholder} or tc.display_id ilike ${placeholder})`);
+    filters.push(`(tc.title ilike ${placeholder} or m.name ilike ${placeholder} or tc.display_id ilike ${placeholder})`);
   }
   const status = searchParams.get("status");
   if (status && status.toLowerCase() !== "all") filters.push(`tc.status ilike ${addValue(status)}`);
@@ -238,19 +334,47 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   if (severity) filters.push(`tc.severity ilike ${addValue(severity)}`);
   const type = searchParams.get("type");
   if (type) filters.push(`tc.type ilike ${addValue(type)}`);
-  const module = searchParams.get("module");
-  if (module) filters.push(`regexp_replace(trim(tc.module), '\\s+', ' ', 'g') ilike ${addValue(module)}`);
 
+  const moduleId = searchParams.get("moduleId") || searchParams.get("module_id");
+  if (moduleId) {
+    filters.push(`tc.module_id = ${addValue(moduleId)}::uuid`);
+  } else {
+    const module = searchParams.get("module");
+    if (module) filters.push(`m.name ilike ${addValue(module)}`);
+  }
+
+  const subModuleId = searchParams.get("subModuleId") || searchParams.get("sub_module_id");
+  if (subModuleId) {
+    filters.push(`tc.sub_module_id = ${addValue(subModuleId)}::uuid`);
+  }
+  const scenarioId = searchParams.get("scenarioId") || searchParams.get("scenario_id");
+  if (scenarioId) {
+    filters.push(`tc.scenario_id = ${addValue(scenarioId)}::uuid`);
+  }
 
   const whereSql = filters.join(" and ");
-  const count = await query<{ total: string }>(`select count(*) as total from test_cases tc where ${whereSql}`, values);
+  const count = await query<{ total: string }>(
+    `select count(*) as total 
+     from test_cases tc 
+     left join tc_modules m on m.id = tc.module_id
+     where ${whereSql}`, 
+    values
+  );
   const offset = addValue(toInt(searchParams.get("skip"), 0));
   const limit = addValue(toInt(searchParams.get("limit"), 50));
   const result = await query(
-    `select tc.*, assignee.name as assigned_to_name, creator.name as created_by_name
+    `select tc.*, 
+            assignee.name as assigned_to_name, 
+            creator.name as created_by_name,
+            m.name as module_name,
+            sm.name as sub_module_name,
+            sc.name as scenario_name
      from test_cases tc
      left join users assignee on assignee.id = tc.assigned_to
      left join users creator on creator.id = tc.created_by
+     left join tc_modules m on m.id = tc.module_id
+     left join tc_sub_modules sm on sm.id = tc.sub_module_id
+     left join tc_scenarios sc on sc.id = tc.scenario_id
      where ${whereSql}
      order by coalesce(cast(nullif(substring(tc.display_id from 'TC-([0-9]+)$'), '') as integer), 999999) asc, tc.created_at asc
      offset ${offset} limit ${limit}`,
@@ -266,18 +390,14 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
 export async function getTestCaseModules(ctx?: ProjectAccessContext) {
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return [];
-  const result = await query<{ module: string }>(
-    `select distinct module from test_cases
+  const result = await query<{ name: string }>(
+    `select name from tc_modules
      where deleted_at is null
-       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}`,
+       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}
+     order by name asc`,
     projectIds === null ? [] : [projectIds],
   );
-  const modules = new Set<string>();
-  for (const row of result.rows) {
-    const mod = normalizeModuleName(row.module);
-    if (mod) modules.add(mod);
-  }
-  return Array.from(modules).sort();
+  return result.rows.map((row) => row.name);
 }
 
 
@@ -335,20 +455,60 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
     const steps = payload.testSteps || payload.test_steps || [];
     const expectedResult = payload.expectedResult || payload.expected_result || "";
     const now = new Date();
+
+    let moduleId = isUuid(payload.moduleId || payload.module_id) ? (payload.moduleId || payload.module_id) : null;
+    const moduleName = normalizeModuleName(payload.module);
+    if (!moduleId && moduleName) {
+      const existing = await client.query("select id from tc_modules where lower(name) = lower($1) and (project_id = $2 or (project_id is null and $2 is null)) and deleted_at is null", [moduleName, projectId]);
+      if (existing.rows[0]) {
+        moduleId = existing.rows[0].id;
+      } else {
+        const newModId = randomUUID();
+        await client.query("insert into tc_modules (id, name, project_id, created_at, updated_at) values ($1, $2, $3, now(), now())", [newModId, moduleName, projectId]);
+        moduleId = newModId;
+      }
+    }
+
+    let subModuleId = isUuid(payload.subModuleId || payload.sub_module_id) ? (payload.subModuleId || payload.sub_module_id) : null;
+    const subModuleName = normalizeModuleName(payload.subModule || payload.sub_module);
+    if (!subModuleId && subModuleName && moduleId) {
+      const existing = await client.query("select id from tc_sub_modules where lower(name) = lower($1) and module_id = $2 and deleted_at is null", [subModuleName, moduleId]);
+      if (existing.rows[0]) {
+        subModuleId = existing.rows[0].id;
+      } else {
+        const newSubId = randomUUID();
+        await client.query("insert into tc_sub_modules (id, name, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newSubId, subModuleName, moduleId, projectId]);
+        subModuleId = newSubId;
+      }
+    }
+
+    let scenarioId = isUuid(payload.scenarioId || payload.scenario_id) ? (payload.scenarioId || payload.scenario_id) : null;
+    const scenarioName = normalizeModuleName(payload.scenario || payload.scenario_name);
+    if (!scenarioId && scenarioName) {
+      const existing = await client.query("select id from tc_scenarios where lower(name) = lower($1) and (project_id = $2 or (project_id is null and $2 is null)) and deleted_at is null", [scenarioName, projectId]);
+      if (existing.rows[0]) {
+        scenarioId = existing.rows[0].id;
+      } else {
+        const newScenId = randomUUID();
+        await client.query("insert into tc_scenarios (id, name, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newScenId, scenarioName, moduleId, projectId]);
+        scenarioId = newScenId;
+      }
+    }
+
     const created = await client.query(
       `insert into test_cases (
-        id, display_id, title, description, module, type, severity, status,
+        id, display_id, title, description, type, severity, status,
         assigned_to, requirement_id, estimated_time, environment, automation_status,
-        preconditions, expected_result, notes, created_at, updated_at, project_id
+        preconditions, expected_result, notes, created_at, updated_at, project_id,
+        module_id, sub_module_id, scenario_id
       ) values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
       ) returning *`,
       [
         randomUUID(),
         displayId,
         payload.title,
         emptyToNull(payload.description),
-        normalizeModuleName(payload.module),
         payload.type,
         payload.severity || payload.priority || "Medium",
         payload.status || "Draft",
@@ -363,6 +523,9 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
         now,
         now,
         projectId,
+        moduleId,
+        subModuleId,
+        scenarioId,
       ],
     );
 
@@ -383,8 +546,25 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
       );
     }
 
+    const fullRow = await client.query(
+      `select tc.*, 
+              assignee.name as assigned_to_name, 
+              creator.name as created_by_name,
+              m.name as module_name,
+              sm.name as sub_module_name,
+              sc.name as scenario_name
+       from test_cases tc
+       left join users assignee on assignee.id = tc.assigned_to
+       left join users creator on creator.id = tc.created_by
+       left join tc_modules m on m.id = tc.module_id
+       left join tc_sub_modules sm on sm.id = tc.sub_module_id
+       left join tc_scenarios sc on sc.id = tc.scenario_id
+       where tc.id = $1`,
+      [created.rows[0].id]
+    );
+
     const stepRows = await client.query("select * from test_steps where test_case_id = $1 order by step_number asc", [created.rows[0].id]);
-    return mapTestCase(created.rows[0], stepRows.rows);
+    return mapTestCase(fullRow.rows[0], stepRows.rows);
   });
 }
 
@@ -392,10 +572,18 @@ export async function getTestCase(displayId: string, ctx?: ProjectAccessContext)
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return null;
   const result = await query(
-    `select tc.*, assignee.name as assigned_to_name, creator.name as created_by_name
+    `select tc.*, 
+            assignee.name as assigned_to_name, 
+            creator.name as created_by_name,
+            m.name as module_name,
+            sm.name as sub_module_name,
+            sc.name as scenario_name
      from test_cases tc
      left join users assignee on assignee.id = tc.assigned_to
      left join users creator on creator.id = tc.created_by
+     left join tc_modules m on m.id = tc.module_id
+     left join tc_sub_modules sm on sm.id = tc.sub_module_id
+     left join tc_scenarios sc on sc.id = tc.scenario_id
      where tc.display_id = $1 and tc.deleted_at is null
        ${projectIds === null ? "" : "and tc.project_id = any($2::uuid[])"}
      limit 1`,
@@ -418,10 +606,10 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
     );
     if (!current.rows[0]) return null;
 
+    let row = current.rows[0];
     const fields: Record<string, unknown> = {};
     if (payload.title !== undefined) fields.title = payload.title;
     if (payload.description !== undefined) fields.description = emptyToNull(payload.description);
-    if (payload.module !== undefined) fields.module = normalizeModuleName(payload.module);
     if (payload.type !== undefined) fields.type = payload.type;
     if (payload.severity !== undefined || payload.priority !== undefined) fields.severity = payload.severity ?? payload.priority;
     if (payload.status !== undefined) fields.status = payload.status;
@@ -437,7 +625,73 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
     if (payload.expectedResult !== undefined || payload.expected_result !== undefined) fields.expected_result = payload.expectedResult ?? payload.expected_result;
     if (payload.notes !== undefined) fields.notes = emptyToNull(payload.notes);
 
-    let row = current.rows[0];
+    if (payload.moduleId !== undefined || payload.module_id !== undefined) {
+      const mId = payload.moduleId ?? payload.module_id;
+      fields.module_id = isUuid(mId) ? mId : null;
+    }
+    if (payload.subModuleId !== undefined || payload.sub_module_id !== undefined) {
+      const smId = payload.subModuleId ?? payload.sub_module_id;
+      fields.sub_module_id = isUuid(smId) ? smId : null;
+    }
+    if (payload.scenarioId !== undefined || payload.scenario_id !== undefined) {
+      const scId = payload.scenarioId ?? payload.scenario_id;
+      fields.scenario_id = isUuid(scId) ? scId : null;
+    }
+
+    let moduleId = fields.module_id !== undefined ? fields.module_id : row.module_id;
+    if (payload.module !== undefined) {
+      const moduleName = normalizeModuleName(payload.module);
+      if (moduleName) {
+        const existing = await client.query("select id from tc_modules where lower(name) = lower($1) and (project_id = $2 or (project_id is null and $2 is null)) and deleted_at is null", [moduleName, row.project_id]);
+        if (existing.rows[0]) {
+          moduleId = existing.rows[0].id;
+        } else {
+          const newModId = randomUUID();
+          await client.query("insert into tc_modules (id, name, project_id, created_at, updated_at) values ($1, $2, $3, now(), now())", [newModId, moduleName, row.project_id]);
+          moduleId = newModId;
+        }
+      } else {
+        moduleId = null;
+      }
+      fields.module_id = moduleId;
+    }
+
+    let subModuleId = fields.sub_module_id !== undefined ? fields.sub_module_id : row.sub_module_id;
+    if (payload.subModule !== undefined || payload.sub_module !== undefined) {
+      const subModuleName = normalizeModuleName(payload.subModule ?? payload.sub_module);
+      if (subModuleName && moduleId) {
+        const existing = await client.query("select id from tc_sub_modules where lower(name) = lower($1) and module_id = $2 and deleted_at is null", [subModuleName, moduleId]);
+        if (existing.rows[0]) {
+          subModuleId = existing.rows[0].id;
+        } else {
+          const newSubId = randomUUID();
+          await client.query("insert into tc_sub_modules (id, name, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newSubId, subModuleName, moduleId, row.project_id]);
+          subModuleId = newSubId;
+        }
+      } else {
+        subModuleId = null;
+      }
+      fields.sub_module_id = subModuleId;
+    }
+
+    let scenarioId = fields.scenario_id !== undefined ? fields.scenario_id : row.scenario_id;
+    if (payload.scenario !== undefined || payload.scenario_name !== undefined) {
+      const scenarioName = normalizeModuleName(payload.scenario ?? payload.scenario_name);
+      if (scenarioName) {
+        const existing = await client.query("select id from tc_scenarios where lower(name) = lower($1) and (project_id = $2 or (project_id is null and $2 is null)) and deleted_at is null", [scenarioName, row.project_id]);
+        if (existing.rows[0]) {
+          scenarioId = existing.rows[0].id;
+        } else {
+          const newScenId = randomUUID();
+          await client.query("insert into tc_scenarios (id, name, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newScenId, scenarioName, moduleId, row.project_id]);
+          scenarioId = newScenId;
+        }
+      } else {
+        scenarioId = null;
+      }
+      fields.scenario_id = scenarioId;
+    }
+
     const entries = Object.entries(fields);
     if (entries.length > 0) {
       const values = entries.map(([, value]) => value);
@@ -470,8 +724,25 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
       }
     }
 
+    const fullRow = await client.query(
+      `select tc.*, 
+              assignee.name as assigned_to_name, 
+              creator.name as created_by_name,
+              m.name as module_name,
+              sm.name as sub_module_name,
+              sc.name as scenario_name
+       from test_cases tc
+       left join users assignee on assignee.id = tc.assigned_to
+       left join users creator on creator.id = tc.created_by
+       left join tc_modules m on m.id = tc.module_id
+       left join tc_sub_modules sm on sm.id = tc.sub_module_id
+       left join tc_scenarios sc on sc.id = tc.scenario_id
+       where tc.id = $1`,
+      [row.id]
+    );
+
     const stepRows = await client.query("select * from test_steps where test_case_id = $1 order by step_number asc", [row.id]);
-    return mapTestCase(row, stepRows.rows);
+    return mapTestCase(fullRow.rows[0], stepRows.rows);
   });
 }
 
@@ -484,6 +755,272 @@ export async function deleteTestCase(displayId: string, ctx?: ProjectAccessConte
      where display_id = $1 and deleted_at is null
        ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
     projectIds === null ? [displayId] : [displayId, projectIds],
+  );
+  return (result.rowCount || 0) > 0;
+}
+
+// --- MODULES CRUD ---
+
+export async function listModules(ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return [];
+  
+  const result = await query(
+    `select m.id, m.name, m.description,
+            (select count(*)::integer from tc_sub_modules sm where sm.module_id = m.id and sm.deleted_at is null) as "subModuleCount",
+            (select count(*)::integer from test_cases tc where tc.module_id = m.id and tc.deleted_at is null) as "testCaseCount"
+     from tc_modules m
+     where m.deleted_at is null
+       ${projectIds === null ? "" : "and m.project_id = any($1::uuid[])"}
+     order by m.name asc`,
+    projectIds === null ? [] : [projectIds]
+  );
+  return result.rows;
+}
+
+export async function getModule(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+
+  const result = await query(
+    `select * from tc_modules 
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [id] : [id, projectIds]
+  );
+  return result.rows[0] || null;
+}
+
+export async function createModule(payload: { name: string; description?: string }, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
+  const name = normalizeModuleName(payload.name);
+  if (!name) throw new Error("Module name is required");
+
+  const result = await query(
+    `insert into tc_modules (id, name, description, project_id, created_at, updated_at)
+     values ($1, $2, $3, $4, now(), now())
+     returning *`,
+    [randomUUID(), name, emptyToNull(payload.description), projectId]
+  );
+  return result.rows[0];
+}
+
+export async function updateModule(id: string, payload: { name?: string; description?: string }, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+
+  const fields: Record<string, unknown> = {};
+  if (payload.name !== undefined) {
+    const name = normalizeModuleName(payload.name);
+    if (!name) throw new Error("Module name cannot be empty");
+    fields.name = name;
+  }
+  if (payload.description !== undefined) fields.description = emptyToNull(payload.description);
+
+  const entries = Object.entries(fields);
+  if (entries.length === 0) return getModule(id, ctx);
+
+  const values = entries.map(([, val]) => val);
+  const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
+  
+  const result = await query(
+    `update tc_modules 
+     set ${assignments}, updated_at = now() 
+     where id = $${entries.length + 1} and deleted_at is null
+       ${projectIds === null ? "" : `and project_id = any($${entries.length + 2}::uuid[])`}
+     returning *`,
+    projectIds === null ? [...values, id] : [...values, id, projectIds]
+  );
+  return result.rows[0] || null;
+}
+
+export async function deleteModule(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+
+  const result = await query(
+    `update tc_modules 
+     set deleted_at = now(), updated_at = now() 
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [id] : [id, projectIds]
+  );
+  return (result.rowCount || 0) > 0;
+}
+
+// --- SUB-MODULES CRUD ---
+
+export async function getSubModule(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+
+  const result = await query(
+    `select id, name, description, module_id as "moduleId" 
+     from tc_sub_modules 
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [id] : [id, projectIds]
+  );
+  return result.rows[0] || null;
+}
+
+export async function listSubModules(moduleId: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return [];
+
+  const result = await query(
+    `select sm.id, sm.name, sm.description, sm.module_id as "moduleId",
+            (select count(*)::integer from test_cases tc where tc.sub_module_id = sm.id and tc.deleted_at is null) as "testCaseCount"
+     from tc_sub_modules sm
+     where sm.module_id = $1 and sm.deleted_at is null
+       ${projectIds === null ? "" : "and sm.project_id = any($2::uuid[])"}
+     order by sm.name asc`,
+    projectIds === null ? [moduleId] : [moduleId, projectIds]
+  );
+  return result.rows;
+}
+
+export async function createSubModule(payload: { name: string; description?: string; moduleId: string }, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
+  const name = normalizeModuleName(payload.name);
+  if (!name) throw new Error("Sub-module name is required");
+  if (!isUuid(payload.moduleId)) throw new Error("Valid parent moduleId is required");
+
+  const result = await query(
+    `insert into tc_sub_modules (id, name, description, module_id, project_id, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, now(), now())
+     returning id, name, description, module_id as "moduleId"`,
+    [randomUUID(), name, emptyToNull(payload.description), payload.moduleId, projectId]
+  );
+  return result.rows[0];
+}
+
+export async function updateSubModule(id: string, payload: { name?: string; description?: string }, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+
+  const fields: Record<string, unknown> = {};
+  if (payload.name !== undefined) {
+    const name = normalizeModuleName(payload.name);
+    if (!name) throw new Error("Sub-module name cannot be empty");
+    fields.name = name;
+  }
+  if (payload.description !== undefined) fields.description = emptyToNull(payload.description);
+
+  const entries = Object.entries(fields);
+  if (entries.length === 0) {
+    const existing = await query(`select id, name, description, module_id as "moduleId" from tc_sub_modules where id = $1`, [id]);
+    return existing.rows[0] || null;
+  }
+
+  const values = entries.map(([, val]) => val);
+  const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
+
+  const result = await query(
+    `update tc_sub_modules 
+     set ${assignments}, updated_at = now() 
+     where id = $${entries.length + 1} and deleted_at is null
+       ${projectIds === null ? "" : `and project_id = any($${entries.length + 2}::uuid[])`}
+     returning id, name, description, module_id as "moduleId"`,
+    projectIds === null ? [...values, id] : [...values, id, projectIds]
+  );
+  return result.rows[0] || null;
+}
+
+export async function deleteSubModule(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+
+  const result = await query(
+    `update tc_sub_modules 
+     set deleted_at = now(), updated_at = now() 
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [id] : [id, projectIds]
+  );
+  return (result.rowCount || 0) > 0;
+}
+
+// --- SCENARIOS CRUD ---
+
+export async function listScenarios(ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return [];
+
+  const result = await query(
+    `select sc.id, sc.name, sc.description, sc.module_id as "moduleId", m.name as "moduleName",
+            (select count(*)::integer from test_cases tc where tc.scenario_id = sc.id and tc.deleted_at is null) as "testCaseCount"
+     from tc_scenarios sc
+     left join tc_modules m on m.id = sc.module_id
+     where sc.deleted_at is null
+       ${projectIds === null ? "" : "and sc.project_id = any($1::uuid[])"}
+     order by sc.name asc`,
+    projectIds === null ? [] : [projectIds]
+  );
+  return result.rows;
+}
+
+export async function createScenario(payload: { name: string; description?: string; moduleId?: string }, ctx?: ProjectAccessContext) {
+  const projectId = await primaryProjectId(ctx);
+  const name = normalizeModuleName(payload.name);
+  if (!name) throw new Error("Scenario name is required");
+
+  const moduleId = isUuid(payload.moduleId) ? payload.moduleId : null;
+
+  const result = await query(
+    `insert into tc_scenarios (id, name, description, module_id, project_id, created_at, updated_at)
+     values ($1, $2, $3, $4, $5, now(), now())
+     returning id, name, description, module_id as "moduleId"`,
+    [randomUUID(), name, emptyToNull(payload.description), moduleId, projectId]
+  );
+  return result.rows[0];
+}
+
+export async function updateScenario(id: string, payload: { name?: string; description?: string; moduleId?: string | null }, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return null;
+
+  const fields: Record<string, unknown> = {};
+  if (payload.name !== undefined) {
+    const name = normalizeModuleName(payload.name);
+    if (!name) throw new Error("Scenario name cannot be empty");
+    fields.name = name;
+  }
+  if (payload.description !== undefined) fields.description = emptyToNull(payload.description);
+  if (payload.moduleId !== undefined) {
+    fields.module_id = isUuid(payload.moduleId) ? payload.moduleId : null;
+  }
+
+  const entries = Object.entries(fields);
+  if (entries.length === 0) {
+    const existing = await query(`select id, name, description, module_id as "moduleId" from tc_scenarios where id = $1`, [id]);
+    return existing.rows[0] || null;
+  }
+
+  const values = entries.map(([, val]) => val);
+  const assignments = entries.map(([key], index) => `${key} = $${index + 1}`).join(", ");
+
+  const result = await query(
+    `update tc_scenarios 
+     set ${assignments}, updated_at = now() 
+     where id = $${entries.length + 1} and deleted_at is null
+       ${projectIds === null ? "" : `and project_id = any($${entries.length + 2}::uuid[])`}
+     returning id, name, description, module_id as "moduleId"`,
+    projectIds === null ? [...values, id] : [...values, id, projectIds]
+  );
+  return result.rows[0] || null;
+}
+
+export async function deleteScenario(id: string, ctx?: ProjectAccessContext) {
+  const projectIds = await scopedProjectIds(ctx);
+  if (projectIds !== null && projectIds.length === 0) return false;
+
+  const result = await query(
+    `update tc_scenarios 
+     set deleted_at = now(), updated_at = now() 
+     where id = $1 and deleted_at is null
+       ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
+    projectIds === null ? [id] : [id, projectIds]
   );
   return (result.rowCount || 0) > 0;
 }

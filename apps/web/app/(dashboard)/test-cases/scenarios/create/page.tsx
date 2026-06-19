@@ -8,9 +8,23 @@ export default function CreateScenarioPage() {
   const router = useRouter();
 
   const handleSubmit = async (payload: ScenarioFormValues) => {
-    // Mock API call to create scenario
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log("Creating scenario:", payload);
+    const response = await fetch("/api/test-cases/scenarios", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: payload.title,
+        description: payload.description,
+        moduleId: payload.moduleId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to create scenario");
+    }
+
     router.push(`/test-cases/scenarios?toast=created`);
   };
 

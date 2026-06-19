@@ -9,11 +9,12 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { AlertModal } from "@/components/ui/alert-modal";
 
+import type { TcModule } from "@/lib/types";
+
 export interface ScenarioFormValues {
   title: string;
   description: string;
-  module: string;
-  subModule: string;
+  moduleId: string;
 }
 
 interface ScenarioFormProps {
@@ -36,8 +37,7 @@ const labelClass =
 const DEFAULT_VALUES: ScenarioFormValues = {
   title: "",
   description: "",
-  module: "",
-  subModule: "",
+  moduleId: "",
 };
 
 export function ScenarioForm({
@@ -51,8 +51,7 @@ export function ScenarioForm({
   onCancel,
   onSubmit,
 }: ScenarioFormProps) {
-  const [moduleOptions, setModuleOptions] = useState<string[]>([]);
-  const [subModuleOptions, setSubModuleOptions] = useState<string[]>([]);
+  const [modules, setModules] = useState<TcModule[]>([]);
 
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
@@ -89,7 +88,7 @@ export function ScenarioForm({
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         if (!isMounted) return;
-        setModuleOptions(Array.isArray(data) ? data : []);
+        setModules(Array.isArray(data) ? data : []);
       })
       .catch((err) => console.error(err));
 
@@ -97,6 +96,10 @@ export function ScenarioForm({
       isMounted = false;
     };
   }, []);
+
+  const moduleNames = useMemo(() => modules.map(m => m.name), [modules]);
+  const moduleNameToId = useMemo(() => new Map(modules.map(m => [m.name, m.id])), [modules]);
+  const moduleIdToName = useMemo(() => new Map(modules.map(m => [m.id, m.name])), [modules]);
 
   const handleCancel = () => {
     if (isDirty && !confirm("Are you sure you want to discard your changes?")) {
@@ -189,40 +192,26 @@ export function ScenarioForm({
                     <label className={labelClass}>Module *</label>
                     <Controller
                       control={control}
-                      name="module"
+                      name="moduleId"
                       rules={{ required: "Module is required" }}
                       render={({ field }) => (
                         <Combobox
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={moduleOptions}
-                          placeholder="e.g. Authentication, Project Management"
-                          error={!!errors.module}
+                          value={moduleIdToName.get(field.value) || ""}
+                          onChange={(name) => {
+                            const id = moduleNameToId.get(name) || "";
+                            field.onChange(id);
+                          }}
+                          options={moduleNames}
+                          placeholder="Select a module..."
+                          error={!!errors.moduleId}
                         />
                       )}
                     />
-                    {errors.module && (
+                    {errors.moduleId && (
                       <span className="text-body-sm text-error mt-1 block" role="alert">
-                        {errors.module.message}
+                        {errors.moduleId.message}
                       </span>
                     )}
-                  </div>
-
-                  <div>
-                    <label className={labelClass}>Sub-Module</label>
-                    <Controller
-                      control={control}
-                      name="subModule"
-                      render={({ field }) => (
-                        <Combobox
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          options={subModuleOptions}
-                          placeholder="e.g. Login Flow, Sign Up"
-                          error={!!(errors as any).subModule}
-                        />
-                      )}
-                    />
                   </div>
 
                   <div>

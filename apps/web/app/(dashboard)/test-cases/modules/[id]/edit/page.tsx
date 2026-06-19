@@ -10,26 +10,57 @@ import Link from "next/link";
 export default function EditModulePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [moduleData, setModuleData] = useState<ModuleNode | null>(null);
+  const [moduleData, setModuleData] = useState<{ id: string; name: string; description?: string; parentId?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Mock API call to fetch module
     let isMounted = true;
-    setTimeout(() => {
-      if (!isMounted) return;
-      setModuleData({
-        id,
-        displayId: id,
-        name: "Authentication",
-        description: "User login, registration, password reset and sessions.",
-        testCaseCount: 15,
-        scenarioCount: 3,
-        passRate: 85,
-        status: "Active",
-      });
-      setIsLoading(false);
-    }, 500);
+
+    async function loadData() {
+      try {
+        setIsLoading(true);
+        // Try fetching as a root module first
+        let res = await fetch(`/api/test-cases/modules/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setModuleData({
+              id: data.id,
+              name: data.name,
+              description: data.description,
+            });
+          }
+          return;
+        }
+
+        // If that fails, try fetching as a sub-module
+        res = await fetch(`/api/test-cases/sub-modules/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setModuleData({
+              id: data.id,
+              name: data.name,
+              description: data.description,
+              parentId: data.moduleId, // mark as sub-module
+            });
+          }
+          return;
+        }
+
+        if (isMounted) {
+          setModuleData(null);
+        }
+      } catch (err) {
+        console.error("Error loading module", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadData();
 
     return () => {
       isMounted = false;
@@ -41,14 +72,31 @@ export default function EditModulePage({ params }: { params: Promise<{ id: strin
     return {
       title: moduleData.name,
       description: moduleData.description || "",
-      parentModule: "", // Mock pre-filled
     };
   }, [moduleData]);
 
   const handleSubmit = async (payload: ModuleFormValues) => {
-    // Mock API call to update module
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log("Updating module:", id, payload);
+    const isSub = Boolean(moduleData?.parentId);
+    const endpoint = isSub 
+      ? `/api/test-cases/sub-modules/${id}`
+      : `/api/test-cases/modules/${id}`;
+
+    const response = await fetch(endpoint, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: payload.title,
+        description: payload.description,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to update module");
+    }
+
     router.push(`/test-cases/modules?toast=updated`);
   };
 

@@ -10,25 +10,32 @@ import Link from "next/link";
 export default function EditScenarioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const [scenario, setScenario] = useState<ScenarioNode | null>(null);
+  const [scenario, setScenario] = useState<{ id: string; name: string; description?: string; moduleId?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Mock API call to fetch scenario
     let isMounted = true;
-    setTimeout(() => {
-      if (!isMounted) return;
-      setScenario({
-        id,
-        displayId: id,
-        name: "Login Scenario",
-        description: "Verify login functionality",
-        testCaseCount: 5,
-        passRate: 80,
-        status: "Ready",
-      });
-      setIsLoading(false);
-    }, 500);
+
+    async function loadScenario() {
+      try {
+        setIsLoading(true);
+        const res = await fetch(`/api/test-cases/scenarios/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            setScenario(data);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching scenario", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadScenario();
 
     return () => {
       isMounted = false;
@@ -40,15 +47,28 @@ export default function EditScenarioPage({ params }: { params: Promise<{ id: str
     return {
       title: scenario.name,
       description: scenario.description || "",
-      module: "Authentication", // Mock pre-filled
-      subModule: "Login Flow",  // Mock pre-filled
+      moduleId: scenario.moduleId || "",
     };
   }, [scenario]);
 
   const handleSubmit = async (payload: ScenarioFormValues) => {
-    // Mock API call to update scenario
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log("Updating scenario:", id, payload);
+    const response = await fetch(`/api/test-cases/scenarios/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: payload.title,
+        description: payload.description,
+        moduleId: payload.moduleId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to update scenario");
+    }
+
     router.push(`/test-cases/scenarios?toast=updated`);
   };
 

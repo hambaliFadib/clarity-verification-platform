@@ -33,7 +33,7 @@ export function AdvancedFilterModal({ isOpen, onClose, currentFilters, onApply }
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) {
-            setAvailableModules(data);
+            setAvailableModules(data.map((m: any) => m.name));
           }
         })
         .catch((err) => console.error("Failed to fetch modules:", err));

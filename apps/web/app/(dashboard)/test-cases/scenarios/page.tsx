@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
@@ -16,18 +16,59 @@ export default function ScenariosPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [scenarios, setScenarios] = useState<ScenarioNode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Modal states
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+
+  const fetchScenarios = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/test-cases/scenarios");
+      if (res.ok) {
+        const data = await res.json();
+        // data is TcScenario[]
+        const nodes: ScenarioNode[] = data.map((sc: any) => ({
+          id: sc.id,
+          displayId: sc.id,
+          name: sc.name,
+          description: sc.description || "",
+          testCaseCount: sc.testCaseCount || 0,
+          passRate: 100,
+          status: "Approved",
+          moduleId: sc.moduleId || undefined,
+        }));
+        setScenarios(nodes);
+      }
+    } catch (err) {
+      console.error("Failed to fetch scenarios", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchScenarios();
+  }, []);
 
   const filteredScenarios = scenarios.filter(scn =>
     scn.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     scn.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDeleteScenario = (scenario: ScenarioNode) => {
+  const handleDeleteScenario = async (scenario: ScenarioNode) => {
     if (confirm(`Are you sure you want to delete scenario "${scenario.name}"?`)) {
-      setScenarios(scenarios.filter(scn => scn.id !== scenario.id));
+      try {
+        const res = await fetch(`/api/test-cases/scenarios/${scenario.id}`, { method: "DELETE" });
+        if (res.ok) {
+          fetchScenarios();
+        } else {
+          alert("Failed to delete scenario");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error deleting scenario");
+      }
     }
   };
 

@@ -1,5 +1,5 @@
 "use client";
-
+import { useState, useEffect } from "react";
 import { ChevronRight, FolderGit2, Plus, Edit, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,34 @@ export function ModuleItem({
   onAddTestCase,
   level = 0,
 }: ModuleItemProps) {
+  const [subModules, setSubModules] = useState<ModuleNode[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isExpanded && level === 0) {
+      setLoading(true);
+      fetch(`/api/test-cases/modules/${module.id}/sub-modules`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          setSubModules(
+            data.map((sm: any) => ({
+              id: sm.id,
+              displayId: sm.id,
+              name: sm.name,
+              description: sm.description,
+              scenarioCount: 0,
+              testCaseCount: sm.testCaseCount || 0,
+              passRate: 100,
+              status: "Active",
+              parentId: module.id,
+            }))
+          );
+        })
+        .catch((err) => console.error(err))
+        .finally(() => setLoading(false));
+    }
+  }, [isExpanded, module.id, level]);
+
   if (level > 0) {
     return (
       <div
@@ -206,9 +234,9 @@ export function ModuleItem({
         <div className="border-t border-outline-variant bg-surface-container-lowest rounded-b-xl">
 
           {/* Sub Modules List */}
-          {module.children && module.children.length > 0 && (
+          {((level === 0 ? subModules : (module.children || [])).length > 0) && (
             <div className="border-b border-outline-variant/50">
-              {module.children.map(subModule => (
+              {(level === 0 ? subModules : (module.children || [])).map(subModule => (
                 <ModuleItem
                   key={subModule.id}
                   module={subModule}
@@ -229,7 +257,7 @@ export function ModuleItem({
           )}
 
           {/* Empty State when no Sub Modules */}
-          {(!module.children || module.children.length === 0) && (
+          {((level === 0 ? subModules : (module.children || [])).length === 0) && !loading && (
             <div className="p-4 text-center text-on-surface-variant text-body-sm flex gap-4 justify-center items-center">
               <Button variant="link" className="px-1 py-0 h-auto" onClick={() => onAddSubModule?.(module.id)}>
                 <Plus className="h-3 w-3 mr-1" /> Add Sub-Module

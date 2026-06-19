@@ -10,6 +10,9 @@ import type {
   TestCase,
   TestRun,
   WorkItem,
+  TcModule,
+  TcSubModule,
+  TcScenario,
 } from "@/lib/types";
 
 type GuestMutations = {
@@ -94,13 +97,77 @@ export function guestEnvironments(): Environment[] {
   ];
 }
 
+export function guestModules(): TcModule[] {
+  return [
+    {
+      id: "guest-mod-auth",
+      name: "Authentication",
+      description: "User sign-in and authorization flows.",
+      subModuleCount: 1,
+      testCaseCount: 1,
+    },
+    {
+      id: "guest-mod-defects",
+      name: "Defect Management",
+      description: "Bug tracking and management.",
+      subModuleCount: 1,
+      testCaseCount: 1,
+    },
+  ];
+}
+
+export function guestSubModules(): TcSubModule[] {
+  return [
+    {
+      id: "guest-submod-login",
+      name: "Login Flow",
+      description: "Username/Password login screens.",
+      moduleId: "guest-mod-auth",
+      testCaseCount: 1,
+    },
+    {
+      id: "guest-submod-triage",
+      name: "Defect Triage",
+      description: "Triage workflows and boards.",
+      moduleId: "guest-mod-defects",
+      testCaseCount: 1,
+    },
+  ];
+}
+
+export function guestScenarios(): TcScenario[] {
+  return [
+    {
+      id: "guest-scen-valid-login",
+      name: "Successful Login Scenario",
+      description: "Verification of normal login flow.",
+      moduleId: "guest-mod-auth",
+      moduleName: "Authentication",
+      testCaseCount: 1,
+    },
+    {
+      id: "guest-scen-defect-creation",
+      name: "Defect Creation Scenario",
+      description: "Verification of reporting bugs.",
+      moduleId: "guest-mod-defects",
+      moduleName: "Defect Management",
+      testCaseCount: 1,
+    },
+  ];
+}
+
 export function guestTestCases(): TestCase[] {
   const base = [
     {
       id: "GUEST-TC-001",
       title: "Verify login with valid credentials",
       description: "Guest sample for a successful login flow.",
-      module: "Authentication",
+      moduleId: "guest-mod-auth",
+      moduleName: "Authentication",
+      subModuleId: "guest-submod-login",
+      subModuleName: "Login Flow",
+      scenarioId: "guest-scen-valid-login",
+      scenarioName: "Successful Login Scenario",
       severity: "Major",
       status: "Ready",
       type: "Functional",
@@ -122,7 +189,12 @@ export function guestTestCases(): TestCase[] {
       id: "GUEST-TC-002",
       title: "Create a defect from failed validation",
       description: "Guest sample for defect reporting.",
-      module: "Defect Management",
+      moduleId: "guest-mod-defects",
+      moduleName: "Defect Management",
+      subModuleId: "guest-submod-triage",
+      subModuleName: "Defect Triage",
+      scenarioId: "guest-scen-defect-creation",
+      scenarioName: "Defect Creation Scenario",
       severity: "Critical",
       status: "Draft",
       type: "Regression",

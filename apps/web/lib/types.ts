@@ -21,7 +21,12 @@ export interface TestCase {
   displayId?: string;
   title: string;
   description?: string;
-  module: string;
+  moduleId?: string;
+  moduleName?: string;
+  subModuleId?: string;
+  subModuleName?: string;
+  scenarioId?: string;
+  scenarioName?: string;
   severity: TestCaseSeverity;
   status: TestCaseStatus;
   type: TestCaseType;
@@ -39,6 +44,31 @@ export interface TestCase {
   preconditions?: string;
   expectedResult?: string;
   notes?: string;
+}
+
+export interface TcModule {
+  id: string;
+  name: string;
+  description?: string;
+  subModuleCount?: number;
+  testCaseCount?: number;
+}
+
+export interface TcSubModule {
+  id: string;
+  name: string;
+  description?: string;
+  moduleId: string;
+  testCaseCount?: number;
+}
+
+export interface TcScenario {
+  id: string;
+  name: string;
+  description?: string;
+  moduleId?: string;
+  moduleName?: string;
+  testCaseCount?: number;
 }
 
 export type DefectSeverity = "Critical" | "High" | "Medium" | "Low";

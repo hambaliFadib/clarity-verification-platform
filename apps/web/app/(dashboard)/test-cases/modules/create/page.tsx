@@ -12,25 +12,43 @@ function CreateModuleForm() {
 
   const initialValues = useMemo<Partial<ModuleFormValues>>(() => {
     return {
-      parentModule: parentId ? `Module ${parentId}` : "",
+      title: "",
+      description: "",
     };
-  }, [parentId]);
+  }, []);
 
   const handleSubmit = async (payload: ModuleFormValues) => {
-    // Mock API call to create module
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    console.log("Creating module:", payload);
+    const url = parentId
+      ? `/api/test-cases/modules/${parentId}/sub-modules`
+      : `/api/test-cases/modules`;
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: payload.title,
+        description: payload.description,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to create module or sub-module");
+    }
+
     router.push(`/test-cases/modules?toast=created`);
   };
 
   return (
     <ModuleForm
       mode="create"
-      title="Create Module"
-      subtitle="Define a new module or sub-module to organize test cases"
+      title={parentId ? "Create Sub-Module" : "Create Module"}
+      subtitle={parentId ? "Define a new sub-module for this parent module" : "Define a new module to organize test cases"}
       backHref="/test-cases/modules"
       backLabel="Back to Modules"
-      submitLabel="Create Module"
+      submitLabel="Create"
       initialValues={initialValues}
       onCancel={() => router.push("/test-cases/modules")}
       onSubmit={handleSubmit}

@@ -32,6 +32,9 @@ import type {
   TestCaseSeverity,
   TestCaseStatus,
   TestCaseType,
+  TcModule,
+  TcSubModule,
+  TcScenario,
 } from "@/lib/types";
 
 export interface TestCaseFormStep {
@@ -45,9 +48,9 @@ export interface TestCaseFormStep {
 export interface TestCaseFormValues {
   title: string;
   description: string;
-  module: string;
-  subModule: string;
-  scenario: string;
+  moduleId: string;
+  subModuleId: string;
+  scenarioId: string;
   type: TestCaseType;
   severity: TestCaseSeverity;
   status: TestCaseStatus;
@@ -87,9 +90,9 @@ const labelClass =
 const DEFAULT_VALUES: TestCaseFormValues = {
   title: "",
   description: "",
-  module: "",
-  subModule: "",
-  scenario: "",
+  moduleId: "",
+  subModuleId: "",
+  scenarioId: "",
   type: "Functional",
   severity: "Major",
   status: "Draft",
@@ -158,9 +161,9 @@ export function TestCaseForm({
 }: TestCaseFormProps) {
   const [users, setUsers] = useState<TeamMember[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
-  const [moduleOptions, setModuleOptions] = useState<string[]>([]);
-  const [subModuleOptions, setSubModuleOptions] = useState<string[]>([]);
-  const [scenarioOptions, setScenarioOptions] = useState<string[]>([]);
+  const [modules, setModules] = useState<TcModule[]>([]);
+  const [subModules, setSubModules] = useState<TcSubModule[]>([]);
+  const [scenarios, setScenarios] = useState<TcScenario[]>([]);
   const [isLoadingReferenceData, setIsLoadingReferenceData] = useState(true);
 
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -186,6 +189,8 @@ export function TestCaseForm({
     handleSubmit,
     getValues,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting, isDirty },
   } = useForm<TestCaseFormValues>({
     defaultValues,
@@ -214,8 +219,8 @@ export function TestCaseForm({
         if (!isMounted) return;
         setUsers(Array.isArray(userData) ? userData : []);
         setEnvironments(Array.isArray(envData) ? envData : []);
-        setModuleOptions(Array.isArray(moduleData) ? moduleData : []);
-        setScenarioOptions(Array.isArray(scenarioData) ? scenarioData : []);
+        setModules(Array.isArray(moduleData) ? moduleData : []);
+        setScenarios(Array.isArray(scenarioData) ? scenarioData : []);
       })
       .catch((err) => {
         console.error(err);
@@ -235,6 +240,46 @@ export function TestCaseForm({
       isMounted = false;
     };
   }, []);
+
+  const watchedModuleId = watch("moduleId");
+
+  useEffect(() => {
+    if (!watchedModuleId) {
+      setSubModules([]);
+      return;
+    }
+
+    let isMounted = true;
+    fetch(`/api/test-cases/modules/${watchedModuleId}/sub-modules`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!isMounted) return;
+        const subMods = Array.isArray(data) ? data : [];
+        setSubModules(subMods);
+        
+        const currentSubModuleId = getValues("subModuleId");
+        if (currentSubModuleId && !subMods.some((sm) => sm.id === currentSubModuleId)) {
+          setValue("subModuleId", "");
+        }
+      })
+      .catch((err) => console.error(err));
+
+    return () => {
+      isMounted = false;
+    };
+  }, [watchedModuleId, setValue, getValues]);
+
+  const moduleNames = useMemo(() => modules.map(m => m.name), [modules]);
+  const moduleNameToId = useMemo(() => new Map(modules.map(m => [m.name, m.id])), [modules]);
+  const moduleIdToName = useMemo(() => new Map(modules.map(m => [m.id, m.name])), [modules]);
+
+  const subModuleNames = useMemo(() => subModules.map(sm => sm.name), [subModules]);
+  const subModuleNameToId = useMemo(() => new Map(subModules.map(sm => [sm.name, sm.id])), [subModules]);
+  const subModuleIdToName = useMemo(() => new Map(subModules.map(sm => [sm.id, sm.name])), [subModules]);
+
+  const scenarioNames = useMemo(() => scenarios.map(sc => sc.name), [scenarios]);
+  const scenarioNameToId = useMemo(() => new Map(scenarios.map(sc => [sc.name, sc.id])), [scenarios]);
+  const scenarioIdToName = useMemo(() => new Map(scenarios.map(sc => [sc.id, sc.name])), [scenarios]);
 
 
 
@@ -391,21 +436,24 @@ export function TestCaseForm({
                       <label className={labelClass}>Module *</label>
                       <Controller
                         control={control}
-                        name="module"
+                        name="moduleId"
                         rules={{ required: "Module is required" }}
                         render={({ field }) => (
                           <Combobox
-                            value={field.value}
-                            onChange={field.onChange}
-                            options={moduleOptions}
-                            placeholder="e.g. Authentication, Project Management"
-                            error={!!errors.module}
+                            value={moduleIdToName.get(field.value) || ""}
+                            onChange={(name) => {
+                              const id = moduleNameToId.get(name) || "";
+                              field.onChange(id);
+                            }}
+                            options={moduleNames}
+                            placeholder="Select a module..."
+                            error={!!errors.moduleId}
                           />
                         )}
                       />
-                      {errors.module && (
+                      {errors.moduleId && (
                         <span className="text-body-sm text-error mt-1 block" role="alert">
-                          {errors.module.message}
+                          {errors.moduleId.message}
                         </span>
                       )}
                     </div>
@@ -414,14 +462,17 @@ export function TestCaseForm({
                       <label className={labelClass}>Sub-Module</label>
                       <Controller
                         control={control}
-                        name="subModule"
+                        name="subModuleId"
                         render={({ field }) => (
                           <Combobox
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            options={subModuleOptions}
-                            placeholder="e.g. Login Flow, Sign Up"
-                            error={!!(errors as any).subModule}
+                            value={subModuleIdToName.get(field.value) || ""}
+                            onChange={(name) => {
+                              const id = subModuleNameToId.get(name) || "";
+                              field.onChange(id);
+                            }}
+                            options={subModuleNames}
+                            placeholder="Select a sub-module..."
+                            error={!!errors.subModuleId}
                           />
                         )}
                       />
@@ -433,21 +484,24 @@ export function TestCaseForm({
                       <label className={labelClass}>Scenario *</label>
                       <Controller
                         control={control}
-                        name="scenario"
+                        name="scenarioId"
                         rules={{ required: "Scenario is required" }}
                         render={({ field }) => (
                           <Combobox
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            options={scenarioOptions}
-                            placeholder="e.g. Login Scenario, Checkout Flow"
-                            error={!!(errors as any).scenario}
+                            value={scenarioIdToName.get(field.value) || ""}
+                            onChange={(name) => {
+                              const id = scenarioNameToId.get(name) || "";
+                              field.onChange(id);
+                            }}
+                            options={scenarioNames}
+                            placeholder="Select a scenario..."
+                            error={!!errors.scenarioId}
                           />
                         )}
                       />
-                      {(errors as any).scenario && (
+                      {errors.scenarioId && (
                         <span className="text-body-sm text-error mt-1 block" role="alert">
-                          {(errors as any).scenario.message}
+                          {errors.scenarioId.message}
                         </span>
                       )}
                     </div>
@@ -864,7 +918,9 @@ export function TestCaseForm({
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {[
-                  { label: "Module", value: previewData.module || "N/A" },
+                  { label: "Module", value: moduleIdToName.get(previewData.moduleId) || "N/A" },
+                  { label: "Sub-Module", value: subModuleIdToName.get(previewData.subModuleId) || "N/A" },
+                  { label: "Scenario", value: scenarioIdToName.get(previewData.scenarioId) || "N/A" },
                   {
                     label: "Assigned To",
                     value:

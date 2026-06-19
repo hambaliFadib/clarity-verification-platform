@@ -12,7 +12,6 @@ import { AlertModal } from "@/components/ui/alert-modal";
 export interface ModuleFormValues {
   title: string;
   description: string;
-  parentModule?: string;
 }
 
 interface ModuleFormProps {
@@ -35,7 +34,6 @@ const labelClass =
 const DEFAULT_VALUES: ModuleFormValues = {
   title: "",
   description: "",
-  parentModule: "",
 };
 
 export function ModuleForm({
@@ -49,8 +47,6 @@ export function ModuleForm({
   onCancel,
   onSubmit,
 }: ModuleFormProps) {
-  const [moduleOptions, setModuleOptions] = useState<string[]>([]);
-
   const [alertState, setAlertState] = useState<{
     isOpen: boolean;
     title: string;
@@ -79,21 +75,6 @@ export function ModuleForm({
   useEffect(() => {
     reset(defaultValues);
   }, [defaultValues, reset]);
-
-  useEffect(() => {
-    let isMounted = true;
-    fetch("/api/test-cases/modules")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (!isMounted) return;
-        setModuleOptions(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => console.error(err));
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const handleCancel = () => {
     if (isDirty && !confirm("Are you sure you want to discard your changes?")) {
@@ -182,25 +163,7 @@ export function ModuleForm({
                     )}
                   </div>
 
-                  <div>
-                    <label className={labelClass}>Parent Module (Optional)</label>
-                    <Controller
-                      control={control}
-                      name="parentModule"
-                      render={({ field }) => (
-                        <Combobox
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                          options={moduleOptions}
-                          placeholder="Leave blank for a root module"
-                          error={!!(errors as any).parentModule}
-                        />
-                      )}
-                    />
-                    <p className="text-[11px] text-on-surface-variant/80 mt-1">
-                      If selected, this module will be created as a sub-module.
-                    </p>
-                  </div>
+
 
                   <div>
                     <label className={labelClass}>Description</label>

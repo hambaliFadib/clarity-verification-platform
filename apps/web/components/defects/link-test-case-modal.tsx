@@ -68,7 +68,7 @@ export function LinkTestCaseModal({
                 <div>
                   <div className="font-mono text-code text-primary-container mb-1">{tc.id}</div>
                   <div className="text-body-md text-on-surface font-medium">{tc.title}</div>
-                  <div className="text-body-sm text-muted-foreground mt-1">{tc.module}</div>
+                  <div className="text-body-sm text-muted-foreground mt-1">{tc.moduleName || (tc as any).module || "-"}</div>
                 </div>
               </label>
             ))}

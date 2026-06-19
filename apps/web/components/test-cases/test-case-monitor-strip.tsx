@@ -21,7 +21,7 @@ interface TestCaseMonitorStripProps {
 export function TestCaseMonitorStrip({ summary, items, total }: TestCaseMonitorStripProps) {
   const reviewQueue = summary.draft + summary.inReview;
   const runReady = summary.ready + summary.approved;
-  const visibleModules = new Set(items.map((item) => item.module).filter(Boolean)).size;
+  const visibleModules = new Set(items.map((item) => item.moduleName || (item as any).module).filter(Boolean)).size;
   const loadedLabel = total > items.length ? `${items.length}/${total}` : String(total);
 
   const signals = [

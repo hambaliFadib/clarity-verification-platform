@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { PageContainer } from "@/components/layout/page-container";
@@ -15,23 +15,64 @@ export default function ModulesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [modules, setModules] = useState<ModuleNode[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Modal states
   const [isImportExportOpen, setIsImportExportOpen] = useState(false);
+
+  const fetchModules = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch("/api/test-cases/modules");
+      if (res.ok) {
+        const data = await res.json();
+        const nodes: ModuleNode[] = data.map((m: any) => ({
+          id: m.id,
+          displayId: m.id,
+          name: m.name,
+          description: m.description || "",
+          scenarioCount: 0,
+          testCaseCount: m.testCaseCount || 0,
+          passRate: 100,
+          status: "Active",
+          children: [],
+        }));
+        setModules(nodes);
+      }
+    } catch (err) {
+      console.error("Failed to fetch modules", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchModules();
+  }, []);
 
   const filteredModules = modules.filter(mod =>
     mod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     mod.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleDeleteModule = (module: ModuleNode) => {
-    if (confirm(`Are you sure you want to delete module "${module.name}"?`)) {
-      setModules(modules.filter(mod => mod.id !== module.id).map(mod => {
-        if (mod.children?.some(c => c.id === module.id)) {
-          return { ...mod, children: mod.children.filter(c => c.id !== module.id) };
+  const handleDeleteModule = async (moduleNode: ModuleNode) => {
+    const isSub = Boolean(moduleNode.parentId);
+    const targetLabel = isSub ? "sub-module" : "module";
+    if (confirm(`Are you sure you want to delete ${targetLabel} "${moduleNode.name}"?`)) {
+      try {
+        const endpoint = isSub 
+          ? `/api/test-cases/sub-modules/${moduleNode.id}`
+          : `/api/test-cases/modules/${moduleNode.id}`;
+        const res = await fetch(endpoint, { method: "DELETE" });
+        if (res.ok) {
+          fetchModules();
+        } else {
+          alert(`Failed to delete ${targetLabel}`);
         }
-        return mod;
-      }));
+      } catch (err) {
+        console.error(err);
+        alert(`Error deleting ${targetLabel}`);
+      }
     }
   };
 

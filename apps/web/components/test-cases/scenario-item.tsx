@@ -1,5 +1,5 @@
 "use client";
-
+import { useState, useEffect } from "react";
 import { ChevronRight, Boxes, ExternalLink, Edit, Trash2, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,32 @@ export function ScenarioItem({
   onDelete,
   onAddTestCase,
 }: ScenarioItemProps) {
+  const [testCases, setTestCaseNodes] = useState<TestCaseNode[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isExpanded) {
+      setLoading(true);
+      fetch(`/api/test-cases?scenarioId=${scenario.id}`)
+        .then((res) => (res.ok ? res.json() : { items: [] }))
+        .then((data) => {
+          const items = data.items || [];
+          setTestCaseNodes(
+            items.map((tc: any) => ({
+              id: tc.id,
+              displayId: tc.id,
+              title: tc.title,
+              severity: tc.severity,
+              status: tc.status,
+              updatedAt: tc.updatedAt,
+            }))
+          );
+        })
+        .catch((err) => console.error(err))
+        .finally(() => setLoading(false));
+    }
+  }, [isExpanded, scenario.id]);
+
   return (
     <div className="border border-outline-variant rounded-xl bg-white shadow-subtle transition-shadow hover:shadow-elevated">
       {/* Scenario Header */}
@@ -150,9 +176,9 @@ export function ScenarioItem({
       {/* Expanded Test Cases */}
       {isExpanded && (
         <div className="border-t border-outline-variant bg-surface-container-lowest">
-          {scenario.testCases && scenario.testCases.length > 0 ? (
+          {testCases && testCases.length > 0 ? (
             <div className="p-2 space-y-1">
-              {scenario.testCases.map(tc => (
+              {testCases.map(tc => (
             <TestCaseRow
               key={tc.id}
               testCase={tc}
@@ -162,9 +188,11 @@ export function ScenarioItem({
             </div>
           ) : (
             <div className="p-4 text-center text-on-surface-variant text-body-sm">
-              <Button variant="link" className="px-1 py-0 h-auto" onClick={() => onAddTestCase?.(scenario.id)}>
-                <Plus className="h-3 w-3 mr-1" /> Add Test Case
-              </Button>
+              {!loading && (
+                <Button variant="link" className="px-1 py-0 h-auto" onClick={() => onAddTestCase?.(scenario.id)}>
+                  <Plus className="h-3 w-3 mr-1" /> Add Test Case
+                </Button>
+              )}
             </div>
           )}
         </div>

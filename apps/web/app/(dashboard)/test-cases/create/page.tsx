@@ -30,9 +30,9 @@ function CreateTestCaseForm() {
 
   // We map moduleId and scenarioId to the respective inputs.
   const initialValues = {
-    module: moduleId || (scenarioId ? "Authentication" : ""),
-    subModule: scenarioId ? "Login Flow" : "",
-    scenario: scenarioId ? "Login Scenario" : "",
+    moduleId: moduleId || "",
+    subModuleId: "",
+    scenarioId: scenarioId || "",
   };
 
   return (

@@ -383,7 +383,7 @@ function TestCasesContent() {
                       <td className="px-3 py-1.5 text-xs font-medium text-on-surface group-hover:text-primary transition-colors max-w-xs truncate">
                         {tc.title}
                       </td>
-                      <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.module}</td>
+                      <td className="px-3 py-1.5 text-xs text-on-surface-variant truncate">{tc.moduleName || tc.moduleId || "-"}</td>
                       <td className="px-3 py-1.5">
                         <Badge variant={testCaseSeverityBadgeVariants[tc.severity]} className="text-[9px] px-1 py-0">{tc.severity}</Badge>
                       </td>

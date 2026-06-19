@@ -14,9 +14,9 @@ function mapTestCaseToFormValues(testCase: TestCase): Partial<TestCaseFormValues
   return {
     title: testCase.title || "",
     description: testCase.description || "",
-    module: testCase.module || "",
-    subModule: (testCase as any).subModule || "",
-    scenario: (testCase as any).scenario || "",
+    moduleId: testCase.moduleId || "",
+    subModuleId: testCase.subModuleId || "",
+    scenarioId: testCase.scenarioId || "",
     type: testCase.type || "Functional",
     severity: testCase.severity || "Major",
     status: testCase.status || "Draft",

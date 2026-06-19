@@ -9,6 +9,8 @@ const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 const COL = {
   displayId: "TC ID",
   title: "Title",
+  subModule: "Sub-Module",
+  scenario: "Scenario",
   type: "Type",
   severity: "Severity",
   status: "Status",
@@ -25,7 +27,7 @@ const COL = {
 } as const;
 
 const EXPORT_HEADER = Object.values(COL);
-const COLUMN_WIDTHS = [14, 40, 16, 12, 14, 32, 28, 45, 38, 24, 13, 13, 13, 13, 13, 13];
+const COLUMN_WIDTHS = [14, 40, 20, 25, 16, 12, 14, 32, 28, 45, 38, 24, 13, 13, 13, 13, 13, 13];
 
 const VALID_TYPES = ["Functional", "Regression", "Smoke", "Integration", "UI", "Performance", "Security"].sort();
 const VALID_SEVERITIES = ["Blocker", "Critical", "Major", "Minor"].sort();
@@ -122,6 +124,8 @@ function testCaseRow(testCase: TestCase) {
   return [
     testCase.id,
     testCase.title,
+    testCase.subModuleName || "",
+    testCase.scenarioName || "",
     testCase.type,
     testCase.severity,
     testCase.status,
@@ -253,6 +257,8 @@ function templateRows() {
   return [[
     "",
     "Verify login with valid credentials",
+    "Login Flow",
+    "Standard login scenario",
     "Functional",
     "Major",
     "Draft",
@@ -264,7 +270,6 @@ function templateRows() {
     "Manual",
     "Staging",
     "5 min",
-    "",
     "REQ-AUTH-001",
     "",
   ]];
@@ -474,7 +479,7 @@ export async function generateTestCasesExportXlsx(ctx?: ProjectAccessContext) {
   // Group by module
   const groups: Record<string, TestCase[]> = {};
   for (const item of items) {
-    const mod = (item.module || "General").trim();
+    const mod = (item.moduleName || item.moduleId || "General").trim();
     if (!groups[mod]) groups[mod] = [];
     groups[mod].push(item);
   }
@@ -810,6 +815,9 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
       const moduleVal = hasModuleHeader ? valueAt(row, headers, ["Module"]) : "";
       const module = moduleVal || sheetInfo.name;
 
+      const subModule = valueAt(row, headers, [COL.subModule, "Sub-Module", "Submodule"]);
+      const scenario = valueAt(row, headers, [COL.scenario, "Scenario", "Scenario Name"]);
+
       const type = valueAt(row, headers, [COL.type]) || "Functional";
       const severity = valueAt(row, headers, [COL.severity]) || "Major";
       const status = valueAt(row, headers, [COL.status]) || "Draft";
@@ -835,6 +843,8 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
         display_id: displayId || undefined,
         title,
         module,
+        subModule,
+        scenario,
         type,
         severity,
         status,

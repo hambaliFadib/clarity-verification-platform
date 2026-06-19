@@ -33,7 +33,6 @@ const statements = [
     display_id varchar(20) not null,
     title varchar(255) not null,
     description text,
-    module varchar(100) not null,
     type varchar(20) not null,
     severity varchar(10) not null,
     status varchar(20) not null,
@@ -134,6 +133,37 @@ const statements = [
     created_at timestamptz not null default now(),
     primary key (project_id, user_id)
   )`,
+  `create table if not exists tc_modules (
+    id          uuid primary key default gen_random_uuid(),
+    name        varchar(150) not null,
+    description text,
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now(),
+    deleted_at  timestamptz
+  )`,
+  `create table if not exists tc_sub_modules (
+    id          uuid primary key default gen_random_uuid(),
+    name        varchar(150) not null,
+    description text,
+    module_id   uuid not null references tc_modules(id) on delete cascade,
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now(),
+    deleted_at  timestamptz
+  )`,
+  `create index if not exists ix_tc_sub_modules_module_id on tc_sub_modules (module_id)`,
+  `create table if not exists tc_scenarios (
+    id           uuid primary key default gen_random_uuid(),
+    name         varchar(255) not null,
+    description  text,
+    module_id    uuid references tc_modules(id) on delete set null,
+    created_at   timestamptz not null default now(),
+    updated_at   timestamptz not null default now(),
+    deleted_at   timestamptz
+  )`,
+  `create index if not exists ix_tc_scenarios_module_id on tc_scenarios (module_id)`,
+  `alter table test_cases add column if not exists module_id uuid references tc_modules(id) on delete set null`,
+  `alter table test_cases add column if not exists sub_module_id uuid references tc_sub_modules(id) on delete set null`,
+  `alter table test_cases add column if not exists scenario_id uuid references tc_scenarios(id) on delete set null`,
   `with owner_candidate as (
      select id from users
      where lower(email) <> 'guest@clarity.local'
@@ -232,6 +262,9 @@ const statements = [
     "test_runs",
     "work_items",
     "activity_items",
+    "tc_modules",
+    "tc_sub_modules",
+    "tc_scenarios",
   ].flatMap((table) => [
     `alter table ${table} add column if not exists project_id uuid references projects(id)`,
     `create index if not exists ix_${table}_project_id on ${table} (project_id)`,

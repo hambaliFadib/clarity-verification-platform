@@ -135,7 +135,9 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
       const clonedPayload = {
         title: `Copy of ${tc.title}`,
         description: tc.description || "",
-        module: tc.module,
+        moduleId: tc.moduleId || null,
+        subModuleId: tc.subModuleId || null,
+        scenarioId: tc.scenarioId || null,
         type: tc.type,
         severity: tc.severity,
         status: "Draft",
@@ -304,7 +306,9 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
           )}
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { label: "Module", value: tc.module },
+              { label: "Module", value: tc.moduleName || tc.moduleId || "-" },
+              { label: "Sub-Module", value: tc.subModuleName || "-" },
+              { label: "Scenario", value: tc.scenarioName || "-" },
               { label: "Assigned To", value: tc.assignedTo || "-" },
               { label: "Requirement", value: tc.requirementId || "None" },
               { label: "Environment", value: tc.environment || "N/A" },

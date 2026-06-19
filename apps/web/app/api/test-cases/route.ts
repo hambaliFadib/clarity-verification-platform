@@ -25,7 +25,7 @@ export async function GET(request: Request) {
         items = items.filter(tc => tc.title.toLowerCase().includes(q) || tc.id.toLowerCase().includes(q));
       }
       if (module) {
-        items = items.filter(tc => tc.module === module);
+        items = items.filter(tc => tc.moduleName === module);
       }
       if (type) {
         items = items.filter(tc => tc.type === type);
