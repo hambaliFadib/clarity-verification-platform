@@ -10,32 +10,27 @@ const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.s
 
 const COL = {
   displayId: "TC ID",
-  title: "Title",
-  subModule: "Sub-Module",
-  scenario: "Scenario",
+  subModule: "Menu",
+  scenario: "Scenario / Suite",
   type: "Type",
+  title: "Title",
   severity: "Severity",
   priority: "Priority",
   status: "Status",
-  description: "Description",
   preconditions: "Preconditions",
   stepActions: "Step Actions",
   expectedResult: "Expected Result",
   actualResult: "Actual Result",
-  notes: "Notes",
-  automationStatus: "Automation Status",
-  environment: "Environment",
-  estimatedTime: "Estimated Time",
-  requirementId: "Requirement ID",
-  assignedTo: "Assigned To",
-  category: "Category",
+  notes: "Notes / Evidence",
   author: "Author",
-  releaseVersion: "Release Version",
-  isAutomated: "Is Automated",
+  createdAt: "Date Created",
+  releaseVersion: "Sprint / Release",
+  isAutomated: "Automation?",
 } as const;
 
 const VALID_TYPES = ["Functional", "Regression", "Smoke", "Integration", "UI", "Performance", "Security"].sort();
 const VALID_SEVERITIES = ["Blocker", "Critical", "Major", "Minor"].sort();
+const VALID_PRIORITIES = ["Critical", "High", "Medium", "Low"].sort();
 const VALID_STATUSES = ["Draft", "Ready", "In Review", "Approved", "Obsolete"].sort();
 const VALID_ENVIRONMENTS = ["Staging", "Production", "UAT", "Development"].sort();
 const VALID_AUTOMATION_STATUSES = ["Manual", "Automated", "Candidate to Automate"].sort();
@@ -161,27 +156,21 @@ function testCaseRow(testCase: TestCase) {
     : "";
 
   return [
-    testCase.id,
-    testCase.title,
+    testCase.displayId || testCase.id,
     testCase.subModuleName || "",
     testCase.scenarioName || "",
     testCase.type,
+    testCase.title,
     testCase.severity,
     testCase.priority || "Medium",
     testCase.status,
-    testCase.description,
     testCase.preconditions,
     stepsText,
     testCase.expectedResult,
     testCase.actualResult || "",
-    testCase.notes,
-    testCase.automationStatus,
-    testCase.environment,
-    testCase.estimatedTime,
-    testCase.requirementId,
-    testCase.assignedTo,
-    testCase.category || "Positive",
+    testCase.notes || "",
     testCase.author || "",
+    testCase.createdAt ? testCase.createdAt.split("T")[0] : "",
     testCase.releaseVersion || "",
     testCase.isAutomated ? "Yes" : "No",
   ];
@@ -242,7 +231,7 @@ export async function generateTestCasesExportXlsx(ctx?: ProjectAccessContext) {
         };
         
         // Align center for specific fields
-        const centerCols = [1, 5, 6, 7, 8, 15, 16, 17, 20, 23];
+        const centerCols = [1, 4, 6, 7, 8, 14, 15, 16, 17];
         cell.alignment = {
           vertical: "top",
           horizontal: centerCols.includes(colIdx + 1) ? "center" : "left",
@@ -344,7 +333,7 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
       const displayId = valueAt(values, headers, ["TC ID", "ID", "Display ID"]);
       const title = valueAt(values, headers, ["Title"]);
       const subModule = valueAt(values, headers, ["Sub-Module", "Submodule", "Menu"]);
-      const scenario = valueAt(values, headers, ["Scenario", "Scenario Name"]);
+      const scenario = valueAt(values, headers, ["Scenario", "Scenario Name", "Scenario / Suite", "Suite"]);
       const type = valueAt(values, headers, ["Type"]) || "Functional";
       const severity = valueAt(values, headers, ["Severity"]) || "Major";
       const priority = valueAt(values, headers, ["Priority"]) || "Medium";
@@ -354,7 +343,7 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
       const stepActions = valueAt(values, headers, ["Step Actions", "Steps"]);
       const expectedResult = valueAt(values, headers, ["Expected Result"]);
       const actualResult = valueAt(values, headers, ["Actual Result"]);
-      const notes = valueAt(values, headers, ["Notes"]);
+      const notes = valueAt(values, headers, ["Notes", "Notes / Evidence", "Evidence"]);
       const automationStatus = valueAt(values, headers, ["Automation Status"]) || "Manual";
       const environment = valueAt(values, headers, ["Environment"]);
       const estimatedTime = valueAt(values, headers, ["Estimated Time"]);
@@ -362,8 +351,8 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
       const assignedTo = valueAt(values, headers, ["Assigned To"]);
       const category = valueAt(values, headers, ["Category"]) || "Positive";
       const author = valueAt(values, headers, ["Author"]);
-      const releaseVersion = valueAt(values, headers, ["Release Version"]);
-      const isAutomatedText = valueAt(values, headers, ["Is Automated"]);
+      const releaseVersion = valueAt(values, headers, ["Release Version", "Sprint / Release", "Sprint", "Release"]);
+      const isAutomatedText = valueAt(values, headers, ["Is Automated", "Automation?", "Automated"]);
       const isAutomated = isAutomatedText.toLowerCase() === "yes" || isAutomatedText.toLowerCase() === "true" || isAutomatedText === "1";
 
       if (!title) {
@@ -373,7 +362,7 @@ export async function parseTestCasesImportXlsx(buffer: any, ctx?: ProjectAccessC
 
       validateChoiceInSheet(errors, rowNumber, "Type", type, VALID_TYPES, sheetName);
       validateChoiceInSheet(errors, rowNumber, "Severity", severity, VALID_SEVERITIES, sheetName);
-      validateChoiceInSheet(errors, rowNumber, "Priority", priority, VALID_SEVERITIES, sheetName);
+      validateChoiceInSheet(errors, rowNumber, "Priority", priority, VALID_PRIORITIES, sheetName);
       validateChoiceInSheet(errors, rowNumber, "Status", status, VALID_STATUSES, sheetName);
       validateChoiceInSheet(errors, rowNumber, "Automation Status", automationStatus, VALID_AUTOMATION_STATUSES, sheetName);
       validateChoiceInSheet(errors, rowNumber, "Category", category, VALID_CATEGORIES, sheetName);

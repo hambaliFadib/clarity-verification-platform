@@ -27,6 +27,15 @@ function normalizeModuleName(moduleName: string | null | undefined) {
   });
 }
 
+function generateDefaultCode(name: string): string {
+  const cleanName = name.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+  const words = cleanName.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    return words.map(w => w[0]).join("").toUpperCase();
+  }
+  return cleanName.substring(0, 3).toUpperCase();
+}
+
 async function getProjectPrefix(client: DbClient, projectId: string | null) {
   if (!projectId) return "CLR";
   const result = await client.query<{ prefix: string }>("select prefix from projects where id = $1 and deleted_at is null", [projectId]);
@@ -485,8 +494,6 @@ export async function getTestCaseSummary(ctx?: ProjectAccessContext) {
 export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
   const projectId = await primaryProjectId(ctx);
   return transaction(async (client) => {
-    const prefix = await getProjectPrefix(client, projectId);
-    const displayId = await nextDisplayId(client, "test_cases", `${prefix}-TC`);
     const steps = payload.testSteps || payload.test_steps || [];
     const expectedResult = payload.expectedResult || payload.expected_result || "";
     const now = new Date();
@@ -499,7 +506,8 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
         moduleId = existing.rows[0].id;
       } else {
         const newModId = randomUUID();
-        await client.query("insert into tc_modules (id, name, project_id, created_at, updated_at) values ($1, $2, $3, now(), now())", [newModId, moduleName, projectId]);
+        const autoCode = generateDefaultCode(moduleName);
+        await client.query("insert into tc_modules (id, name, code, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newModId, moduleName, autoCode, projectId]);
         moduleId = newModId;
       }
     }
@@ -512,7 +520,8 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
         subModuleId = existing.rows[0].id;
       } else {
         const newSubId = randomUUID();
-        await client.query("insert into tc_sub_modules (id, name, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newSubId, subModuleName, moduleId, projectId]);
+        const autoCode = generateDefaultCode(subModuleName);
+        await client.query("insert into tc_sub_modules (id, name, code, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())", [newSubId, subModuleName, autoCode, moduleId, projectId]);
         subModuleId = newSubId;
       }
     }
@@ -529,6 +538,39 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
         scenarioId = newScenId;
       }
     }
+
+    // Resolve module/submodule from scenario if not present in payload
+    if (scenarioId && (!moduleId || !subModuleId)) {
+      const scenInfo = await client.query(
+        "select module_id, sub_module_id from tc_scenarios where id = $1 and deleted_at is null",
+        [scenarioId]
+      );
+      if (scenInfo.rows[0]) {
+        if (!moduleId) moduleId = scenInfo.rows[0].module_id;
+        if (!subModuleId) subModuleId = scenInfo.rows[0].sub_module_id;
+      }
+    }
+
+    let codePrefix = "";
+    if (subModuleId) {
+      const smRes = await client.query("select code from tc_sub_modules where id = $1 and deleted_at is null", [subModuleId]);
+      if (smRes.rows[0]?.code) {
+        codePrefix = smRes.rows[0].code.trim();
+      }
+    }
+    if (!codePrefix && moduleId) {
+      const mRes = await client.query("select code from tc_modules where id = $1 and deleted_at is null", [moduleId]);
+      if (mRes.rows[0]?.code) {
+        codePrefix = mRes.rows[0].code.trim();
+      }
+    }
+
+    if (!codePrefix) {
+      const prefix = await getProjectPrefix(client, projectId);
+      codePrefix = `${prefix}-TC`;
+    }
+
+    const displayId = await nextDisplayId(client, "test_cases", codePrefix);
 
     const created = await client.query(
       `insert into test_cases (
@@ -700,7 +742,8 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
           moduleId = existing.rows[0].id;
         } else {
           const newModId = randomUUID();
-          await client.query("insert into tc_modules (id, name, project_id, created_at, updated_at) values ($1, $2, $3, now(), now())", [newModId, moduleName, row.project_id]);
+          const autoCode = generateDefaultCode(moduleName);
+          await client.query("insert into tc_modules (id, name, code, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newModId, moduleName, autoCode, row.project_id]);
           moduleId = newModId;
         }
       } else {
@@ -718,7 +761,8 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
           subModuleId = existing.rows[0].id;
         } else {
           const newSubId = randomUUID();
-          await client.query("insert into tc_sub_modules (id, name, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, now(), now())", [newSubId, subModuleName, moduleId, row.project_id]);
+          const autoCode = generateDefaultCode(subModuleName);
+          await client.query("insert into tc_sub_modules (id, name, code, module_id, project_id, created_at, updated_at) values ($1, $2, $3, $4, $5, now(), now())", [newSubId, subModuleName, autoCode, moduleId, row.project_id]);
           subModuleId = newSubId;
         }
       } else {
@@ -904,7 +948,7 @@ export async function createModule(payload: { name: string; description?: string
     `insert into tc_modules (id, name, description, code, project_id, created_at, updated_at)
      values ($1, $2, $3, $4, $5, now(), now())
      returning id, name, description, code`,
-    [randomUUID(), name, emptyToNull(payload.description), emptyToNull(payload.code), projectId]
+    [randomUUID(), name, emptyToNull(payload.description), emptyToNull(payload.code) || generateDefaultCode(name), projectId]
   );
   return result.rows[0];
 }
@@ -1023,7 +1067,7 @@ export async function createSubModule(payload: { name: string; description?: str
     `insert into tc_sub_modules (id, name, description, code, module_id, project_id, created_at, updated_at)
      values ($1, $2, $3, $4, $5, $6, now(), now())
      returning id, name, description, code, module_id as "moduleId"`,
-    [randomUUID(), name, emptyToNull(payload.description), emptyToNull(payload.code), payload.moduleId, projectId]
+    [randomUUID(), name, emptyToNull(payload.description), emptyToNull(payload.code) || generateDefaultCode(name), payload.moduleId, projectId]
   );
   return result.rows[0];
 }
