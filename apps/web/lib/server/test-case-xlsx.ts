@@ -20,7 +20,6 @@ const COL = {
   automationStatus: "Automation Status",
   environment: "Environment",
   estimatedTime: "Estimated Time",
-  tags: "Tags",
   requirementId: "Requirement ID",
   assignedTo: "Assigned To",
 } as const;
@@ -134,7 +133,6 @@ function testCaseRow(testCase: TestCase) {
     testCase.automationStatus,
     testCase.environment,
     testCase.estimatedTime,
-    testCase.tags?.join(";"),
     testCase.requirementId,
     testCase.assignedTo,
   ];
@@ -266,7 +264,7 @@ function templateRows() {
     "Manual",
     "Staging",
     "5 min",
-    "auth;login",
+    "",
     "REQ-AUTH-001",
     "",
   ]];
@@ -657,11 +655,7 @@ function valueAt(row: ParsedCellRow, headers: ParsedCellRow, aliases: string[]) 
   return index >= 0 ? (row[index] || "").trim() : "";
 }
 
-function parseTags(value: string) {
-  return value
-    ? value.split(/[;,]/).map((tag) => tag.trim()).filter(Boolean)
-    : undefined;
-}
+
 
 function parseSteps(value: string) {
   const lines = value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -852,7 +846,6 @@ export async function parseTestCasesImportXlsx(buffer: Buffer, ctx?: ProjectAcce
         automationStatus,
         environment: environment || undefined,
         estimatedTime: valueAt(row, headers, [COL.estimatedTime]) || undefined,
-        tags: parseTags(valueAt(row, headers, [COL.tags])),
         requirementId: valueAt(row, headers, [COL.requirementId]) || undefined,
         assignedTo: valueAt(row, headers, [COL.assignedTo]) || undefined,
       };

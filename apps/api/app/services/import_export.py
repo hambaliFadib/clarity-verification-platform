@@ -41,7 +41,6 @@ COL = {
     "automation_status": "Automation Status",
     "environment":       "Environment",
     "estimated_time":    "Estimated Time",
-    "tags":              "Tags",
     "requirement_id":    "Requirement ID",
     "assigned_to_name":  "Assigned To",
 }
@@ -225,10 +224,8 @@ def export_test_cases_xlsx(db: Session) -> bytes:
                 tc.notes,               # J  Notes
                 tc.automation_status,   # K  Automation Status
                 tc.environment,         # L  Environment
-                tc.estimated_time,      # M  Estimated Time
-                ";".join(tc.tags) if tc.tags else None,  # N  Tags
-                tc.requirement_id,      # O  Requirement ID
-                tc.assigned_to_name,    # P  Assigned To
+                tc.requirement_id,      # N  Requirement ID
+                tc.assigned_to_name,    # O  Assigned To
             ]
 
             for col_idx, value in enumerate(row_data, start=1):
@@ -304,9 +301,8 @@ def generate_template_xlsx() -> bytes:
         "Manual",                                     # K  Automation Status
         "Staging",                                    # L  Environment
         "5 min",                                      # M  Estimated Time
-        "auth;login",                                 # N  Tags  (semicolon-separated)
-        "REQ-AUTH-001",                               # O  Requirement ID
-        "",                                           # P  Assigned To
+        "REQ-AUTH-001",                               # N  Requirement ID
+        "",                                           # O  Assigned To
     ]
     for col_idx, value in enumerate(example, start=1):
         cell = ws.cell(row=2, column=col_idx, value=value)
@@ -516,8 +512,7 @@ def parse_xlsx_import(file_bytes: bytes, db: Session) -> ParseResult:
             if status not in VALID_STATUSES:
                 status = "Draft"
 
-            tags_raw = get_cell(row, COL["tags"])
-            tags = [t.strip() for t in tags_raw.split(";") if t.strip()] if tags_raw else None
+
 
             display_id = get_cell(row, COL["display_id"])
 
@@ -538,7 +533,6 @@ def parse_xlsx_import(file_bytes: bytes, db: Session) -> ParseResult:
                 assigned_to_name=get_cell(row, COL["assigned_to_name"]),
                 requirement_id=get_cell(row, COL["requirement_id"]),
                 estimated_time=get_cell(row, COL["estimated_time"]),
-                tags=tags,
                 environment=get_cell(row, COL["environment"]),
                 automation_status=get_cell(row, COL["automation_status"]),
                 preconditions=get_cell(row, COL["preconditions"]),
@@ -635,7 +629,6 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                 existing.assigned_to = assignee_id
                 existing.requirement_id = import_row.requirement_id
                 existing.estimated_time = import_row.estimated_time
-                existing.tags = import_row.tags
                 existing.environment = import_row.environment
                 existing.automation_status = import_row.automation_status
                 existing.preconditions = import_row.preconditions
@@ -671,7 +664,6 @@ def execute_import(db: Session, request: ImportExecuteRequest) -> ImportResult:
                     assigned_to=assignee_id,
                     requirement_id=import_row.requirement_id,
                     estimated_time=import_row.estimated_time,
-                    tags=import_row.tags,
                     environment=import_row.environment,
                     automation_status=import_row.automation_status,
                     preconditions=import_row.preconditions,

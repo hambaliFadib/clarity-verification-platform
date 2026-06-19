@@ -1,6 +1,9 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { PortfolioHeader } from "./components/portfolio-header";
+import { getRequestContext, isGuestContext } from "@/lib/server/request-context";
+import { listProjects } from "@/lib/server/qa-repository";
+import { guestProjects } from "@/lib/server/guest-fixtures";
 
 export const metadata: Metadata = {
   title: "NexQA - Enterprise Portfolio",
@@ -8,17 +11,25 @@ export const metadata: Metadata = {
 };
 
 export default async function PortfolioPage() {
-  // Show projects for all authenticated users
-  const projects = [
-    { id: "1", name: "NexQA Platform", status: "Active", quality_score: 85, metrics: { requirements: 25, test_cases: 150, defects: 12 } },
-    { id: "2", name: "Mobile App", status: "Active", quality_score: 78, metrics: { requirements: 18, test_cases: 95, defects: 8 } },
-    { id: "3", name: "API Gateway", status: "Planning", quality_score: 92, metrics: { requirements: 12, test_cases: 60, defects: 4 } },
-  ];
+  const ctx = await getRequestContext();
+  const isGuest = isGuestContext(ctx);
+
+  let projects = [];
+  if (isGuest) {
+    projects = guestProjects();
+  } else {
+    const { items } = await listProjects(new URLSearchParams(), ctx.userId, false);
+    projects = items;
+  }
 
   const totalProjects = projects.length;
-  const qualityScore = 85;
-  const atRiskCount = 0;
-  const complianceScore = 75;
+  const qualityScore = projects.length > 0
+    ? Math.round(projects.reduce((acc, p: any) => acc + (p.quality_score || 0), 0) / projects.length)
+    : 100;
+  const atRiskCount = projects.filter((p: any) => (p.quality_score || 0) < 80 || (p.metrics?.defects || 0) > 10).length;
+  const complianceScore = projects.length > 0
+    ? Math.round(projects.reduce((acc, p: any) => acc + (p.quality_score || 0) * 0.95, 0) / projects.length)
+    : 100;
 
   return (
     <div className="text-on-background h-screen flex flex-col items-center overflow-hidden">
@@ -34,82 +45,90 @@ export default async function PortfolioPage() {
           </section>
 
           {/* KPI Cards Row */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* KPI 1 */}
-          <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">Projects</span>
-              <span className="font-headline-md text-headline-md font-bold text-primary">{totalProjects}</span>
+          <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* KPI 1 */}
+            <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
+              <div className="flex flex-col gap-1">
+                <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">Projects</span>
+                <span className="font-headline-md text-headline-md font-bold text-primary">{totalProjects}</span>
+              </div>
+              <div className="p-2 rounded-lg bg-transparent text-primary">
+                <span className="material-symbols-outlined text-[20px]">folder_open</span>
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-transparent text-primary">
-              <span className="material-symbols-outlined text-[20px]">folder_open</span>
+            {/* KPI 2 */}
+            <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
+              <div className="flex flex-col gap-1">
+                <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">Quality</span>
+                <span className="font-headline-md text-headline-md font-bold text-secondary">{qualityScore}<span className="text-body-md font-normal text-on-surface-variant">/100</span></span>
+              </div>
+              <div className="p-2 rounded-lg bg-transparent text-secondary">
+                <span className="material-symbols-outlined text-[20px]">health_and_safety</span>
+              </div>
             </div>
-          </div>
-          {/* KPI 2 */}
-          <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">Quality</span>
-              <span className="font-headline-md text-headline-md font-bold text-secondary">{qualityScore}<span className="text-body-md font-normal text-on-surface-variant">/100</span></span>
+            {/* KPI 3 */}
+            <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
+              <div className="flex flex-col gap-1">
+                <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">At Risk</span>
+                <span className="font-headline-md text-headline-md font-bold text-error">{atRiskCount}</span>
+              </div>
+              <div className="p-2 rounded-lg bg-transparent text-error">
+                <span className="material-symbols-outlined text-[20px]">warning</span>
+              </div>
             </div>
-            <div className="p-2 rounded-lg bg-transparent text-secondary">
-              <span className="material-symbols-outlined text-[20px]">health_and_safety</span>
+            {/* KPI 4 */}
+            <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
+              <div className="flex flex-col gap-1">
+                <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">Compliance</span>
+                <span className="font-headline-md text-headline-md font-bold text-primary">{complianceScore}%</span>
+              </div>
+              <div className="p-2 rounded-lg bg-transparent text-primary">
+                <span className="material-symbols-outlined text-[20px]">verified</span>
+              </div>
             </div>
-          </div>
-          {/* KPI 3 */}
-          <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">At Risk</span>
-              <span className="font-headline-md text-headline-md font-bold text-error">{atRiskCount}</span>
-            </div>
-            <div className="p-2 rounded-lg bg-transparent text-error">
-              <span className="material-symbols-outlined text-[20px]">warning</span>
-            </div>
-          </div>
-          {/* KPI 4 */}
-          <div className="bg-surface-container-lowest rounded-xl shadow-subtle p-5 border border-outline-variant flex justify-between items-start hover:-translate-y-px transition-all duration-200">
-            <div className="flex flex-col gap-1">
-              <span className="font-label-bold text-label-bold text-outline uppercase tracking-normal">Compliance</span>
-              <span className="font-headline-md text-headline-md font-bold text-primary">{complianceScore}%</span>
-            </div>
-            <div className="p-2 rounded-lg bg-transparent text-primary">
-              <span className="material-symbols-outlined text-[20px]">verified</span>
-            </div>
-          </div>
-        </section>
+          </section>
 
           {/* Project Cards Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {projects.map((project: any) => (
-            <Link key={project.id} href={`/my-work`} passHref>
-              <div className="bg-surface-container-lowest rounded-xl shadow-subtle border border-outline-variant overflow-hidden flex flex-col hover:-translate-y-px hover:border-primary transition-all duration-200 cursor-pointer group h-full">
-                <div className={`h-1.5 ${project.status === 'Active' ? 'bg-primary' : 'bg-outline-variant'}`}></div>
-                <div className="p-4 flex flex-col gap-3 h-full">
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-bold text-body-md group-hover:text-primary transition-colors">{project.name}</h3>
-                    <span className={`${project.status === 'Active' ? 'bg-[#E3F2FD] text-secondary' : 'bg-surface-container text-on-surface-variant'} text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wider uppercase`}>
-                      {project.status}
-                    </span>
-                  </div>
-                  <div className="flex items-end gap-1 mb-2">
-                    <span className="font-headline-md text-headline-md font-bold text-on-background">{project.quality_score}</span>
-                    <span className="text-label-md font-normal text-on-surface-variant mb-1">Score</span>
-                  </div>
-                  <div className="mt-auto pt-3 border-t border-outline-variant flex justify-between text-on-surface-variant text-[11px]">
-                    <div className="flex items-center gap-1" title="Requirements"><span className="material-symbols-outlined text-[14px]">description</span> {project.metrics.requirements}</div>
-                    <div className="flex items-center gap-1" title="Test Cases"><span className="material-symbols-outlined text-[14px]">inventory_2</span> {project.metrics.test_cases}</div>
-                    <div className="flex items-center gap-1 text-error" title="Defects"><span className="material-symbols-outlined text-[14px]">bug_report</span> {project.metrics.defects}</div>
+          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {projects.map((project: any) => (
+              <Link key={project.id} href={`/my-work`} passHref>
+                <div className="bg-surface-container-lowest rounded-xl shadow-subtle border border-outline-variant overflow-hidden flex flex-col hover:-translate-y-px hover:border-primary transition-all duration-200 cursor-pointer group h-full">
+                  <div className={`h-1.5 ${project.status === 'Active' ? 'bg-primary' : 'bg-outline-variant'}`}></div>
+                  <div className="p-4 flex flex-col gap-3 h-full">
+                    <div className="flex justify-between items-start mb-1">
+                      <h3 className="font-bold text-body-md group-hover:text-primary transition-colors">{project.name}</h3>
+                      <span className={`${project.status === 'Active' ? 'bg-[#E3F2FD] text-secondary' : 'bg-surface-container text-on-surface-variant'} text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wider uppercase`}>
+                        {project.status}
+                      </span>
+                    </div>
+                    <div className="flex items-end gap-1 mb-2">
+                      <span className="font-headline-md text-headline-md font-bold text-on-background">{project.quality_score}</span>
+                      <span className="text-label-md font-normal text-on-surface-variant mb-1">Score</span>
+                    </div>
+                    <div className="mt-auto pt-3 border-t border-outline-variant flex justify-between text-on-surface-variant text-[11px]">
+                      <div className="flex items-center gap-1" title="Requirements"><span className="material-symbols-outlined text-[14px]">description</span> {project.metrics.requirements}</div>
+                      <div className="flex items-center gap-1" title="Test Cases"><span className="material-symbols-outlined text-[14px]">inventory_2</span> {project.metrics.test_cases}</div>
+                      <div className="flex items-center gap-1 text-error" title="Defects"><span className="material-symbols-outlined text-[14px]">bug_report</span> {project.metrics.defects}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))}
 
-          {/* Create New Project Card */}
-          <div className="bg-surface-container-low rounded-xl border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-4 min-h-[140px] hover:border-primary hover:bg-[#F0F7FF] transition-all duration-300 cursor-pointer text-outline hover:text-primary group">
-            <span className="material-symbols-outlined text-[24px] mb-2 group-hover:scale-110 transition-transform duration-300">add_circle</span>
-            <span className="font-bold text-body-md">Create New Project</span>
-          </div>
-        </section>
+            {projects.length === 0 && (
+              <div className="col-span-full bg-surface-container-lowest rounded-xl p-8 border border-outline-variant text-center flex flex-col items-center justify-center min-h-[140px]">
+                <span className="material-symbols-outlined text-[36px] text-outline mb-2">folder_off</span>
+                <h3 className="font-bold text-body-lg text-on-surface">No Projects Found</h3>
+                <p className="text-body-sm text-on-surface-variant mt-1">Get started by creating your first project below.</p>
+              </div>
+            )}
+
+            {/* Create New Project Card */}
+            <div className="bg-surface-container-low rounded-xl border-2 border-dashed border-outline-variant flex flex-col items-center justify-center p-4 min-h-[140px] hover:border-primary hover:bg-[#F0F7FF] transition-all duration-300 cursor-pointer text-outline hover:text-primary group">
+              <span className="material-symbols-outlined text-[24px] mb-2 group-hover:scale-110 transition-transform duration-300">add_circle</span>
+              <span className="font-bold text-body-md">Create New Project</span>
+            </div>
+          </section>
         </main>
       </div>
 

@@ -33,7 +33,6 @@ class TestCaseCreate(BaseModel):
     assigned_to: uuid.UUID | None = None
     requirement_id: str | None = None
     estimated_time: str | None = None
-    tags: list[str] | None = None
     environment: str | None = None
     automation_status: str | None = None
     preconditions: str | None = None
@@ -52,7 +51,6 @@ class TestCaseUpdate(BaseModel):
     assigned_to: uuid.UUID | None = None
     requirement_id: str | None = None
     estimated_time: str | None = None
-    tags: list[str] | None = None
     environment: str | None = None
     automation_status: str | None = None
     preconditions: str | None = None
@@ -74,7 +72,6 @@ class TestCaseResponse(BaseModel):
     created_by: uuid.UUID | None = None
     requirement_id: str | None = None
     estimated_time: str | None = None
-    tags: list[str] | None = None
     environment: str | None = None
     automation_status: str | None = None
     preconditions: str | None = None

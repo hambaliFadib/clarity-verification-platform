@@ -1,14 +1,14 @@
 """Multi-project Router — Cross-project dashboard endpoints."""
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db
+from sqlalchemy.orm import Session
+from app.db.session import get_db_session
 
 router = APIRouter(prefix="/portfolio", tags=["Multi-project Dashboard"])
 
 
 @router.get("/summary")
-async def get_portfolio_summary(db: AsyncSession = Depends(get_db)):
+async def get_portfolio_summary(db: Session = Depends(get_db_session)):
     """Get portfolio-level summary."""
     from app.services.multi_project import MultiProjectService
 

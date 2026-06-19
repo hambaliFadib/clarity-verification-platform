@@ -41,7 +41,6 @@ const statements = [
     created_by uuid references users(id),
     requirement_id varchar(50),
     estimated_time varchar(30),
-    tags text[],
     environment varchar(20),
     automation_status varchar(30),
     preconditions text,

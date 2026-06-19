@@ -88,6 +88,8 @@ async function ensureColumnMigrations() {
       await query(`ALTER TABLE test_cases ALTER COLUMN severity DROP DEFAULT`);
       // Drop complexity if still present
       await query(`ALTER TABLE test_cases DROP COLUMN IF EXISTS complexity`);
+      // Drop tags column
+      await query(`ALTER TABLE test_cases DROP COLUMN IF EXISTS tags`);
       // Ensure test_steps has step detail columns
       await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS expected_result text`);
       await query(`ALTER TABLE test_steps ADD COLUMN IF NOT EXISTS test_data text`);
@@ -191,7 +193,6 @@ function mapTestCase(row: any, steps: any[] = []) {
     updatedAt: row.updated_at,
     requirementId: row.requirement_id || undefined,
     estimatedTime: row.estimated_time || undefined,
-    tags: row.tags || undefined,
     environment: row.environment || undefined,
     automationStatus: row.automation_status || undefined,
     preconditions: row.preconditions || undefined,
@@ -239,17 +240,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   if (type) filters.push(`tc.type ilike ${addValue(type)}`);
   const module = searchParams.get("module");
   if (module) filters.push(`regexp_replace(trim(tc.module), '\\s+', ' ', 'g') ilike ${addValue(module)}`);
-  const tags = searchParams.get("tags");
-  if (tags) {
-    const tagsArray = tags.split(',').map(t => t.trim()).filter(Boolean);
-    if (tagsArray.length > 0) {
-      const tagConditions = tagsArray.map(tag => {
-        const tagPlaceholder = addValue(`%${tag}%`);
-        return `EXISTS (SELECT 1 FROM unnest(tc.tags) t WHERE t ilike ${tagPlaceholder})`;
-      });
-      filters.push(`(${tagConditions.join(' OR ')})`);
-    }
-  }
+
 
   const whereSql = filters.join(" and ");
   const count = await query<{ total: string }>(`select count(*) as total from test_cases tc where ${whereSql}`, values);
@@ -289,21 +280,7 @@ export async function getTestCaseModules(ctx?: ProjectAccessContext) {
   return Array.from(modules).sort();
 }
 
-export async function getTestCaseTags(ctx?: ProjectAccessContext) {
-  const projectIds = await scopedProjectIds(ctx);
-  if (projectIds !== null && projectIds.length === 0) return [];
-  const result = await query<{ tag: string }>(
-    `select distinct unnest(tags) as tag from test_cases
-     where deleted_at is null and tags is not null
-       ${projectIds === null ? "" : "and project_id = any($1::uuid[])"}`,
-    projectIds === null ? [] : [projectIds],
-  );
-  const tags = new Set<string>();
-  for (const row of result.rows) {
-    if (row.tag) tags.add(row.tag);
-  }
-  return Array.from(tags).sort();
-}
+
 
 export async function getTestCaseSummary(ctx?: ProjectAccessContext) {
   const filters = ["tc.deleted_at is null"];
@@ -361,10 +338,10 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
     const created = await client.query(
       `insert into test_cases (
         id, display_id, title, description, module, type, severity, status,
-        assigned_to, requirement_id, estimated_time, tags, environment, automation_status,
+        assigned_to, requirement_id, estimated_time, environment, automation_status,
         preconditions, expected_result, notes, created_at, updated_at, project_id
       ) values (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
       ) returning *`,
       [
         randomUUID(),
@@ -378,7 +355,6 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
         isUuid(payload.assignedTo || payload.assigned_to) ? (payload.assignedTo || payload.assigned_to) : null,
         emptyToNull(payload.requirementId || payload.requirement_id),
         emptyToNull(payload.estimatedTime || payload.estimated_time),
-        stringArray(payload.tags),
         emptyToNull(payload.environment),
         emptyToNull(payload.automationStatus || payload.automation_status),
         emptyToNull(payload.preconditions),
@@ -455,7 +431,6 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
     }
     if (payload.requirementId !== undefined || payload.requirement_id !== undefined) fields.requirement_id = emptyToNull(payload.requirementId ?? payload.requirement_id);
     if (payload.estimatedTime !== undefined || payload.estimated_time !== undefined) fields.estimated_time = emptyToNull(payload.estimatedTime ?? payload.estimated_time);
-    if (payload.tags !== undefined) fields.tags = stringArray(payload.tags);
     if (payload.environment !== undefined) fields.environment = emptyToNull(payload.environment);
     if (payload.automationStatus !== undefined || payload.automation_status !== undefined) fields.automation_status = emptyToNull(payload.automationStatus ?? payload.automation_status);
     if (payload.preconditions !== undefined) fields.preconditions = emptyToNull(payload.preconditions);
@@ -834,6 +809,18 @@ export async function deleteEnvironment(id: string, ctx?: ProjectAccessContext) 
 }
 
 function mapProject(row: any) {
+  const requirements = row.requirements_count !== undefined ? Number(row.requirements_count) : 0;
+  const testCases = row.test_cases_count !== undefined ? Number(row.test_cases_count) : 0;
+  const defects = row.defects_count !== undefined ? Number(row.defects_count) : 0;
+
+  // Dynamic quality score calculation
+  let qualityScore = 100;
+  if (testCases > 0) {
+    qualityScore = Math.max(50, Math.min(100, Math.round(((testCases - defects) / testCases) * 100)));
+  } else if (defects > 0) {
+    qualityScore = Math.max(50, 100 - defects * 10);
+  }
+
   return {
     id: row.id,
     name: row.name,
@@ -842,6 +829,13 @@ function mapProject(row: any) {
     priority: row.default_priority,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    status: row.status || "Active",
+    quality_score: qualityScore,
+    metrics: {
+      requirements,
+      test_cases: testCases,
+      defects,
+    },
   };
 }
 
@@ -957,7 +951,10 @@ export async function listProjects(searchParams: URLSearchParams, userId?: strin
     [userId],
   );
   const result = await query(
-    `select distinct p.*
+    `select distinct p.*,
+       (select count(*) from requirements r where r.project_id = p.id and r.deleted_at is null) as requirements_count,
+       (select count(*) from test_cases tc where tc.project_id = p.id and tc.deleted_at is null) as test_cases_count,
+       (select count(*) from defects d where d.project_id = p.id and d.deleted_at is null) as defects_count
      from projects p
      left join project_members pm on pm.project_id = p.id
      where p.deleted_at is null

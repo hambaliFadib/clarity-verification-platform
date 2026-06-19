@@ -12,7 +12,6 @@ interface UseInfiniteTestCasesOptions {
   module?: string;
   type?: string;
   severity?: string;
-  tags?: string;
 }
 
 interface UseInfiniteTestCasesReturn {
@@ -29,7 +28,7 @@ interface UseInfiniteTestCasesReturn {
 export function useInfiniteTestCases(
   options: UseInfiniteTestCasesOptions = {}
 ): UseInfiniteTestCasesReturn {
-  const { search = "", status = "all", module, type, severity, tags } = options;
+  const { search = "", status = "all", module, type, severity } = options;
 
   const [items, setItems] = useState<TestCase[]>([]);
   const [total, setTotal] = useState(0);
@@ -70,10 +69,9 @@ export function useInfiniteTestCases(
       if (module) params.set("module", module);
       if (type) params.set("type", type);
       if (severity) params.set("severity", severity);
-      if (tags) params.set("tags", tags);
       return params.toString();
     },
-    [debouncedSearch, status, module, type, severity, tags]
+    [debouncedSearch, status, module, type, severity]
   );
 
   // Fetch a page of data
@@ -129,7 +127,7 @@ export function useInfiniteTestCases(
     setTotal(0);
     fetchingRef.current = false;
     fetchPage(0, false);
-  }, [debouncedSearch, status, module, type, severity, tags]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, status, module, type, severity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasMore = items.length < total;
 

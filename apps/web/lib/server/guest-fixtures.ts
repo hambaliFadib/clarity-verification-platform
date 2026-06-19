@@ -55,6 +55,13 @@ export function guestProjects(): Project[] {
     priority: "Medium",
     createdAt: now,
     updatedAt: now,
+    status: "Active",
+    quality_score: 85,
+    metrics: {
+      requirements: 1,
+      test_cases: 2,
+      defects: 1,
+    },
   }];
 }
 
@@ -102,7 +109,6 @@ export function guestTestCases(): TestCase[] {
       createdAt: now,
       updatedAt: now,
       estimatedTime: "5 min",
-      tags: ["guest", "auth"],
       environment: "Development",
       automationStatus: "Manual",
       preconditions: "User account exists in the demo system.",
@@ -125,7 +131,6 @@ export function guestTestCases(): TestCase[] {
       createdAt: now,
       updatedAt: now,
       estimatedTime: "8 min",
-      tags: ["guest", "defect"],
       environment: "Staging",
       automationStatus: "Candidate to Automate",
       expectedResult: "A defect can be reported with linked context.",
@@ -185,7 +190,6 @@ export function guestDefects(): Defect[] {
     stepsToReproduce: "1. Open guest demo\n2. Inspect sample defect",
     createdAt: now,
     updatedAt: now,
-    tags: ["guest", "sample"],
     comments: [],
   }] as Defect[];
   

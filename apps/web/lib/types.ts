@@ -32,7 +32,6 @@ export interface TestCase {
   updatedAt: string;
   requirementId?: string;
   steps: TestStep[];
-  tags?: string[];
   estimatedTime?: string;
 
   environment?: "Staging" | "Production" | "UAT" | "Development";
@@ -166,6 +165,13 @@ export interface Project {
   priority: TestCasePriority;
   createdAt?: string;
   updatedAt?: string;
+  status?: string;
+  quality_score?: number;
+  metrics?: {
+    requirements: number;
+    test_cases: number;
+    defects: number;
+  };
 }
 
 export type UserRole = "Admin" | "QA Lead" | "QA Engineer" | "Developer" | "Contributor" | "Viewer";

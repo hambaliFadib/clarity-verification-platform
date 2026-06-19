@@ -12,7 +12,6 @@ import {
   Save,
   Plus,
   Trash2,
-  Tag,
   Info,
   ListTodo,
   UserCheck,
@@ -64,7 +63,6 @@ export interface TestCaseFormValues {
 }
 
 export interface TestCaseFormSubmitPayload extends TestCaseFormValues {
-  tags: string[];
   testSteps: TestCaseFormStep[];
 }
 
@@ -76,7 +74,6 @@ interface TestCaseFormProps {
   backLabel: string;
   submitLabel: string;
   initialValues?: Partial<TestCaseFormValues>;
-  initialTags?: string[];
   showPreview?: boolean;
   onCancel: () => void;
   onSubmit: (payload: TestCaseFormSubmitPayload) => Promise<void>;
@@ -155,7 +152,6 @@ export function TestCaseForm({
   backLabel,
   submitLabel,
   initialValues,
-  initialTags,
   showPreview = false,
   onCancel,
   onSubmit,
@@ -166,9 +162,7 @@ export function TestCaseForm({
   const [subModuleOptions, setSubModuleOptions] = useState<string[]>([]);
   const [scenarioOptions, setScenarioOptions] = useState<string[]>([]);
   const [isLoadingReferenceData, setIsLoadingReferenceData] = useState(true);
-  const stableInitialTags = useMemo(() => initialTags || [], [initialTags]);
-  const [tags, setTags] = useState<string[]>(stableInitialTags);
-  const [tagInput, setTagInput] = useState("");
+
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewData, setPreviewData] = useState<TestCaseFormValues | null>(null);
   const [expandedPreviewSteps, setExpandedPreviewSteps] = useState<Record<number, boolean>>({});
@@ -205,8 +199,7 @@ export function TestCaseForm({
 
   useEffect(() => {
     reset(defaultValues);
-    setTags(stableInitialTags);
-  }, [defaultValues, stableInitialTags, reset]);
+  }, [defaultValues, reset]);
 
   useEffect(() => {
     let isMounted = true;
@@ -243,24 +236,7 @@ export function TestCaseForm({
     };
   }, []);
 
-  const addTag = () => {
-    const cleanTag = tagInput.trim().toLowerCase();
-    if (cleanTag && !tags.includes(cleanTag)) {
-      setTags([...tags, cleanTag]);
-    }
-    setTagInput("");
-  };
 
-  const handleAddTag = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      addTag();
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter((tag) => tag !== tagToRemove));
-  };
 
   const handleCancel = () => {
     if (isDirty && !confirm("Are you sure you want to discard your changes?")) {
@@ -277,7 +253,6 @@ export function TestCaseForm({
   const submitForm = async (data: TestCaseFormValues) => {
     const payload: TestCaseFormSubmitPayload = {
       ...data,
-      tags,
       testSteps: data.testSteps.map((step, index) => ({
         id: step.id || `step-${index + 1}`,
         order: index + 1,
@@ -593,44 +568,7 @@ export function TestCaseForm({
                     </div>
                   </div>
 
-                  <div>
-                    <label className={labelClass}>Tags</label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Tag className="absolute left-3 top-2.5 h-4 w-4 text-on-surface-variant/60" />
-                        <input
-                          type="text"
-                          placeholder="Type tag and press Enter or click Add"
-                          value={tagInput}
-                          onChange={(event) => setTagInput(event.target.value)}
-                          onKeyDown={handleAddTag}
-                          className={`${inputClass} pl-9`}
-                        />
-                      </div>
-                      <Button type="button" variant="secondary" onClick={addTag}>
-                        Add
-                      </Button>
-                    </div>
 
-                    {tags.length > 0 && (
-                      <div className="flex gap-1.5 flex-wrap mt-3 bg-surface-container-lowest border border-outline-variant/50 rounded-lg p-3">
-                        {tags.map((tag) => (
-                          <Badge
-                            key={tag}
-                            variant="outline"
-                            className="cursor-pointer hover:bg-error-container hover:text-on-error-container hover:border-error/30 transition-all gap-1 pl-2.5 group"
-                            onClick={() => handleRemoveTag(tag)}
-                            title="Click to remove tag"
-                          >
-                            {tag}
-                            <span className="text-[10px] font-bold text-on-surface-variant group-hover:text-error ml-0.5">
-                              x
-                            </span>
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
 
                   <div className="pt-4 border-t border-outline-variant/30 space-y-4">
                     <div className="flex items-center gap-2 pb-1">
@@ -733,8 +671,8 @@ export function TestCaseForm({
                     {index + 1}
                   </div>
 
-                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="space-y-2">
+                  <div className="flex-1 space-y-3">
+                    <div>
                       <input
                         type="text"
                         placeholder={`Step ${index + 1} Action (e.g. Navigate to /login)*`}
@@ -752,14 +690,14 @@ export function TestCaseForm({
                           {errors.testSteps[index].action.message}
                         </span>
                       )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <textarea
                         placeholder="Expected result for this step (optional)"
-                        rows={1}
-                        className={`${inputClass} min-h-[38px] py-1.5 text-on-surface-variant/90 border-outline-variant/60 focus:border-primary/50`}
+                        rows={2}
+                        className={`${inputClass} min-h-[82px] py-1.5 text-on-surface-variant/90 border-outline-variant/60 focus:border-primary/50`}
                         {...register(`testSteps.${index}.expectedResult` as const)}
                       />
-                    </div>
-                    <div>
                       <textarea
                         placeholder="Test data for this step (optional)"
                         rows={2}
@@ -1010,19 +948,19 @@ export function TestCaseForm({
                             </div>
 
                             {isExpanded && hasDetails && (
-                              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 animate-fade-in">
-                                {step.testData && (
-                                  <div className="space-y-1">
-                                    <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Test Data</span>
-                                    <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap">{step.testData}</p>
-                                  </div>
-                                )}
+                              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
                                 {step.expectedResult && (
-                                  <div className="space-y-1">
+                                  <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 space-y-1">
                                     <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Expected Result</span>
                                     <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap font-mono">
                                       {stepNumber}.1 {step.expectedResult}
                                     </p>
+                                  </div>
+                                )}
+                                {step.testData && (
+                                  <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 space-y-1">
+                                    <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Test Data</span>
+                                    <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap">{step.testData}</p>
                                   </div>
                                 )}
                               </div>

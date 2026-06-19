@@ -16,7 +16,6 @@ export async function GET(request: Request) {
       const module = searchParams.get("module");
       const type = searchParams.get("type");
       const severity = searchParams.get("severity");
-      const tags = searchParams.get("tags");
 
       if (status) {
         items = items.filter(tc => tc.status.toLowerCase() === status.toLowerCase());
@@ -33,10 +32,6 @@ export async function GET(request: Request) {
       }
       if (severity) {
         items = items.filter(tc => tc.severity === severity);
-      }
-      if (tags) {
-        const tagList = tags.toLowerCase().split(',').map(t => t.trim()).filter(Boolean);
-        items = items.filter(tc => tc.tags?.some(tag => tagList.some(q => tag.toLowerCase().includes(q))));
       }
       return NextResponse.json({ items, total: items.length });
     }

@@ -54,7 +54,6 @@ def create_test_case(db: Session, schema: TestCaseCreate, creator_id: uuid.UUID 
         created_by=creator_id,
         requirement_id=schema.requirement_id,
         estimated_time=schema.estimated_time,
-        tags=schema.tags,
         environment=schema.environment,
         automation_status=schema.automation_status,
         preconditions=schema.preconditions,

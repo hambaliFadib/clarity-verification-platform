@@ -20,7 +20,6 @@ class TestCase(Base):
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     requirement_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     estimated_time: Mapped[str | None] = mapped_column(String(30), nullable=True)
-    tags: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     environment: Mapped[str | None] = mapped_column(String(20), nullable=True)
     automation_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
     preconditions: Mapped[str | None] = mapped_column(Text, nullable=True)

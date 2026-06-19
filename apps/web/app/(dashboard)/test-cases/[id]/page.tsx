@@ -151,7 +151,6 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
         })),
         expectedResult: tc.expectedResult || "",
         notes: tc.notes || "",
-        tags: tc.tags || [],
       };
       
       const res = await fetch("/api/test-cases", {
@@ -318,16 +317,7 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
               </div>
             ))}
           </div>
-          {tc.tags && tc.tags.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
-              <span className="text-label-bold text-outline">Tags:</span>
-              {tc.tags.map((tag) => (
-                <Badge key={tag} variant="outline">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
+
           <div className="flex flex-col md:flex-row justify-between text-[11px] text-on-surface-variant/70 border-t border-outline-variant/30 pt-4 mt-4 px-1 gap-2">
             <div>
               Created by <span className="font-medium text-on-surface">{tc.createdBy}</span> on {formatDate(tc.createdAt)}
@@ -388,19 +378,19 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
                         </div>
 
                         {isExpanded && hasDetails && (
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 animate-fade-in">
-                            {step.testData && (
-                              <div className="space-y-1">
-                                <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Test Data</span>
-                                <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap">{step.testData}</p>
-                              </div>
-                            )}
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
                             {step.expectedResult && (
-                              <div className="space-y-1">
+                              <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 space-y-1">
                                 <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Expected Result</span>
                                 <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap font-mono">
                                   {step.stepNumber}.1 {step.expectedResult}
                                 </p>
+                              </div>
+                            )}
+                            {step.testData && (
+                              <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-3 space-y-1">
+                                <span className="text-[10px] font-bold text-outline uppercase tracking-wider block">Test Data</span>
+                                <p className="text-body-sm text-on-surface-variant whitespace-pre-wrap">{step.testData}</p>
                               </div>
                             )}
                           </div>

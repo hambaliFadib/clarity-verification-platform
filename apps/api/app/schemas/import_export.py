@@ -22,7 +22,6 @@ class TestCaseImportRow(BaseModel):
     assigned_to_name: str | None = None
     requirement_id: str | None = None
     estimated_time: str | None = None
-    tags: list[str] | None = None
     environment: str | None = None
     automation_status: str | None = None
     preconditions: str | None = None

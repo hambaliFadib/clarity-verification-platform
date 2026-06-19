@@ -125,7 +125,6 @@ export default function EditTestCasePage({ params }: { params: Promise<{ id: str
       backLabel="Back to Test Case Details"
       submitLabel="Save Changes"
       initialValues={initialValues}
-      initialTags={testCase.tags || []}
       onCancel={() => router.replace(`/test-cases/${id}`)}
       onSubmit={handleSubmit}
     />
