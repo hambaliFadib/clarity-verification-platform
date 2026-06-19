@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { TestCaseRow, type TestCaseNode } from "./test-case-row";
 import { ActionMenu } from "./action-menu";
 import { cn } from "@/lib/utils";
+import { ScenarioItem } from "./scenario-item";
+import { useRouter } from "next/navigation";
 
 export interface ModuleNode {
   id: string;
@@ -13,6 +15,7 @@ export interface ModuleNode {
   name: string;
   description?: string;
   scenarioCount: number;
+  subModuleCount?: number;
   testCaseCount: number;
   passRate: number;
   status: "Active" | "Inactive";
@@ -55,8 +58,37 @@ export function ModuleItem({
   onAddTestCase,
   level = 0,
 }: ModuleItemProps) {
+  const router = useRouter();
   const [subModules, setSubModules] = useState<ModuleNode[]>([]);
   const [loading, setLoading] = useState(false);
+  const [scenarios, setScenarios] = useState<any[]>([]);
+  const [scenariosLoading, setScenariosLoading] = useState(false);
+  const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
+
+  const toggleScenario = (scenarioId: string) => {
+    setExpandedScenarios((prev) => {
+      const next = new Set(prev);
+      if (next.has(scenarioId)) {
+        next.delete(scenarioId);
+      } else {
+        next.add(scenarioId);
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (level > 0 && isExpanded) {
+      setScenariosLoading(true);
+      fetch(`/api/test-cases/scenarios?subModuleId=${module.id}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          setScenarios(data);
+        })
+        .catch((err) => console.error(err))
+        .finally(() => setScenariosLoading(false));
+    }
+  }, [level, isExpanded, module.id]);
 
   useEffect(() => {
     if (isExpanded && level === 0) {
@@ -70,7 +102,7 @@ export function ModuleItem({
               displayId: sm.id,
               name: sm.name,
               description: sm.description,
-              scenarioCount: 0,
+              scenarioCount: sm.scenarioCount || 0,
               testCaseCount: sm.testCaseCount || 0,
               passRate: sm.passRate !== undefined ? sm.passRate : 100,
               status: "Active",
@@ -85,54 +117,153 @@ export function ModuleItem({
 
   if (level > 0) {
     return (
-      <div
-        className="flex items-center gap-4 py-3 pr-4 hover:bg-surface-container-low transition-colors group border-b border-outline-variant/30 last:border-b-0 last:rounded-b-xl"
-        style={{ paddingLeft: `${Math.max(1.5, level * 3)}rem` }}
-      >
-        {/* Icon */}
-        <FolderGit2 className="h-3.5 w-3.5 text-on-surface-variant group-hover:text-primary transition-colors" />
+      <div className="border-b border-outline-variant/30 last:border-b-0">
+        {/* Sub-Module Header */}
+        <div
+          className="flex items-center gap-4 py-3 pr-4 hover:bg-surface-container-low transition-colors group cursor-pointer"
+          style={{ paddingLeft: `${Math.max(1.5, level * 3)}rem` }}
+          onClick={onToggle}
+        >
+          {/* Chevron */}
+          <button
+            className={cn(
+              "p-0.5 rounded-md hover:bg-surface-container-high transition-colors",
+              isExpanded && "rotate-90"
+            )}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+          >
+            <ChevronRight className="h-3.5 w-3.5 text-on-surface-variant" />
+          </button>
 
-        {/* Title */}
-        <span className="text-body-sm text-on-surface flex-1 truncate group-hover:text-primary transition-colors">
-          {module.name}
-        </span>
+          {/* Icon */}
+          <FolderGit2 className="h-3.5 w-3.5 text-on-surface-variant group-hover:text-primary transition-colors" />
 
-        {/* Sub-Module stats */}
-        <div className="hidden sm:flex items-center gap-6 text-body-sm mr-4">
-          <div className="text-center w-24">
-            <div className="font-semibold text-on-surface">{module.scenarioCount || 0}</div>
-            <div className="text-on-surface-variant text-xs uppercase tracking-wider">Scenarios</div>
-          </div>
-          <div className="text-center w-24">
-            <div className={cn(
-              "font-semibold",
-              (module.passRate || 0) >= 80 ? "text-success" :
-              (module.passRate || 0) >= 60 ? "text-warning" : "text-error"
-            )}>
-              {module.passRate || 0}%
+          {/* Title */}
+          <span className="text-body-sm font-medium text-on-surface flex-1 truncate group-hover:text-primary transition-colors">
+            {module.name}
+          </span>
+
+          {/* Sub-Module stats */}
+          <div className="hidden sm:flex items-center gap-6 text-body-sm mr-4">
+            <div className="text-center w-24">
+              <div className="font-semibold text-on-surface">{module.scenarioCount || 0}</div>
+              <div className="text-on-surface-variant text-xs uppercase tracking-wider">Scenarios</div>
             </div>
-            <div className="text-on-surface-variant text-xs uppercase tracking-wider">Pass Rate</div>
+            <div className="text-center w-24">
+              <div className={cn(
+                "font-semibold",
+                (module.passRate || 0) >= 80 ? "text-success" :
+                (module.passRate || 0) >= 60 ? "text-warning" : "text-error"
+              )}>
+                {module.passRate || 0}%
+              </div>
+              <div className="text-on-surface-variant text-xs uppercase tracking-wider">Pass Rate</div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="ml-2">
+            <ActionMenu
+              onOpen={() => {
+                if (!isExpanded) onToggle();
+              }}
+              items={[
+                {
+                  label: "Edit Sub-Module",
+                  icon: <Edit className="h-4 w-4" />,
+                  onClick: () => onEdit?.(module),
+                },
+                {
+                  label: "Add Scenario",
+                  icon: <Plus className="h-4 w-4" />,
+                  onClick: () => {
+                    router.push(`/test-cases/scenarios/create?moduleId=${module.parentId}&subModuleId=${module.id}`);
+                  },
+                },
+                {
+                  label: "Delete Sub-Module",
+                  icon: <Trash2 className="h-4 w-4" />,
+                  onClick: () => onDelete?.(module),
+                  variant: "danger",
+                },
+              ]}
+            />
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="ml-2">
-          <ActionMenu
-            items={[
-              {
-                label: "Edit Sub-Module",
-                icon: <Edit className="h-4 w-4" />,
-                onClick: () => onEdit?.(module),
-              },
-              {
-                label: "Delete Sub-Module",
-                icon: <Trash2 className="h-4 w-4" />,
-                onClick: () => onDelete?.(module),
-                variant: "danger",
-              },
-            ]}
-          />
-        </div>
+        {/* Sub-Module Expanded Content (Scenarios List) */}
+        {isExpanded && (
+          <div 
+            className="bg-surface-container-lowest/50 border-t border-outline-variant/20 py-3 pr-4 space-y-3"
+            style={{ paddingLeft: `${Math.max(1.5, level * 3) + 1.5}rem` }}
+          >
+            {scenariosLoading && (
+              <div className="text-xs text-muted-foreground py-2">Loading scenarios...</div>
+            )}
+            
+            {!scenariosLoading && scenarios.length === 0 && (
+              <div className="text-xs text-on-surface-variant py-2 flex items-center gap-2">
+                <span>No scenarios in this sub-module.</span>
+                <Button 
+                  variant="link" 
+                  className="px-1 py-0 h-auto text-xs" 
+                  onClick={() => {
+                    router.push(`/test-cases/scenarios/create?moduleId=${module.parentId}&subModuleId=${module.id}`);
+                  }}
+                >
+                  <Plus className="h-3 w-3 mr-1" /> Add Scenario
+                </Button>
+              </div>
+            )}
+
+            {!scenariosLoading && scenarios.length > 0 && (
+              <div className="space-y-3">
+                {scenarios.map((sc) => (
+                  <ScenarioItem
+                    key={sc.id}
+                    scenario={{
+                      id: sc.id,
+                      displayId: sc.id,
+                      name: sc.name,
+                      description: sc.description,
+                      testCaseCount: sc.testCaseCount || 0,
+                      passRate: sc.passRate !== undefined ? sc.passRate : 100,
+                      status: "Approved",
+                      type: sc.type,
+                    }}
+                    isExpanded={expandedScenarios.has(sc.id)}
+                    onToggle={() => toggleScenario(sc.id)}
+                    expandedScenarios={expandedScenarios}
+                    onToggleScenario={toggleScenario}
+                    onScenarioClick={(id) => {
+                      router.push(`/test-cases/scenarios/${id}/edit`);
+                    }}
+                    onTestCaseClick={onTestCaseClick}
+                    onEdit={(scn) => {
+                      router.push(`/test-cases/scenarios/${scn.id}/edit`);
+                    }}
+                    onDelete={async (scn) => {
+                      if (confirm(`Are you sure you want to delete scenario "${scn.name}"?`)) {
+                        const res = await fetch(`/api/test-cases/scenarios/${scn.id}`, { method: "DELETE" });
+                        if (res.ok) {
+                          fetch(`/api/test-cases/scenarios?subModuleId=${module.id}`)
+                            .then((r) => (r.ok ? r.json() : []))
+                            .then((d) => setScenarios(d));
+                        }
+                      }
+                    }}
+                    onAddTestCase={(scenarioId) => {
+                      router.push(`/test-cases/create?scenarioId=${scenarioId}`);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -186,7 +317,7 @@ export function ModuleItem({
         {/* Stats */}
         <div className="hidden sm:flex items-center gap-6 text-body-sm mr-4">
           <div className="text-center w-24">
-            <div className="font-semibold text-on-surface">{module.children?.length || 0}</div>
+            <div className="font-semibold text-on-surface">{module.subModuleCount ?? 0}</div>
             <div className="text-on-surface-variant text-xs uppercase tracking-wider">Sub-Modules</div>
           </div>
           <div className="text-center w-24">

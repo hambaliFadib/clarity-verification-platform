@@ -32,6 +32,7 @@ export default function ModulesPage() {
           name: m.name,
           description: m.description || "",
           scenarioCount: 0,
+          subModuleCount: m.subModuleCount || 0,
           testCaseCount: m.testCaseCount || 0,
           passRate: m.passRate !== undefined ? m.passRate : 100,
           status: "Active",

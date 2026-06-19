@@ -1020,6 +1020,10 @@ export async function listSubModules(moduleId: string, ctx?: ProjectAccessContex
   const result = await query(
     `select sm.id, sm.name, sm.description, sm.code, sm.module_id as "moduleId",
             (
+              select count(*)::integer from tc_scenarios sc
+              where sc.sub_module_id = sm.id and sc.deleted_at is null
+            ) as "scenarioCount",
+            (
               select count(*)::integer from test_cases tc 
               where tc.deleted_at is null
                 and tc.scenario_id in (
@@ -1121,66 +1125,81 @@ export async function deleteSubModule(id: string, ctx?: ProjectAccessContext) {
 
 // --- SCENARIOS CRUD ---
 
-export async function listScenarios(ctx?: ProjectAccessContext) {
+export async function listScenarios(ctx?: ProjectAccessContext, filters?: { moduleId?: string; subModuleId?: string }) {
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return [];
 
-  const result = await query(
-    `select sc.id, sc.name, sc.description, sc.type,
-            sc.module_id as "moduleId", m.name as "moduleName",
-            sc.sub_module_id as "subModuleId", sm.name as "subModuleName",
-            sc.parent_scenario_id as "parentScenarioId",
-            (
-              with recursive sub_scenarios as (
-                select id from tc_scenarios where id = sc.id and deleted_at is null
-                union all
-                select s.id from tc_scenarios s
-                join sub_scenarios ss on s.parent_scenario_id = ss.id
-                where s.deleted_at is null
-              )
-              select count(*)::integer from test_cases tc
-              where tc.deleted_at is null
-                and tc.scenario_id in (select id from sub_scenarios)
-            ) as "testCaseCount",
-            coalesce(
-              round(
-                (
-                  with recursive sub_scenarios as (
-                    select id from tc_scenarios where id = sc.id and deleted_at is null
-                    union all
-                    select s.id from tc_scenarios s
-                    join sub_scenarios ss on s.parent_scenario_id = ss.id
-                    where s.deleted_at is null
-                  )
-                  select count(*)::float from test_cases tc
-                  where tc.deleted_at is null
-                    and tc.scenario_id in (select id from sub_scenarios)
-                    and not exists (select 1 from test_steps ts where ts.test_case_id = tc.id and ts.status = 'Failed')
-                ) / nullif(
-                  (
-                    with recursive sub_scenarios as (
-                      select id from tc_scenarios where id = sc.id and deleted_at is null
-                      union all
-                      select s.id from tc_scenarios s
-                      join sub_scenarios ss on s.parent_scenario_id = ss.id
-                      where s.deleted_at is null
-                    )
-                    select count(*)::float from test_cases tc
-                    where tc.deleted_at is null
-                      and tc.scenario_id in (select id from sub_scenarios)
-                  ), 0
-                ) * 100
-              )::integer,
-              100
-            ) as "passRate"
-     from tc_scenarios sc
-     left join tc_modules m on m.id = sc.module_id
-     left join tc_sub_modules sm on sm.id = sc.sub_module_id
-     where sc.deleted_at is null
-       ${projectIds === null ? "" : "and sc.project_id = any($1::uuid[])"}
-     order by sc.name asc`,
-    projectIds === null ? [] : [projectIds]
-  );
+  let sql = `select sc.id, sc.name, sc.description, sc.type,
+                    sc.module_id as "moduleId", m.name as "moduleName",
+                    sc.sub_module_id as "subModuleId", sm.name as "subModuleName",
+                    sc.parent_scenario_id as "parentScenarioId",
+                    (
+                      with recursive sub_scenarios as (
+                        select id from tc_scenarios where id = sc.id and deleted_at is null
+                        union all
+                        select s.id from tc_scenarios s
+                        join sub_scenarios ss on s.parent_scenario_id = ss.id
+                        where s.deleted_at is null
+                      )
+                      select count(*)::integer from test_cases tc
+                      where tc.deleted_at is null
+                        and tc.scenario_id in (select id from sub_scenarios)
+                    ) as "testCaseCount",
+                    coalesce(
+                      round(
+                        (
+                          with recursive sub_scenarios as (
+                            select id from tc_scenarios where id = sc.id and deleted_at is null
+                            union all
+                            select s.id from tc_scenarios s
+                            join sub_scenarios ss on s.parent_scenario_id = ss.id
+                            where s.deleted_at is null
+                          )
+                          select count(*)::float from test_cases tc
+                          where tc.deleted_at is null
+                            and tc.scenario_id in (select id from sub_scenarios)
+                            and not exists (select 1 from test_steps ts where ts.test_case_id = tc.id and ts.status = 'Failed')
+                        ) / nullif(
+                          (
+                            with recursive sub_scenarios as (
+                              select id from tc_scenarios where id = sc.id and deleted_at is null
+                              union all
+                              select s.id from tc_scenarios s
+                              join sub_scenarios ss on s.parent_scenario_id = ss.id
+                              where s.deleted_at is null
+                            )
+                            select count(*)::float from test_cases tc
+                            where tc.deleted_at is null
+                              and tc.scenario_id in (select id from sub_scenarios)
+                          ), 0
+                        ) * 100
+                      )::integer,
+                      100
+                    ) as "passRate"
+             from tc_scenarios sc
+             left join tc_modules m on m.id = sc.module_id
+             left join tc_sub_modules sm on sm.id = sc.sub_module_id
+             where sc.deleted_at is null`;
+
+  const params: any[] = [];
+  if (projectIds !== null) {
+    params.push(projectIds);
+    sql += ` and sc.project_id = any($${params.length})`;
+  }
+
+  if (filters?.moduleId) {
+    params.push(filters.moduleId);
+    sql += ` and sc.module_id = $${params.length}`;
+  }
+
+  if (filters?.subModuleId) {
+    params.push(filters.subModuleId);
+    sql += ` and sc.sub_module_id = $${params.length}`;
+  }
+
+  sql += ` order by sc.name asc`;
+
+  const result = await query(sql, params);
   return result.rows;
 }
 

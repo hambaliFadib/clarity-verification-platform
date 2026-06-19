@@ -5,13 +5,24 @@ import { getRequestContext, isGuestContext } from "@/lib/server/request-context"
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const subModuleId = searchParams.get("subModuleId") || undefined;
+    const moduleId = searchParams.get("moduleId") || undefined;
+
     const ctx = await getRequestContext();
     if (isGuestContext(ctx)) {
-      return NextResponse.json(guestScenarios());
+      let list = guestScenarios();
+      if (subModuleId) {
+        list = list.filter(sc => sc.subModuleId === subModuleId);
+      }
+      if (moduleId) {
+        list = list.filter(sc => sc.moduleId === moduleId);
+      }
+      return NextResponse.json(list);
     }
-    const scenarios = await listScenarios(ctx);
+    const scenarios = await listScenarios(ctx, { moduleId, subModuleId });
     return NextResponse.json(scenarios);
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
