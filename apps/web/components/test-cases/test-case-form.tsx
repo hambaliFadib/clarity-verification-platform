@@ -244,6 +244,7 @@ export function TestCaseForm({
   }, []);
 
   const watchedModuleId = watch("moduleId");
+  const watchedSubModuleId = watch("subModuleId");
 
   useEffect(() => {
     if (!watchedModuleId) {
@@ -271,6 +272,28 @@ export function TestCaseForm({
     };
   }, [watchedModuleId, setValue, getValues]);
 
+  const filteredScenarios = useMemo(() => {
+    return scenarios.filter((sc) => {
+      if (watchedModuleId && sc.moduleId !== watchedModuleId) {
+        return false;
+      }
+      if (watchedSubModuleId) {
+        return sc.subModuleId === watchedSubModuleId;
+      }
+      if (watchedModuleId) {
+        return sc.moduleId === watchedModuleId && (!sc.subModuleId || sc.subModuleId === "");
+      }
+      return false;
+    });
+  }, [scenarios, watchedModuleId, watchedSubModuleId]);
+
+  useEffect(() => {
+    const currentScenarioId = getValues("scenarioId");
+    if (currentScenarioId && !filteredScenarios.some((sc) => sc.id === currentScenarioId)) {
+      setValue("scenarioId", "");
+    }
+  }, [filteredScenarios, setValue, getValues]);
+
   const moduleNames = useMemo(() => modules.map(m => m.name), [modules]);
   const moduleNameToId = useMemo(() => new Map(modules.map(m => [m.name, m.id])), [modules]);
   const moduleIdToName = useMemo(() => new Map(modules.map(m => [m.id, m.name])), [modules]);
@@ -279,7 +302,7 @@ export function TestCaseForm({
   const subModuleNameToId = useMemo(() => new Map(subModules.map(sm => [sm.name, sm.id])), [subModules]);
   const subModuleIdToName = useMemo(() => new Map(subModules.map(sm => [sm.id, sm.name])), [subModules]);
 
-  const scenarioNames = useMemo(() => scenarios.map(sc => sc.name), [scenarios]);
+  const scenarioNames = useMemo(() => filteredScenarios.map(sc => sc.name), [filteredScenarios]);
   const scenarioNameToId = useMemo(() => new Map(scenarios.map(sc => [sc.name, sc.id])), [scenarios]);
   const scenarioIdToName = useMemo(() => new Map(scenarios.map(sc => [sc.id, sc.name])), [scenarios]);
 
@@ -473,7 +496,8 @@ export function TestCaseForm({
                               field.onChange(id);
                             }}
                             options={subModuleNames}
-                            placeholder="Select a sub-module..."
+                            placeholder={watchedModuleId ? "Select a sub-module..." : "Select a module first..."}
+                            disabled={!watchedModuleId}
                             error={!!errors.subModuleId}
                           />
                         )}
@@ -496,7 +520,8 @@ export function TestCaseForm({
                               field.onChange(id);
                             }}
                             options={scenarioNames}
-                            placeholder="Select a scenario..."
+                            placeholder={watchedModuleId ? "Select a scenario..." : "Select a module first..."}
+                            disabled={!watchedModuleId}
                             error={!!errors.scenarioId}
                           />
                         )}
