@@ -202,7 +202,7 @@ export function ScenarioForm({
                     <input
                       type="text"
                       placeholder="e.g. Login Flow Scenario"
-                      className={`${inputClass} ${
+                      className={`h-10 ${inputClass} ${
                         errors.title ? "border-error focus:border-error focus:ring-error/20" : ""
                       }`}
                       {...register("title", {

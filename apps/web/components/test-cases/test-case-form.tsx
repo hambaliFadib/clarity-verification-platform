@@ -441,7 +441,7 @@ export function TestCaseForm({
                     <input
                       type="text"
                       placeholder="e.g. Verify password requirements on sign up"
-                      className={`${inputClass} ${
+                      className={`h-10 ${inputClass} ${
                         errors.title ? "border-error focus:border-error focus:ring-error/20" : ""
                       }`}
                       {...register("title", {
@@ -652,7 +652,7 @@ export function TestCaseForm({
                       <input
                         type="text"
                         placeholder="e.g. REQ-AUTH-001"
-                        className={inputClass}
+                        className={`h-10 ${inputClass}`}
                         {...register("requirementId")}
                       />
                     </div>
@@ -662,7 +662,7 @@ export function TestCaseForm({
                       <input
                         type="text"
                         placeholder="e.g. 10 min, 1h"
-                        className={inputClass}
+                        className={`h-10 ${inputClass}`}
                         {...register("estimatedTime")}
                       />
                     </div>
@@ -776,7 +776,7 @@ export function TestCaseForm({
                       <input
                         type="text"
                         placeholder={`Step ${index + 1} Action (e.g. Navigate to /login)*`}
-                        className={`${inputClass} ${
+                        className={`h-10 ${inputClass} ${
                           errors.testSteps?.[index]?.action
                             ? "border-error focus:border-error focus:ring-error/20"
                             : ""

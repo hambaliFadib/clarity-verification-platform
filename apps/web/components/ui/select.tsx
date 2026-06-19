@@ -46,7 +46,7 @@ export function Select({ value, onChange, options, placeholder, className, error
         <button
           type="button"
           className={cn(
-            "w-full border rounded-lg px-3 py-2 text-body-sm bg-white focus:outline-none focus:ring-1 transition-all text-left pr-10",
+            "w-full h-10 border rounded-lg px-3 py-2 text-body-sm bg-white focus:outline-none focus:ring-1 transition-all text-left pr-10",
             error ? "border-error focus:border-error focus:ring-error/20" : "border-outline-variant focus:border-primary-container focus:ring-primary-fixed-dim",
             className
           )}
