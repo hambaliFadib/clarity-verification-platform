@@ -105,21 +105,6 @@ function ScenariosContent() {
     }
   };
 
-  const handleReorderScenario = async (id: string, direction: "up" | "down") => {
-    try {
-      const res = await fetch("/api/test-cases/scenarios/reorder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, direction }),
-      });
-      if (res.ok) {
-        fetchScenarios();
-      }
-    } catch (err) {
-      console.error("Failed to reorder scenario", err);
-    }
-  };
-
   return (
     <PageContainer>
       <PageHeader
@@ -179,7 +164,6 @@ function ScenariosContent() {
         onEditScenario={(scn) => router.push(`/test-cases/scenarios/${scn.id}/edit`)}
         onDeleteScenario={handleDeleteScenario}
         onAddTestCase={(scenarioId) => router.push(`/test-cases/create?scenarioId=${scenarioId}`)}
-        onReorderScenario={handleReorderScenario}
       />
 
       <ImportExportModal

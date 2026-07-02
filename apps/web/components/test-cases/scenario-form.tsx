@@ -276,10 +276,6 @@ export function ScenarioForm({
                     >
                       <option value="Positive">Positive</option>
                       <option value="Negative">Negative</option>
-                      <option value="Edge Case">Edge Case</option>
-                      <option value="Boundary">Boundary</option>
-                      <option value="Security">Security</option>
-                      <option value="Performance">Performance</option>
                     </select>
                     {errors.type && (
                       <span className="text-body-sm text-error mt-1 block" role="alert">

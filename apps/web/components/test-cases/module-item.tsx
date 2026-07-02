@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { ChevronRight, FolderGit2, Plus, Edit, Trash2, Boxes } from "lucide-react";
+import { ChevronRight, FolderGit2, Plus, Edit, Trash2, Boxes, ArrowUp, ArrowDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TestCaseRow, type TestCaseNode } from "./test-case-row";
@@ -75,6 +75,26 @@ export function ModuleItem({
       }
       return next;
     });
+  };
+
+  const handleReorderScenario = async (id: string, direction: "up" | "down") => {
+    try {
+      const res = await fetch("/api/test-cases/scenarios/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, direction }),
+      });
+      if (res.ok) {
+        // Refetch scenarios list for this sub-module
+        const r = await fetch(`/api/test-cases/scenarios?subModuleId=${module.id}`);
+        if (r.ok) {
+          const d = await r.json();
+          setScenarios(d);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to reorder scenario", err);
+    }
   };
 
   useEffect(() => {
@@ -270,7 +290,29 @@ export function ModuleItem({
                     </div>
 
                     {/* Actions */}
-                    <div className="ml-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="ml-2 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                      {/* Reorder Buttons */}
+                      <button
+                        className="p-1.5 rounded-md hover:bg-surface-container-high transition-colors"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await handleReorderScenario(sc.id, "up");
+                        }}
+                        title="Move Up"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5 text-on-surface-variant" />
+                      </button>
+                      <button
+                        className="p-1.5 rounded-md hover:bg-surface-container-high transition-colors"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await handleReorderScenario(sc.id, "down");
+                        }}
+                        title="Move Down"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5 text-on-surface-variant" />
+                      </button>
+
                       <ActionMenu
                         items={[
                           {
