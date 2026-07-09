@@ -377,7 +377,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
 
   const moduleId = searchParams.get("moduleId") || searchParams.get("module_id");
   if (moduleId) {
-    filters.push(`(sc.module_id = ${addValue(moduleId)}::uuid or sm.module_id = ${addValue(moduleId)}::uuid)`);
+    filters.push(`coalesce(tc.module_id, sc.module_id, sm.module_id) = ${addValue(moduleId)}::uuid`);
   } else {
     const module = searchParams.get("module");
     if (module) filters.push(`m.name ilike ${addValue(module)}`);
@@ -385,7 +385,7 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
 
   const subModuleId = searchParams.get("subModuleId") || searchParams.get("sub_module_id");
   if (subModuleId) {
-    filters.push(`sc.sub_module_id = ${addValue(subModuleId)}::uuid`);
+    filters.push(`coalesce(tc.sub_module_id, sc.sub_module_id) = ${addValue(subModuleId)}::uuid`);
   }
   const scenarioId = searchParams.get("scenarioId") || searchParams.get("scenario_id");
   if (scenarioId) {
@@ -396,9 +396,9 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
   const count = await query<{ total: string }>(
     `select count(*) as total 
      from test_cases tc 
-     left join tc_scenarios sc on sc.id = tc.scenario_id
-     left join tc_sub_modules sm on sm.id = sc.sub_module_id
-     left join tc_modules m on m.id = coalesce(sc.module_id, sm.module_id)
+     left join tc_scenarios sc on sc.id = tc.scenario_id and sc.deleted_at is null
+     left join tc_sub_modules sm on sm.id = coalesce(tc.sub_module_id, sc.sub_module_id) and sm.deleted_at is null
+     left join tc_modules m on m.id = coalesce(tc.module_id, sc.module_id, sm.module_id) and m.deleted_at is null
      left join users assignee on assignee.id = tc.assigned_to
      where ${whereSql}`, 
     values
@@ -409,17 +409,17 @@ export async function listTestCases(searchParams: URLSearchParams, ctx?: Project
     `select tc.*, 
             assignee.name as assigned_to_name, 
             creator.name as created_by_name,
-            coalesce(sc.module_id, sm.module_id) as module_id,
+            coalesce(tc.module_id, sc.module_id, sm.module_id) as module_id,
             m.name as module_name,
-            sc.sub_module_id as sub_module_id,
+            coalesce(tc.sub_module_id, sc.sub_module_id) as sub_module_id,
             sm.name as sub_module_name,
             sc.name as scenario_name
      from test_cases tc
      left join users assignee on assignee.id = tc.assigned_to
      left join users creator on creator.id = tc.created_by
-     left join tc_scenarios sc on sc.id = tc.scenario_id
-     left join tc_sub_modules sm on sm.id = sc.sub_module_id
-     left join tc_modules m on m.id = coalesce(sc.module_id, sm.module_id)
+     left join tc_scenarios sc on sc.id = tc.scenario_id and sc.deleted_at is null
+     left join tc_sub_modules sm on sm.id = coalesce(tc.sub_module_id, sc.sub_module_id) and sm.deleted_at is null
+     left join tc_modules m on m.id = coalesce(tc.module_id, sc.module_id, sm.module_id) and m.deleted_at is null
      where ${whereSql}
      order by coalesce(cast(nullif(substring(tc.display_id from 'TC-([0-9]+)$'), '') as integer), 999999) asc, tc.created_at asc
      offset ${offset} limit ${limit}`,
@@ -635,17 +635,17 @@ export async function createTestCase(payload: any, ctx?: ProjectAccessContext) {
       `select tc.*, 
               assignee.name as assigned_to_name, 
               creator.name as created_by_name,
-              coalesce(sc.module_id, sm.module_id) as module_id,
+              coalesce(tc.module_id, sc.module_id, sm.module_id) as module_id,
               m.name as module_name,
-              sc.sub_module_id as sub_module_id,
+              coalesce(tc.sub_module_id, sc.sub_module_id) as sub_module_id,
               sm.name as sub_module_name,
               sc.name as scenario_name
        from test_cases tc
        left join users assignee on assignee.id = tc.assigned_to
        left join users creator on creator.id = tc.created_by
-       left join tc_scenarios sc on sc.id = tc.scenario_id
-       left join tc_sub_modules sm on sm.id = sc.sub_module_id
-       left join tc_modules m on m.id = coalesce(sc.module_id, sm.module_id)
+       left join tc_scenarios sc on sc.id = tc.scenario_id and sc.deleted_at is null
+       left join tc_sub_modules sm on sm.id = coalesce(tc.sub_module_id, sc.sub_module_id) and sm.deleted_at is null
+       left join tc_modules m on m.id = coalesce(tc.module_id, sc.module_id, sm.module_id) and m.deleted_at is null
        where tc.id = $1`,
       [created.rows[0].id]
     );
@@ -662,17 +662,17 @@ export async function getTestCase(displayId: string, ctx?: ProjectAccessContext)
     `select tc.*, 
             assignee.name as assigned_to_name, 
             creator.name as created_by_name,
-            coalesce(sc.module_id, sm.module_id) as module_id,
+            coalesce(tc.module_id, sc.module_id, sm.module_id) as module_id,
             m.name as module_name,
-            sc.sub_module_id as sub_module_id,
+            coalesce(tc.sub_module_id, sc.sub_module_id) as sub_module_id,
             sm.name as sub_module_name,
             sc.name as scenario_name
      from test_cases tc
      left join users assignee on assignee.id = tc.assigned_to
      left join users creator on creator.id = tc.created_by
-     left join tc_scenarios sc on sc.id = tc.scenario_id
-     left join tc_sub_modules sm on sm.id = sc.sub_module_id
-     left join tc_modules m on m.id = coalesce(sc.module_id, sm.module_id)
+     left join tc_scenarios sc on sc.id = tc.scenario_id and sc.deleted_at is null
+     left join tc_sub_modules sm on sm.id = coalesce(tc.sub_module_id, sc.sub_module_id) and sm.deleted_at is null
+     left join tc_modules m on m.id = coalesce(tc.module_id, sc.module_id, sm.module_id) and m.deleted_at is null
      where tc.display_id = $1 and tc.deleted_at is null
        ${projectIds === null ? "" : "and tc.project_id = any($2::uuid[])"}
      limit 1`,
@@ -826,17 +826,17 @@ export async function updateTestCase(displayId: string, payload: any, ctx?: Proj
       `select tc.*, 
               assignee.name as assigned_to_name, 
               creator.name as created_by_name,
-              coalesce(sc.module_id, sm.module_id) as module_id,
+              coalesce(tc.module_id, sc.module_id, sm.module_id) as module_id,
               m.name as module_name,
-              sc.sub_module_id as sub_module_id,
+              coalesce(tc.sub_module_id, sc.sub_module_id) as sub_module_id,
               sm.name as sub_module_name,
               sc.name as scenario_name
        from test_cases tc
        left join users assignee on assignee.id = tc.assigned_to
        left join users creator on creator.id = tc.created_by
-       left join tc_scenarios sc on sc.id = tc.scenario_id
-       left join tc_sub_modules sm on sm.id = sc.sub_module_id
-       left join tc_modules m on m.id = coalesce(sc.module_id, sm.module_id)
+       left join tc_scenarios sc on sc.id = tc.scenario_id and sc.deleted_at is null
+       left join tc_sub_modules sm on sm.id = coalesce(tc.sub_module_id, sc.sub_module_id) and sm.deleted_at is null
+       left join tc_modules m on m.id = coalesce(tc.module_id, sc.module_id, sm.module_id) and m.deleted_at is null
        where tc.id = $1`,
       [row.id]
     );
@@ -1270,15 +1270,44 @@ export async function deleteScenario(id: string, ctx?: ProjectAccessContext) {
   const projectIds = await scopedProjectIds(ctx);
   if (projectIds !== null && projectIds.length === 0) return false;
 
+  // Check if scenario contains any active test cases (including sub-scenarios)
+  const tcCheck = await query<{ count: string }>(
+    `with recursive sub_scenarios as (
+       select id from tc_scenarios where id = $1 and deleted_at is null
+       union all
+       select s.id from tc_scenarios s
+       join sub_scenarios ss on s.parent_scenario_id = ss.id
+       where s.deleted_at is null
+     )
+     select count(*)::integer as count from test_cases tc
+     where tc.deleted_at is null
+       and tc.scenario_id in (select id from sub_scenarios)`,
+    [id]
+  );
+
+  const tcCount = Number(tcCheck.rows[0]?.count || 0);
+  if (tcCount > 0) {
+    throw new Error("Cannot delete scenario that contains test cases. Please delete or reassign the test cases first.");
+  }
+
+  // Soft delete all sub-scenarios recursively
   const result = await query(
-    `update tc_scenarios 
-     set deleted_at = now(), updated_at = now() 
-     where id = $1 and deleted_at is null
+    `with recursive sub_scenarios as (
+       select id from tc_scenarios where id = $1 and deleted_at is null
+       union all
+       select s.id from tc_scenarios s
+       join sub_scenarios ss on s.parent_scenario_id = ss.id
+       where s.deleted_at is null
+     )
+     update tc_scenarios
+     set deleted_at = now(), updated_at = now()
+     where id in (select id from sub_scenarios) and deleted_at is null
        ${projectIds === null ? "" : "and project_id = any($2::uuid[])"}`,
     projectIds === null ? [id] : [id, projectIds]
   );
   return (result.rowCount || 0) > 0;
 }
+
 
 function mapDefectComment(row: any) {
   return {

@@ -96,7 +96,8 @@ function ScenariosContent() {
         if (res.ok) {
           fetchScenarios();
         } else {
-          alert("Failed to delete scenario");
+          const data = await res.json().catch(() => ({}));
+          alert(data.error || "Failed to delete scenario");
         }
       } catch (err) {
         console.error(err);

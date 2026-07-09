@@ -56,6 +56,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const success = await deleteScenario(id, ctx);
     return NextResponse.json({ success });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const status = error.message.includes("contains test cases") ? 400 : 500;
+    return NextResponse.json({ success: false, error: error.message }, { status });
   }
 }
+
